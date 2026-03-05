@@ -2,6 +2,7 @@ import { Box, Text } from "ink";
 import type { Block } from "../api/types";
 import { timeAgo } from "../lib/format";
 import { blockColor } from "../lib/theme";
+import { TerminalImage } from "./TerminalImage";
 
 export function BlockContent({ block }: { block: Block }) {
   const color = blockColor(block.type);
@@ -30,8 +31,11 @@ export function BlockContent({ block }: { block: Block }) {
       )}
 
       {block.type === "Image" && block.image && (
-        <Box marginTop={block.title ? 1 : 0}>
-          <Text color="yellow">{block.image.filename}</Text>
+        <Box flexDirection="column" marginTop={block.title ? 1 : 0}>
+          <TerminalImage src={block.image.src} />
+          <Text dimColor>
+            {block.image.filename} · {block.image.width}x{block.image.height}
+          </Text>
         </Box>
       )}
 
