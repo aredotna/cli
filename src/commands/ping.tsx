@@ -10,7 +10,5 @@ export function PingCommand() {
   if (error) return <Text color="red">✕ {error}</Text>;
   if (!data) return null;
 
-  return (
-    <Text color="green">✓ {data.status}</Text>
-  );
+  return <Text color="green">✓ {data.status}</Text>;
 }

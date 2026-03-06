@@ -44,7 +44,11 @@ export const config = {
   },
 
   getClientId(): string {
-    return process.env["ARENA_CLIENT_ID"] || read().client_id || "a-2__kXA3JH0X5pMnYsFvY2BY9dVQ30sIBkgeoLoO90";
+    return (
+      process.env["ARENA_CLIENT_ID"] ||
+      read().client_id ||
+      "a-2__kXA3JH0X5pMnYsFvY2BY9dVQ30sIBkgeoLoO90"
+    );
   },
 
   setClientId(id: string): void {

@@ -28,14 +28,10 @@ interface Props {
 
 export function ChannelCommand({ slug, page: initialPage, per = 24 }: Props) {
   if (!process.stdin.isTTY) {
-    return (
-      <StaticChannelView slug={slug} page={initialPage ?? 1} per={per} />
-    );
+    return <StaticChannelView slug={slug} page={initialPage ?? 1} per={per} />;
   }
 
-  return (
-    <InteractiveChannel slug={slug} initialPage={initialPage} per={per} />
-  );
+  return <InteractiveChannel slug={slug} initialPage={initialPage} per={per} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -56,9 +52,7 @@ export function InteractiveChannel({
   const { exit } = useApp();
   const onExit = onExitProp ?? exit;
 
-  const [stack, setStack] = useState<NavItem[]>([
-    { kind: "channel", slug },
-  ]);
+  const [stack, setStack] = useState<NavItem[]>([{ kind: "channel", slug }]);
 
   const stackRef = useRef(stack);
   stackRef.current = stack;
@@ -126,7 +120,8 @@ function ChannelBrowser({
   const [page, setPage] = useState(initialPage);
   const [cursor, setCursor] = useState(0);
   const [channel, setChannel] = useState<Channel | null>(null);
-  const [contents, setContents] = useState<PaginatedResponse<Connectable> | null>(null);
+  const [contents, setContents] =
+    useState<PaginatedResponse<Connectable> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -174,7 +169,10 @@ function ChannelBrowser({
         const blockIndex = blockIds.indexOf(item.id);
         onNavigate({ kind: "block", blockIds, index: blockIndex });
       }
-    } else if ((input === "n" || key.rightArrow) && contents.meta.has_more_pages) {
+    } else if (
+      (input === "n" || key.rightArrow) &&
+      contents.meta.has_more_pages
+    ) {
       setPage((p) => p + 1);
     } else if ((input === "p" || key.leftArrow) && page > 1) {
       setPage((p) => p - 1);
@@ -196,7 +194,7 @@ function ChannelBrowser({
     return (
       <Box flexDirection="column">
         <Text color="red">✕ {error}</Text>
-        <Text dimColor>  Press q to go back</Text>
+        <Text dimColor> Press q to go back</Text>
       </Box>
     );
   }
@@ -298,7 +296,7 @@ export function BlockViewer({
     return (
       <Box flexDirection="column">
         <Text color="red">✕ {error}</Text>
-        <Text dimColor>  Press q to go back</Text>
+        <Text dimColor> Press q to go back</Text>
       </Box>
     );
   }
@@ -350,7 +348,7 @@ function StaticChannelView({
       <Box flexDirection="column">
         <Text color="red">✕ {error}</Text>
         {error.includes("Not Found") && (
-          <Text dimColor>  Check the channel slug and try again</Text>
+          <Text dimColor> Check the channel slug and try again</Text>
         )}
       </Box>
     );

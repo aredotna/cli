@@ -26,8 +26,10 @@ export function UserView({ slug }: UserViewProps) {
         {data.counts
           ? `${plural(data.counts.channels, "channel")} · ${plural(data.counts.followers, "follower")} · ${data.counts.following} following`
           : [
-              data.channel_count !== undefined && plural(data.channel_count, "channel"),
-              data.follower_count !== undefined && plural(data.follower_count, "follower"),
+              data.channel_count !== undefined &&
+                plural(data.channel_count, "channel"),
+              data.follower_count !== undefined &&
+                plural(data.follower_count, "follower"),
             ]
               .filter(Boolean)
               .join(" · ")}
@@ -118,7 +120,12 @@ interface UserFollowingProps {
   type?: string;
 }
 
-export function UserFollowing({ slug, page = 1, per, type }: UserFollowingProps) {
+export function UserFollowing({
+  slug,
+  page = 1,
+  per,
+  type,
+}: UserFollowingProps) {
   const { data, error, loading } = useCommand(() =>
     arena.getUserFollowing(slug, { page, per, type }),
   );

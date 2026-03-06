@@ -25,7 +25,7 @@ export function SearchCommand({ query, page = 1, per = 24, type }: Props) {
       <Box flexDirection="column">
         <Text color="red">✕ {error}</Text>
         {error.includes("Forbidden") && (
-          <Text dimColor>  Search requires an Are.na Premium subscription</Text>
+          <Text dimColor> Search requires an Are.na Premium subscription</Text>
         )}
       </Box>
     );
@@ -63,19 +63,11 @@ export function SearchCommand({ query, page = 1, per = 24, type }: Props) {
 
           if (item.type === "Channel") {
             return (
-              <BlockItem
-                key={`channel-${item.id}`}
-                item={item as ChannelRef}
-              />
+              <BlockItem key={`channel-${item.id}`} item={item as ChannelRef} />
             );
           }
 
-          return (
-            <BlockItem
-              key={`block-${item.id}`}
-              item={item as Block}
-            />
-          );
+          return <BlockItem key={`block-${item.id}`} item={item as Block} />;
         })}
       </Box>
 

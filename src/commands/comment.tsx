@@ -21,7 +21,7 @@ export function CommentCommand({ blockId, body }: Props) {
       <Box flexDirection="column">
         <Text color="red">✕ {error}</Text>
         {error.includes("Unauthorized") && (
-          <Text dimColor>  Run `arena login` to authenticate</Text>
+          <Text dimColor> Run `arena login` to authenticate</Text>
         )}
       </Box>
     );

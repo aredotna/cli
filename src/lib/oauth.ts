@@ -1,8 +1,4 @@
-import {
-  createServer,
-  type IncomingMessage,
-  type ServerResponse,
-} from "http";
+import { createServer, type IncomingMessage, type ServerResponse } from "http";
 import { randomBytes, createHash } from "crypto";
 import { openUrl } from "./open";
 
@@ -42,45 +38,43 @@ export async function performOAuthFlow(
   }>((resolve, reject) => {
     let listenPort = 0;
 
-    const server = createServer(
-      (req: IncomingMessage, res: ServerResponse) => {
-        const url = new URL(req.url!, `http://127.0.0.1:${listenPort}`);
+    const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+      const url = new URL(req.url!, `http://127.0.0.1:${listenPort}`);
 
-        if (url.pathname !== "/callback") {
-          res.writeHead(404);
-          res.end();
-          return;
-        }
+      if (url.pathname !== "/callback") {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
 
-        const error = url.searchParams.get("error");
-        if (error) {
-          const desc = url.searchParams.get("error_description") || error;
-          res.writeHead(200, { "Content-Type": "text/html" });
-          res.end(resultPage(false, desc));
-          clearTimeout(timeout);
-          server.close();
-          reject(new Error(desc));
-          return;
-        }
-
-        const authCode = url.searchParams.get("code");
-        if (!authCode) {
-          res.writeHead(400);
-          res.end();
-          return;
-        }
-
+      const error = url.searchParams.get("error");
+      if (error) {
+        const desc = url.searchParams.get("error_description") || error;
         res.writeHead(200, { "Content-Type": "text/html" });
-        res.end(resultPage(true));
+        res.end(resultPage(false, desc));
         clearTimeout(timeout);
-        callbacks?.onCodeReceived?.();
-        resolve({
-          code: authCode,
-          redirectUri: `http://127.0.0.1:${listenPort}/callback`,
-        });
         server.close();
-      },
-    );
+        reject(new Error(desc));
+        return;
+      }
+
+      const authCode = url.searchParams.get("code");
+      if (!authCode) {
+        res.writeHead(400);
+        res.end();
+        return;
+      }
+
+      res.writeHead(200, { "Content-Type": "text/html" });
+      res.end(resultPage(true));
+      clearTimeout(timeout);
+      callbacks?.onCodeReceived?.();
+      resolve({
+        code: authCode,
+        redirectUri: `http://127.0.0.1:${listenPort}/callback`,
+      });
+      server.close();
+    });
 
     const timeout = setTimeout(() => {
       server.close();

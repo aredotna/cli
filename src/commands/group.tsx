@@ -37,7 +37,12 @@ interface GroupContentsProps {
   type?: string;
 }
 
-export function GroupContents({ slug, page = 1, per, type }: GroupContentsProps) {
+export function GroupContents({
+  slug,
+  page = 1,
+  per,
+  type,
+}: GroupContentsProps) {
   const { data, error, loading } = useCommand(() =>
     arena.getGroupContents(slug, { page, per, type }),
   );

@@ -204,9 +204,7 @@ class ArenaClient {
     idOrSlug: string | number,
     params?: PaginationParams,
   ): Promise<PaginatedResponse<User>> {
-    return this.request(
-      `/channels/${idOrSlug}/followers${buildQuery(params)}`,
-    );
+    return this.request(`/channels/${idOrSlug}/followers${buildQuery(params)}`);
   }
 
   // ── Connections ──

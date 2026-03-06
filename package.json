@@ -15,7 +15,13 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsx src/cli.tsx",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,json,md}": "prettier --write"
   },
   "dependencies": {
     "ink": "^6.8.0",
@@ -25,6 +31,9 @@
   "devDependencies": {
     "@types/node": "^25.3.3",
     "@types/react": "^19.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.3.2",
+    "prettier": "^3.8.1",
     "tsup": "^8.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.5.0"

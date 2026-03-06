@@ -18,7 +18,7 @@ export function BlockCommand({ id }: Props) {
       <Box flexDirection="column">
         <Text color="red">✕ {error}</Text>
         {error.includes("Not Found") && (
-          <Text dimColor>  Check that the block ID is correct</Text>
+          <Text dimColor> Check that the block ID is correct</Text>
         )}
       </Box>
     );

@@ -14,7 +14,7 @@ export function WhoamiCommand() {
       <Box flexDirection="column">
         <Text color="red">✕ {error}</Text>
         {error.includes("Unauthorized") && (
-          <Text dimColor>  Run `arena login` to authenticate</Text>
+          <Text dimColor> Run `arena login` to authenticate</Text>
         )}
       </Box>
     );
@@ -27,9 +27,12 @@ export function WhoamiCommand() {
       <Text bold>{data.name}</Text>
       <Text dimColor>@{data.slug}</Text>
       <Text dimColor>
-        {data.channel_count !== undefined && plural(data.channel_count, "channel")}
-        {data.following_count !== undefined && ` · ${plural(data.following_count, "following")}`}
-        {data.follower_count !== undefined && ` · ${plural(data.follower_count, "follower")}`}
+        {data.channel_count !== undefined &&
+          plural(data.channel_count, "channel")}
+        {data.following_count !== undefined &&
+          ` · ${plural(data.following_count, "following")}`}
+        {data.follower_count !== undefined &&
+          ` · ${plural(data.follower_count, "follower")}`}
       </Text>
     </Box>
   );

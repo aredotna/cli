@@ -28,7 +28,7 @@ function LoginToken({ token }: { token: string }) {
     return (
       <Box flexDirection="column">
         <Text color="red">✕ {error}</Text>
-        <Text dimColor>  Check that your token is valid</Text>
+        <Text dimColor> Check that your token is valid</Text>
       </Box>
     );
   }
@@ -110,7 +110,7 @@ function LoginSuccess({ user }: { user: User }) {
         <Text bold>{user.name}</Text>
         <Text dimColor> @{user.slug}</Text>
       </Box>
-      <Text dimColor>  Token saved to {config.getConfigPath()}</Text>
+      <Text dimColor> Token saved to {config.getConfigPath()}</Text>
     </Box>
   );
 }
