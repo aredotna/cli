@@ -1,6 +1,15 @@
 import React from "react";
-import type { Movement, Visibility } from "../api/types";
-import { arena } from "../api/client";
+import type {
+  ContentTypeFilter,
+  FileExtension,
+  FollowableType,
+  Movement,
+  SearchScope,
+  SearchSort,
+  SearchTypeFilter,
+  Visibility,
+} from "../api/types";
+import { client, getData } from "../api/client";
 import {
   flag,
   idArg,
@@ -143,37 +152,69 @@ export const commands: CommandDefinition[] = [
       const visibility = flag(flags, "visibility") as Visibility | undefined;
       switch (sub) {
         case "create":
-          return arena.createChannel(requireArg(args, 1, "title"), {
-            visibility,
-            description: flag(flags, "description"),
-          });
+          return getData(
+            client.POST("/v3/channels", {
+              body: {
+                title: requireArg(args, 1, "title"),
+                visibility,
+                description: flag(flags, "description"),
+              },
+            }),
+          );
         case "update":
-          return arena.updateChannel(requireArg(args, 1, "slug"), {
-            title: flag(flags, "title"),
-            visibility,
-            description: flag(flags, "description"),
-          });
+          return getData(
+            client.PUT("/v3/channels/{id}", {
+              params: { path: { id: requireArg(args, 1, "slug") } },
+              body: {
+                title: flag(flags, "title"),
+                visibility,
+                description: flag(flags, "description"),
+              },
+            }),
+          );
         case "delete":
-          await arena.deleteChannel(requireArg(args, 1, "slug"));
+          await client.DELETE("/v3/channels/{id}", {
+            params: { path: { id: requireArg(args, 1, "slug") } },
+          });
           return { deleted: true, slug: requireArg(args, 1, "slug") };
         case "connections":
-          return arena.getChannelConnections(requireArg(args, 1, "slug"), {
-            page: page(flags),
-            per: per(flags),
-          });
+          return getData(
+            client.GET("/v3/channels/{id}/connections", {
+              params: {
+                path: { id: requireArg(args, 1, "slug") },
+                query: { page: page(flags), per: per(flags) },
+              },
+            }),
+          );
         case "followers":
-          return arena.getChannelFollowers(requireArg(args, 1, "slug"), {
-            page: page(flags),
-            per: per(flags),
-          });
+          return getData(
+            client.GET("/v3/channels/{id}/followers", {
+              params: {
+                path: { id: requireArg(args, 1, "slug") },
+                query: { page: page(flags), per: per(flags) },
+              },
+            }),
+          );
         default: {
           const slug = requireArg(args, 0, "slug");
           const [channel, contents] = await Promise.all([
-            arena.getChannel(slug),
-            arena.getChannelContents(slug, {
-              page: page(flags),
-              per: per(flags),
-            }),
+            getData(
+              client.GET("/v3/channels/{id}", {
+                params: { path: { id: slug } },
+              }),
+            ),
+            getData(
+              client.GET("/v3/channels/{id}/contents", {
+                params: {
+                  path: { id: slug },
+                  query: {
+                    page: page(flags),
+                    per: per(flags),
+                    sort: "position_desc",
+                  },
+                },
+              }),
+            ),
           ]);
           return {
             ...channel,
@@ -233,24 +274,41 @@ export const commands: CommandDefinition[] = [
       const sub = args[0];
       switch (sub) {
         case "update":
-          return arena.updateBlock(idArg(args, 1, "block id"), {
-            title: flag(flags, "title"),
-            description: flag(flags, "description"),
-            content: flag(flags, "content"),
-            alt_text: flag(flags, "alt-text"),
-          });
+          return getData(
+            client.PUT("/v3/blocks/{id}", {
+              params: { path: { id: idArg(args, 1, "block id") } },
+              body: {
+                title: flag(flags, "title"),
+                description: flag(flags, "description"),
+                content: flag(flags, "content"),
+                alt_text: flag(flags, "alt-text"),
+              },
+            }),
+          );
         case "comments":
-          return arena.getBlockComments(idArg(args, 1, "block id"), {
-            page: page(flags),
-            per: per(flags),
-          });
+          return getData(
+            client.GET("/v3/blocks/{id}/comments", {
+              params: {
+                path: { id: idArg(args, 1, "block id") },
+                query: { page: page(flags), per: per(flags) },
+              },
+            }),
+          );
         case "connections":
-          return arena.getBlockConnections(idArg(args, 1, "block id"), {
-            page: page(flags),
-            per: per(flags),
-          });
+          return getData(
+            client.GET("/v3/blocks/{id}/connections", {
+              params: {
+                path: { id: idArg(args, 1, "block id") },
+                query: { page: page(flags), per: per(flags) },
+              },
+            }),
+          );
         default:
-          return arena.getBlock(idArg(args, 0, "block id"));
+          return getData(
+            client.GET("/v3/blocks/{id}", {
+              params: { path: { id: idArg(args, 0, "block id") } },
+            }),
+          );
       }
     },
   },
@@ -273,15 +331,26 @@ export const commands: CommandDefinition[] = [
       );
     },
     async json(args, flags) {
-      return arena.search(requireArg([args.join(" ")], 0, "query"), {
-        page: page(flags),
-        per: per(flags),
-        type: flag(flags, "type"),
-        sort: flag(flags, "sort"),
-        scope: flag(flags, "scope"),
-        ext: flag(flags, "ext"),
-        after: flag(flags, "after"),
-      });
+      return getData(
+        client.GET("/v3/search", {
+          params: {
+            query: {
+              query: requireArg([args.join(" ")], 0, "query"),
+              page: page(flags),
+              per: per(flags),
+              type: flag(flags, "type")
+                ? [flag(flags, "type") as SearchTypeFilter]
+                : undefined,
+              sort: flag(flags, "sort") as SearchSort | undefined,
+              scope: flag(flags, "scope") as SearchScope | undefined,
+              ext: flag(flags, "ext")
+                ? [flag(flags, "ext") as FileExtension]
+                : undefined,
+              after: flag(flags, "after"),
+            },
+          },
+        }),
+      );
     },
   },
 
@@ -302,15 +371,21 @@ export const commands: CommandDefinition[] = [
       );
     },
     async json(args, flags) {
-      const ch = await arena.getChannel(requireArg(args, 0, "channel"));
-      return arena.createBlock(
-        requireArg([args.slice(1).join(" ")], 0, "value"),
-        [ch.id],
-        {
-          title: flag(flags, "title"),
-          description: flag(flags, "description"),
-          alt_text: flag(flags, "alt-text"),
-        },
+      const ch = await getData(
+        client.GET("/v3/channels/{id}", {
+          params: { path: { id: requireArg(args, 0, "channel") } },
+        }),
+      );
+      return getData(
+        client.POST("/v3/blocks", {
+          body: {
+            value: requireArg([args.slice(1).join(" ")], 0, "value"),
+            channel_ids: [ch.id],
+            title: flag(flags, "title"),
+            description: flag(flags, "description"),
+            alt_text: flag(flags, "alt-text"),
+          },
+        }),
       );
     },
   },
@@ -339,11 +414,19 @@ export const commands: CommandDefinition[] = [
       const file = requireArg(args, 0, "file");
       const channel = requireFlag(flags, "channel");
       const { s3Url } = await uploadLocalFile(file);
-      const ch = await arena.getChannel(channel);
-      return arena.createBlock(s3Url, [ch.id], {
-        title: flag(flags, "title"),
-        description: flag(flags, "description"),
-      });
+      const ch = await getData(
+        client.GET("/v3/channels/{id}", { params: { path: { id: channel } } }),
+      );
+      return getData(
+        client.POST("/v3/blocks", {
+          body: {
+            value: s3Url,
+            channel_ids: [ch.id],
+            title: flag(flags, "title"),
+            description: flag(flags, "description"),
+          },
+        }),
+      );
     },
   },
 
@@ -366,11 +449,14 @@ export const commands: CommandDefinition[] = [
       );
     },
     async json(args, flags) {
-      await arena.connect(
-        idArg(args, 0, "block id"),
-        [requireArg(args, 1, "channel")],
-        (flag(flags, "type") as "Block" | "Channel") || "Block",
-      );
+      await client.POST("/v3/connections", {
+        body: {
+          connectable_id: idArg(args, 0, "block id"),
+          channel_ids: [requireArg(args, 1, "channel")],
+          connectable_type:
+            (flag(flags, "type") as "Block" | "Channel") || "Block",
+        },
+      });
       return { connected: true };
     },
   },
@@ -414,18 +500,28 @@ export const commands: CommandDefinition[] = [
       const sub = args[0];
       switch (sub) {
         case "delete":
-          await arena.deleteConnection(idArg(args, 1, "connection id"));
+          await client.DELETE("/v3/connections/{id}", {
+            params: { path: { id: idArg(args, 1, "connection id") } },
+          });
           return { deleted: true, id: idArg(args, 1, "connection id") };
         case "move":
-          return arena.moveConnection(
-            idArg(args, 1, "connection id"),
-            (flag(flags, "movement") as Movement) || "insert_at",
-            flag(flags, "position")
-              ? parsePositiveInt(flag(flags, "position")!, "position")
-              : undefined,
+          return getData(
+            client.POST("/v3/connections/{id}/move", {
+              params: { path: { id: idArg(args, 1, "connection id") } },
+              body: {
+                movement: (flag(flags, "movement") as Movement) || "insert_at",
+                position: flag(flags, "position")
+                  ? parsePositiveInt(flag(flags, "position")!, "position")
+                  : undefined,
+              },
+            }),
           );
         default:
-          return arena.getConnection(idArg(args, 0, "connection id"));
+          return getData(
+            client.GET("/v3/connections/{id}", {
+              params: { path: { id: idArg(args, 0, "connection id") } },
+            }),
+          );
       }
     },
   },
@@ -456,12 +552,18 @@ export const commands: CommandDefinition[] = [
     async json(args) {
       const sub = args[0];
       if (sub === "delete") {
-        await arena.deleteComment(idArg(args, 1, "comment id"));
+        await client.DELETE("/v3/comments/{id}", {
+          params: { path: { id: idArg(args, 1, "comment id") } },
+        });
         return { deleted: true, id: idArg(args, 1, "comment id") };
       }
-      return arena.createComment(
-        idArg(args, 0, "block id"),
-        requireArg([args.slice(1).join(" ")], 0, "comment text"),
+      return getData(
+        client.POST("/v3/blocks/{id}/comments", {
+          params: { path: { id: idArg(args, 0, "block id") } },
+          body: {
+            body: requireArg([args.slice(1).join(" ")], 0, "comment text"),
+          },
+        }),
       );
     },
   },
@@ -513,24 +615,46 @@ export const commands: CommandDefinition[] = [
       const sub = args[0];
       switch (sub) {
         case "contents":
-          return arena.getUserContents(requireArg(args, 1, "slug"), {
-            page: page(flags),
-            per: per(flags),
-            type: flag(flags, "type"),
-          });
+          return getData(
+            client.GET("/v3/users/{id}/contents", {
+              params: {
+                path: { id: requireArg(args, 1, "slug") },
+                query: {
+                  page: page(flags),
+                  per: per(flags),
+                  type: flag(flags, "type") as ContentTypeFilter | undefined,
+                },
+              },
+            }),
+          );
         case "followers":
-          return arena.getUserFollowers(requireArg(args, 1, "slug"), {
-            page: page(flags),
-            per: per(flags),
-          });
+          return getData(
+            client.GET("/v3/users/{id}/followers", {
+              params: {
+                path: { id: requireArg(args, 1, "slug") },
+                query: { page: page(flags), per: per(flags) },
+              },
+            }),
+          );
         case "following":
-          return arena.getUserFollowing(requireArg(args, 1, "slug"), {
-            page: page(flags),
-            per: per(flags),
-            type: flag(flags, "type"),
-          });
+          return getData(
+            client.GET("/v3/users/{id}/following", {
+              params: {
+                path: { id: requireArg(args, 1, "slug") },
+                query: {
+                  page: page(flags),
+                  per: per(flags),
+                  type: flag(flags, "type") as FollowableType | undefined,
+                },
+              },
+            }),
+          );
         default:
-          return arena.getUser(requireArg(args, 0, "slug"));
+          return getData(
+            client.GET("/v3/users/{id}", {
+              params: { path: { id: requireArg(args, 0, "slug") } },
+            }),
+          );
       }
     },
   },
@@ -572,18 +696,33 @@ export const commands: CommandDefinition[] = [
       const sub = args[0];
       switch (sub) {
         case "contents":
-          return arena.getGroupContents(requireArg(args, 1, "slug"), {
-            page: page(flags),
-            per: per(flags),
-            type: flag(flags, "type"),
-          });
+          return getData(
+            client.GET("/v3/groups/{id}/contents", {
+              params: {
+                path: { id: requireArg(args, 1, "slug") },
+                query: {
+                  page: page(flags),
+                  per: per(flags),
+                  type: flag(flags, "type") as ContentTypeFilter | undefined,
+                },
+              },
+            }),
+          );
         case "followers":
-          return arena.getGroupFollowers(requireArg(args, 1, "slug"), {
-            page: page(flags),
-            per: per(flags),
-          });
+          return getData(
+            client.GET("/v3/groups/{id}/followers", {
+              params: {
+                path: { id: requireArg(args, 1, "slug") },
+                query: { page: page(flags), per: per(flags) },
+              },
+            }),
+          );
         default:
-          return arena.getGroup(requireArg(args, 0, "slug"));
+          return getData(
+            client.GET("/v3/groups/{id}", {
+              params: { path: { id: requireArg(args, 0, "slug") } },
+            }),
+          );
       }
     },
   },
@@ -597,7 +736,7 @@ export const commands: CommandDefinition[] = [
       return <WhoamiCommand />;
     },
     async json() {
-      return arena.getMe();
+      return getData(client.GET("/v3/me"));
     },
   },
 
@@ -636,7 +775,7 @@ export const commands: CommandDefinition[] = [
       return <PingCommand />;
     },
     async json() {
-      return arena.ping();
+      return getData(client.GET("/v3/ping"));
     },
   },
 ];

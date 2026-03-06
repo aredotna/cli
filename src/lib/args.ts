@@ -1,6 +1,6 @@
 export type Flags = Record<string, string | boolean>;
 
-export interface ParsedArgs {
+interface ParsedArgs {
   args: string[];
   flags: Flags;
 }

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import useSWR from "swr";
-import { arena } from "../api/client";
+import { client, getData } from "../api/client";
 import type { Block, ChannelRef, Connectable, Visibility } from "../api/types";
 import { BlockContent } from "../components/BlockContent";
 import { BlockItem } from "../components/BlockItem";
@@ -121,8 +121,17 @@ function ChannelBrowser({
     isLoading: loading,
   } = useSWR(`channel/${slug}?page=${page}&per=${per}`, () =>
     Promise.all([
-      arena.getChannel(slug),
-      arena.getChannelContents(slug, { page, per }),
+      getData(
+        client.GET("/v3/channels/{id}", { params: { path: { id: slug } } }),
+      ),
+      getData(
+        client.GET("/v3/channels/{id}/contents", {
+          params: {
+            path: { id: slug },
+            query: { page, per, sort: "position_desc" },
+          },
+        }),
+      ),
     ]).then(([channel, contents]) => ({ channel, contents })),
   );
 
@@ -256,7 +265,9 @@ export function BlockViewer({
     data: block,
     error,
     isLoading: loading,
-  } = useSWR(`block/${id}`, () => arena.getBlock(id));
+  } = useSWR(`block/${id}`, () =>
+    getData(client.GET("/v3/blocks/{id}", { params: { path: { id } } })),
+  );
 
   useInput((input, key) => {
     switch (true) {
@@ -320,8 +331,17 @@ function StaticChannelView({
 }) {
   const { data, error, loading } = useCommand(() =>
     Promise.all([
-      arena.getChannel(slug),
-      arena.getChannelContents(slug, { page, per }),
+      getData(
+        client.GET("/v3/channels/{id}", { params: { path: { id: slug } } }),
+      ),
+      getData(
+        client.GET("/v3/channels/{id}/contents", {
+          params: {
+            path: { id: slug },
+            query: { page, per, sort: "position_desc" },
+          },
+        }),
+      ),
     ]).then(([channel, contents]) => ({ channel, contents })),
   );
 
@@ -385,7 +405,11 @@ export function ChannelCreateCommand({
   description?: string;
 }) {
   const { data, error, loading } = useCommand(() =>
-    arena.createChannel(title, { visibility, description }),
+    getData(
+      client.POST("/v3/channels", {
+        body: { title, visibility, description },
+      }),
+    ),
   );
 
   if (loading) return <Spinner label="Creating channel" />;
@@ -417,7 +441,12 @@ export function ChannelUpdateCommand({
   description?: string;
 }) {
   const { data, error, loading } = useCommand(() =>
-    arena.updateChannel(slug, { title, visibility, description }),
+    getData(
+      client.PUT("/v3/channels/{id}", {
+        params: { path: { id: slug } },
+        body: { title, visibility, description },
+      }),
+    ),
   );
 
   if (loading) return <Spinner label="Updating channel" />;
@@ -436,7 +465,9 @@ export function ChannelUpdateCommand({
 
 export function ChannelDeleteCommand({ slug }: { slug: string }) {
   const { data, error, loading } = useCommand(async () => {
-    await arena.deleteChannel(slug);
+    await client.DELETE("/v3/channels/{id}", {
+      params: { path: { id: slug } },
+    });
     return { slug };
   });
 

@@ -1,6 +1,6 @@
 import { Box, Text } from "ink";
-import { arena } from "../api/client";
-import type { Block, ChannelRef, User } from "../api/types";
+import { client, getData } from "../api/client";
+import type { Block, ChannelRef, SearchTypeFilter, User } from "../api/types";
 import { BlockItem } from "../components/BlockItem";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
@@ -15,7 +15,18 @@ interface Props {
 
 export function SearchCommand({ query, page = 1, per = 24, type }: Props) {
   const { data, error, loading } = useCommand(() =>
-    arena.search(query, { page, per, type }),
+    getData(
+      client.GET("/v3/search", {
+        params: {
+          query: {
+            query,
+            page,
+            per,
+            type: type ? [type as SearchTypeFilter] : undefined,
+          },
+        },
+      }),
+    ),
   );
 
   if (loading) return <Spinner label={`Searching "${query}"`} />;

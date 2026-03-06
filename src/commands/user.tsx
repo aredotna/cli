@@ -1,6 +1,10 @@
 import { Box, Text } from "ink";
-import { arena } from "../api/client";
-import type { Followable } from "../api/types";
+import { client, getData } from "../api/client";
+import type {
+  ContentTypeFilter,
+  Followable,
+  FollowableType,
+} from "../api/types";
 import { BlockItem } from "../components/BlockItem";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
@@ -36,7 +40,13 @@ function formatCounts(data: {
 }
 
 export function UserView({ slug }: { slug: string }) {
-  const { data, error, loading } = useCommand(() => arena.getUser(slug));
+  const { data, error, loading } = useCommand(() =>
+    getData(
+      client.GET("/v3/users/{id}", {
+        params: { path: { id: slug } },
+      }),
+    ),
+  );
 
   if (loading) return <Spinner label="Loading user" />;
   if (error) return <Text color="red">✕ {error}</Text>;
@@ -67,7 +77,14 @@ export function UserContents({
   type?: string;
 }) {
   const { data, error, loading } = useCommand(() =>
-    arena.getUserContents(slug, { page, per, type }),
+    getData(
+      client.GET("/v3/users/{id}/contents", {
+        params: {
+          path: { id: slug },
+          query: { page, per, type: type as ContentTypeFilter | undefined },
+        },
+      }),
+    ),
   );
 
   if (loading) return <Spinner label="Loading contents" />;
@@ -99,7 +116,11 @@ export function UserFollowers({
   per?: number;
 }) {
   const { data, error, loading } = useCommand(() =>
-    arena.getUserFollowers(slug, { page, per }),
+    getData(
+      client.GET("/v3/users/{id}/followers", {
+        params: { path: { id: slug }, query: { page, per } },
+      }),
+    ),
   );
 
   if (loading) return <Spinner label="Loading followers" />;
@@ -146,7 +167,14 @@ export function UserFollowing({
   type?: string;
 }) {
   const { data, error, loading } = useCommand(() =>
-    arena.getUserFollowing(slug, { page, per, type }),
+    getData(
+      client.GET("/v3/users/{id}/following", {
+        params: {
+          path: { id: slug },
+          query: { page, per, type: type as FollowableType | undefined },
+        },
+      }),
+    ),
   );
 
   if (loading) return <Spinner label="Loading following" />;

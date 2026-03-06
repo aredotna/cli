@@ -23,7 +23,7 @@ function getLabel(block: Block): string {
     case "Image":
       return block.image?.filename || "Untitled";
     case "Attachment":
-      return block.attachment?.file_name || "Untitled";
+      return block.attachment?.filename || "Untitled";
     case "Embed":
       return block.embed?.title || block.embed?.url || "Untitled";
     default:

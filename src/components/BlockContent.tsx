@@ -21,7 +21,7 @@ function BlockBody({ block }: { block: Block }) {
       );
 
     case "Image":
-      if (!block.image) return null;
+      if (!block.image?.src) return null;
       return (
         <Box flexDirection="column">
           <TerminalImage src={block.image.src} />
@@ -33,7 +33,7 @@ function BlockBody({ block }: { block: Block }) {
 
     case "Attachment":
       return block.attachment ? (
-        <Text color="magenta">{block.attachment.file_name}</Text>
+        <Text color="magenta">{block.attachment.filename}</Text>
       ) : null;
 
     case "Embed":

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import useSWR from "swr";
-import { arena, ArenaError } from "../api/client";
+import { client, ArenaError, getData } from "../api/client";
 import type { Block, Channel, User } from "../api/types";
 import { BlockItem } from "../components/BlockItem";
 import { Spinner } from "../components/Spinner";
@@ -326,11 +326,15 @@ function SearchResultsView({
     error,
     isLoading: loading,
   } = useSWR(`search/${query}?page=${page}&per=${PER}`, () =>
-    arena.search(query, { page, per: PER }).then((r) => {
-      const channels = r.data.filter((i): i is Channel => i.type === "Channel");
+    getData(
+      client.GET("/v3/search", {
+        params: { query: { query, page, per: PER } },
+      }),
+    ).then((r) => {
+      const channels = r.data.filter((i) => i.type === "Channel") as Channel[];
       const blocks = r.data.filter(
-        (i): i is Block => i.type !== "Channel" && i.type !== "User",
-      );
+        (i) => i.type !== "Channel" && i.type !== "User",
+      ) as Block[];
       return {
         channels,
         blocks,
@@ -364,7 +368,10 @@ function SearchResultsView({
       case key.return && !!items[cursor]: {
         const item = items[cursor]!;
         if (item.type === "Channel") {
-          onNavigate({ kind: "channel", slug: (item as Channel).slug });
+          const channelItem = item as Channel;
+          if (channelItem.slug) {
+            onNavigate({ kind: "channel", slug: channelItem.slug });
+          }
         } else {
           const blockIds = blocks.map((b) => b.id);
           onNavigate({
@@ -389,7 +396,9 @@ function SearchResultsView({
         const item = items[cursor]!;
         if (item.type === "Channel") {
           const ch = item as Channel;
-          openUrl(`https://www.are.na/${ch.owner?.slug || ""}/${ch.slug}`);
+          openUrl(
+            `https://www.are.na/${ch.owner?.slug || ""}/${ch.slug || ""}`,
+          );
         } else {
           openUrl(`https://www.are.na/block/${item.id}`);
         }
@@ -442,12 +451,12 @@ function SearchResultsView({
           <>
             <Text dimColor> Channels</Text>
             {channels.map((ch, i) => (
-              <Box key={ch.slug}>
+              <Box key={ch.slug || String(ch.id)}>
                 <Text color={i === cursor ? "cyan" : undefined}>
                   {i === cursor ? "▸ " : "  "}
                 </Text>
                 <Text color={channelColor(ch.visibility)} bold={i === cursor}>
-                  {indicators.Channel} {truncate(ch.title, 50)}
+                  {indicators.Channel} {truncate(ch.title ?? "Untitled", 50)}
                 </Text>
                 <Text dimColor>
                   {" "}
@@ -510,10 +519,18 @@ function ChannelsListView({
     error,
     isLoading: loading,
   } = useSWR(`user/${me.slug}/channels?page=${page}&per=${PER}`, () =>
-    arena.getUserChannels(me.slug, { page, per: PER }),
+    getData(
+      client.GET("/v3/users/{id}/contents", {
+        params: {
+          path: { id: me.slug },
+          query: { page, per: PER, type: "Channel" },
+        },
+      }),
+    ),
   );
 
-  const channels = data?.data ?? [];
+  const channels =
+    data?.data.filter((item): item is Channel => item.type === "Channel") ?? [];
   const meta = data?.meta;
 
   useEffect(() => {
@@ -534,7 +551,9 @@ function ChannelsListView({
         setCursor((c) => Math.min(channels.length - 1, c + 1));
         break;
       case key.return && !!channels[cursor]:
-        onNavigate({ kind: "channel", slug: channels[cursor]!.slug });
+        if (channels[cursor]!.slug) {
+          onNavigate({ kind: "channel", slug: channels[cursor]!.slug });
+        }
         break;
       case (key.rightArrow || char === "n") &&
         !!meta &&
@@ -548,7 +567,7 @@ function ChannelsListView({
         break;
       case char === "o" && !!channels[cursor]: {
         const ch = channels[cursor]!;
-        openUrl(`https://www.are.na/${ch.owner?.slug || ""}/${ch.slug}`);
+        openUrl(`https://www.are.na/${ch.owner?.slug || ""}/${ch.slug || ""}`);
         break;
       }
     }
@@ -590,12 +609,12 @@ function ChannelsListView({
 
       <Box flexDirection="column">
         {channels.map((ch, i) => (
-          <Box key={ch.slug}>
+          <Box key={ch.slug || String(ch.id)}>
             <Text color={i === cursor ? "cyan" : undefined}>
               {i === cursor ? "▸ " : "  "}
             </Text>
             <Text color={channelColor(ch.visibility)} bold={i === cursor}>
-              {indicators.Channel} {truncate(ch.title, 50)}
+              {indicators.Channel} {truncate(ch.title ?? "Untitled", 50)}
             </Text>
             <Text dimColor>
               {" "}

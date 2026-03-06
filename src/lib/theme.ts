@@ -97,10 +97,6 @@ export function blockIconColor(blockType: string): string {
   return ACTIVE_THEME.blockIcon[blockType] || "gray";
 }
 
-export function visibilityColor(visibility: string): string {
-  return channelColor(visibility);
-}
-
 export function channelColor(visibility: string): string {
   const channel = ACTIVE_THEME.channel;
   if (visibility === "public") return channel.public;

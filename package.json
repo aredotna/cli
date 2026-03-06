@@ -15,6 +15,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsx src/cli.tsx",
+    "generate": "openapi-typescript https://api.are.na/v3/openapi -o src/api/schema.d.ts",
     "typecheck": "tsc --noEmit",
     "lint": "npm run typecheck",
     "test": "tsx --test src/**/*.test.ts",
@@ -28,6 +29,7 @@
   },
   "dependencies": {
     "ink": "^6.8.0",
+    "openapi-fetch": "^0.17.0",
     "react": "^19.0.0",
     "swr": "^2.4.1",
     "terminal-image": "^4.2.0"
@@ -37,6 +39,7 @@
     "@types/react": "^19.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.3.2",
+    "openapi-typescript": "^7.13.0",
     "prettier": "^3.8.1",
     "tsup": "^8.0.0",
     "tsx": "^4.0.0",

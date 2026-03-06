@@ -1,5 +1,6 @@
 import { Box, Text } from "ink";
-import { arena } from "../api/client";
+import { client, getData } from "../api/client";
+import type { ContentTypeFilter } from "../api/types";
 import { BlockItem } from "../components/BlockItem";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
@@ -10,7 +11,13 @@ interface GroupViewProps {
 }
 
 export function GroupView({ slug }: GroupViewProps) {
-  const { data, error, loading } = useCommand(() => arena.getGroup(slug));
+  const { data, error, loading } = useCommand(() =>
+    getData(
+      client.GET("/v3/groups/{id}", {
+        params: { path: { id: slug } },
+      }),
+    ),
+  );
 
   if (loading) return <Spinner label="Loading group" />;
   if (error) return <Text color="red">✕ {error}</Text>;
@@ -44,7 +51,14 @@ export function GroupContents({
   type,
 }: GroupContentsProps) {
   const { data, error, loading } = useCommand(() =>
-    arena.getGroupContents(slug, { page, per, type }),
+    getData(
+      client.GET("/v3/groups/{id}/contents", {
+        params: {
+          path: { id: slug },
+          query: { page, per, type: type as ContentTypeFilter | undefined },
+        },
+      }),
+    ),
   );
 
   if (loading) return <Spinner label="Loading contents" />;
@@ -74,7 +88,11 @@ interface GroupFollowersProps {
 
 export function GroupFollowers({ slug, page = 1, per }: GroupFollowersProps) {
   const { data, error, loading } = useCommand(() =>
-    arena.getGroupFollowers(slug, { page, per }),
+    getData(
+      client.GET("/v3/groups/{id}/followers", {
+        params: { path: { id: slug }, query: { page, per } },
+      }),
+    ),
   );
 
   if (loading) return <Spinner label="Loading followers" />;

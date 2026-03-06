@@ -1,6 +1,6 @@
 import { basename } from "path";
 import { Box, Text } from "ink";
-import { arena } from "../api/client";
+import { client, getData } from "../api/client";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 import { uploadLocalFile } from "../lib/upload";
@@ -15,11 +15,21 @@ interface Props {
 export function UploadCommand({ file, channel, title, description }: Props) {
   const { data, error, loading } = useCommand(async () => {
     const { s3Url } = await uploadLocalFile(file);
-    const ch = await arena.getChannel(channel);
-    const block = await arena.createBlock(s3Url, [ch.id], {
-      title,
-      description,
-    });
+    const ch = await getData(
+      client.GET("/v3/channels/{id}", {
+        params: { path: { id: channel } },
+      }),
+    );
+    const block = await getData(
+      client.POST("/v3/blocks", {
+        body: {
+          value: s3Url,
+          channel_ids: [ch.id],
+          title,
+          description,
+        },
+      }),
+    );
 
     return { block, channel: ch };
   });

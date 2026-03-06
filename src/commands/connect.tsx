@@ -1,5 +1,5 @@
 import { Box, Text } from "ink";
-import { arena } from "../api/client";
+import { client, getData } from "../api/client";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 
@@ -10,8 +10,19 @@ interface Props {
 
 export function ConnectCommand({ blockId, channel }: Props) {
   const { data, error, loading } = useCommand(async () => {
-    const ch = await arena.getChannel(channel);
-    await arena.connect(blockId, [ch.id]);
+    const ch = await getData(
+      client.GET("/v3/channels/{id}", {
+        params: { path: { id: channel } },
+      }),
+    );
+
+    await client.POST("/v3/connections", {
+      body: {
+        connectable_id: blockId,
+        connectable_type: "Block",
+        channel_ids: [ch.id],
+      },
+    });
     return { channel: ch };
   });
 

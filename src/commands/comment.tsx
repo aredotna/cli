@@ -1,5 +1,5 @@
 import { Box, Text } from "ink";
-import { arena } from "../api/client";
+import { client } from "../api/client";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 
@@ -11,7 +11,10 @@ export function CommentCommand({
   body: string;
 }) {
   const { data, error, loading } = useCommand(async () => {
-    await arena.createComment(blockId, body);
+    await client.POST("/v3/blocks/{id}/comments", {
+      params: { path: { id: blockId } },
+      body: { body },
+    });
     return { blockId };
   });
 
@@ -29,7 +32,7 @@ export function CommentCommand({
 
 export function CommentDeleteCommand({ id }: { id: number }) {
   const { data, error, loading } = useCommand(async () => {
-    await arena.deleteComment(id);
+    await client.DELETE("/v3/comments/{id}", { params: { path: { id } } });
     return { id };
   });
 

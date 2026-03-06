@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { arena, ArenaError } from "../../api/client";
+import { client, ArenaError, getData } from "../../api/client";
 import type { User } from "../../api/types";
 import { config } from "../../lib/config";
 import { performOAuthFlow } from "../../lib/oauth";
@@ -27,7 +27,7 @@ function startOAuth(
     .then(async (token) => {
       if (cancelled()) return;
       config.setToken(token);
-      const user = await arena.getMe();
+      const user = await getData(client.GET("/v3/me"));
       if (!cancelled()) setAuth({ status: "ready", user });
     })
     .catch((err: unknown) => {
@@ -54,8 +54,7 @@ export function useSessionAuth(): AuthState {
       };
     }
 
-    arena
-      .getMe()
+    getData(client.GET("/v3/me"))
       .then((user) => {
         if (!cancelled) setAuth({ status: "ready", user });
       })

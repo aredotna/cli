@@ -1,5 +1,5 @@
 import { Box, Text } from "ink";
-import { arena } from "../api/client";
+import { client, getData } from "../api/client";
 import type { Movement } from "../api/types";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
@@ -7,7 +7,13 @@ import { plural } from "../lib/format";
 import { channelColor, indicators } from "../lib/theme";
 
 export function ConnectionGetCommand({ id }: { id: number }) {
-  const { data, error, loading } = useCommand(() => arena.getConnection(id));
+  const { data, error, loading } = useCommand(() =>
+    getData(
+      client.GET("/v3/connections/{id}", {
+        params: { path: { id } },
+      }),
+    ),
+  );
 
   if (loading) return <Spinner label="Loading connection" />;
   if (error) return <Text color="red">✕ {error}</Text>;
@@ -29,7 +35,9 @@ export function ConnectionGetCommand({ id }: { id: number }) {
 
 export function ConnectionDeleteCommand({ id }: { id: number }) {
   const { data, error, loading } = useCommand(async () => {
-    await arena.deleteConnection(id);
+    await client.DELETE("/v3/connections/{id}", {
+      params: { path: { id } },
+    });
     return { id };
   });
 
@@ -55,7 +63,12 @@ export function ConnectionMoveCommand({
   position?: number;
 }) {
   const { data, error, loading } = useCommand(() =>
-    arena.moveConnection(id, movement, position),
+    getData(
+      client.POST("/v3/connections/{id}/move", {
+        params: { path: { id } },
+        body: { movement, position },
+      }),
+    ),
   );
 
   if (loading) return <Spinner label="Moving connection" />;
@@ -80,7 +93,11 @@ export function BlockConnectionsCommand({
   per?: number;
 }) {
   const { data, error, loading } = useCommand(() =>
-    arena.getBlockConnections(id, { page, per }),
+    getData(
+      client.GET("/v3/blocks/{id}/connections", {
+        params: { path: { id }, query: { page, per } },
+      }),
+    ),
   );
 
   if (loading) return <Spinner label="Loading connections" />;
@@ -121,7 +138,11 @@ export function ChannelConnectionsCommand({
   per?: number;
 }) {
   const { data, error, loading } = useCommand(() =>
-    arena.getChannelConnections(slug, { page, per }),
+    getData(
+      client.GET("/v3/channels/{id}/connections", {
+        params: { path: { id: slug }, query: { page, per } },
+      }),
+    ),
   );
 
   if (loading) return <Spinner label="Loading connections" />;
@@ -162,7 +183,11 @@ export function ChannelFollowersCommand({
   per?: number;
 }) {
   const { data, error, loading } = useCommand(() =>
-    arena.getChannelFollowers(slug, { page, per }),
+    getData(
+      client.GET("/v3/channels/{id}/followers", {
+        params: { path: { id: slug }, query: { page, per } },
+      }),
+    ),
   );
 
   if (loading) return <Spinner label="Loading followers" />;

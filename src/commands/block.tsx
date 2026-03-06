@@ -1,12 +1,18 @@
 import { Box, Text } from "ink";
-import { arena } from "../api/client";
+import { client, getData } from "../api/client";
 import { BlockContent } from "../components/BlockContent";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 import { plural } from "../lib/format";
 
 export function BlockCommand({ id }: { id: number }) {
-  const { data, error, loading } = useCommand(() => arena.getBlock(id));
+  const { data, error, loading } = useCommand(() =>
+    getData(
+      client.GET("/v3/blocks/{id}", {
+        params: { path: { id } },
+      }),
+    ),
+  );
 
   if (loading) return <Spinner label={`Loading block ${id}`} />;
   if (error) return <Text color="red">✕ {error}</Text>;
@@ -29,7 +35,12 @@ export function BlockUpdateCommand({
   altText?: string;
 }) {
   const { data, error, loading } = useCommand(() =>
-    arena.updateBlock(id, { title, description, content, alt_text: altText }),
+    getData(
+      client.PUT("/v3/blocks/{id}", {
+        params: { path: { id } },
+        body: { title, description, content, alt_text: altText },
+      }),
+    ),
   );
 
   if (loading) return <Spinner label="Updating block" />;
@@ -55,7 +66,11 @@ export function BlockCommentsCommand({
   per?: number;
 }) {
   const { data, error, loading } = useCommand(() =>
-    arena.getBlockComments(id, { page, per }),
+    getData(
+      client.GET("/v3/blocks/{id}/comments", {
+        params: { path: { id }, query: { page, per } },
+      }),
+    ),
   );
 
   if (loading) return <Spinner label="Loading comments" />;

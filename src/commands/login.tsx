@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useReducer, useEffect } from "react";
 import { Box, Text, useApp } from "ink";
-import { arena } from "../api/client";
+import { client, getData } from "../api/client";
 import type { User } from "../api/types";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
@@ -16,7 +16,7 @@ function LoginToken({ token }: { token: string }) {
   const { data, error, loading } = useCommand(async () => {
     config.setToken(token);
     try {
-      return await arena.getMe();
+      return await getData(client.GET("/v3/me"));
     } catch (err) {
       config.clearToken();
       throw err;
@@ -46,30 +46,34 @@ type OAuthState =
   | { step: "done"; user: User }
   | { step: "error"; message: string };
 
+function oauthReducer(_: OAuthState, action: OAuthState): OAuthState {
+  return action;
+}
+
 function LoginOAuth() {
   const { exit } = useApp();
-  const [state, setState] = useState<OAuthState>({ step: "opening" });
+  const [state, dispatch] = useReducer(oauthReducer, { step: "opening" });
 
   useEffect(() => {
     let cancelled = false;
 
     performOAuthFlow(config.getClientId(), {
       onBrowserOpen: () => {
-        if (!cancelled) setState({ step: "waiting" });
+        if (!cancelled) dispatch({ step: "waiting" });
       },
       onCodeReceived: () => {
-        if (!cancelled) setState({ step: "exchanging" });
+        if (!cancelled) dispatch({ step: "exchanging" });
       },
     })
       .then(async (token) => {
         if (cancelled) return;
         config.setToken(token);
-        const user = await arena.getMe();
-        if (!cancelled) setState({ step: "done", user });
+        const user = await getData(client.GET("/v3/me"));
+        if (!cancelled) dispatch({ step: "done", user });
       })
       .catch((err: unknown) => {
         if (!cancelled)
-          setState({
+          dispatch({
             step: "error",
             message: err instanceof Error ? err.message : String(err),
           });

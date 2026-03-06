@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Box, Text, useStdout } from "ink";
+import useSWR from "swr";
 import terminalImage from "terminal-image";
 import { Spinner } from "./Spinner";
 
@@ -8,10 +9,19 @@ interface TerminalImageProps {
   width?: number;
 }
 
+async function fetchAndRender(src: string, width: number): Promise<string> {
+  const response = await fetch(src);
+  if (!response.ok) {
+    throw new Error(`Image request failed (${response.status})`);
+  }
+  const arrayBuffer = await response.arrayBuffer();
+  return terminalImage.buffer(Buffer.from(arrayBuffer), {
+    width,
+    preserveAspectRatio: true,
+  });
+}
+
 export function TerminalImage({ src, width }: TerminalImageProps) {
-  const [loading, setLoading] = useState(true);
-  const [output, setOutput] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
   const { stdout } = useStdout();
 
   const resolvedWidth = useMemo(() => {
@@ -24,52 +34,17 @@ export function TerminalImage({ src, width }: TerminalImageProps) {
     return base - (base % 2);
   }, [width, stdout.columns]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const { data, error, isLoading } = useSWR(
+    `terminal-image:${src}:${resolvedWidth}`,
+    () => fetchAndRender(src, resolvedWidth),
+  );
 
-    async function renderImage() {
-      setLoading(true);
-      setFailed(false);
-      setOutput(null);
-
-      try {
-        const response = await fetch(src);
-        if (!response.ok) {
-          throw new Error(`Image request failed (${response.status})`);
-        }
-        const arrayBuffer = await response.arrayBuffer();
-        const rendered = await terminalImage.buffer(Buffer.from(arrayBuffer), {
-          width: resolvedWidth,
-          preserveAspectRatio: true,
-        });
-
-        if (!cancelled) {
-          setOutput(rendered);
-        }
-      } catch {
-        if (!cancelled) {
-          setFailed(true);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void renderImage();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [src, resolvedWidth]);
-
-  if (loading) return <Spinner label="Loading image" />;
-  if (failed || !output) return <Text dimColor>[image unavailable]</Text>;
+  if (isLoading) return <Spinner label="Loading image" />;
+  if (error || !data) return <Text dimColor>[image unavailable]</Text>;
 
   return (
     <Box overflowX="hidden">
-      <Text wrap="truncate-end">{output}</Text>
+      <Text wrap="truncate-end">{data}</Text>
     </Box>
   );
 }

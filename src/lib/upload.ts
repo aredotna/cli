@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 import { basename } from "path";
-import { arena } from "../api/client";
+import { client, getData } from "../api/client";
 
 const EXT_TO_MIME: Record<string, string> = {
   jpg: "image/jpeg",
@@ -17,7 +17,7 @@ const EXT_TO_MIME: Record<string, string> = {
   md: "text/markdown",
 };
 
-export function getMimeType(filename: string): string {
+function getMimeType(filename: string): string {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
   return EXT_TO_MIME[ext] ?? "application/octet-stream";
 }
@@ -31,9 +31,13 @@ export async function uploadLocalFile(filePath: string): Promise<{
   const contentType = getMimeType(filename);
   const fileBuffer = readFileSync(filePath);
 
-  const presigned = await arena.presignUpload([
-    { filename, content_type: contentType },
-  ]);
+  const presigned = await getData(
+    client.POST("/v3/uploads/presign", {
+      body: {
+        files: [{ filename, content_type: contentType }],
+      },
+    }),
+  );
   const uploadTarget = presigned.files[0];
   if (!uploadTarget)
     throw new Error("Upload target was not returned by Are.na");

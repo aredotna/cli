@@ -1,5 +1,5 @@
 import { Box, Text } from "ink";
-import { arena } from "../api/client";
+import { client, getData } from "../api/client";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 
@@ -10,8 +10,16 @@ interface Props {
 
 export function AddCommand({ channel, value }: Props) {
   const { data, error, loading } = useCommand(async () => {
-    const ch = await arena.getChannel(channel);
-    const block = await arena.createBlock(value, [ch.id]);
+    const ch = await getData(
+      client.GET("/v3/channels/{id}", {
+        params: { path: { id: channel } },
+      }),
+    );
+    const block = await getData(
+      client.POST("/v3/blocks", {
+        body: { value, channel_ids: [ch.id] },
+      }),
+    );
     return { block, channel: ch };
   });
 
