@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useReducer, useEffect } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import useSWR from "swr";
 import { client, getData } from "../api/client";
@@ -14,6 +14,64 @@ import { visibilityLabel } from "../lib/theme";
 type NavItem =
   | { kind: "channel"; slug: string }
   | { kind: "block"; blockIds: number[]; index: number };
+
+interface AddComposerState {
+  isOpen: boolean;
+  value: string;
+  isSubmitting: boolean;
+  error: string | null;
+  message: string | null;
+}
+
+type AddComposerAction =
+  | { type: "open" }
+  | { type: "cancel" }
+  | { type: "append"; input: string }
+  | { type: "backspace" }
+  | { type: "setSubmitting"; value: boolean }
+  | { type: "setError"; error: string }
+  | { type: "setMessage"; message: string };
+
+const INITIAL_ADD_COMPOSER_STATE: AddComposerState = {
+  isOpen: false,
+  value: "",
+  isSubmitting: false,
+  error: null,
+  message: null,
+};
+
+function addComposerReducer(
+  state: AddComposerState,
+  action: AddComposerAction,
+): AddComposerState {
+  switch (action.type) {
+    case "open":
+      return {
+        ...state,
+        isOpen: true,
+        value: "",
+        error: null,
+        message: null,
+      };
+    case "cancel":
+      return {
+        ...state,
+        isOpen: false,
+        value: "",
+        error: null,
+      };
+    case "append":
+      return { ...state, value: state.value + action.input };
+    case "backspace":
+      return { ...state, value: state.value.slice(0, -1) };
+    case "setSubmitting":
+      return { ...state, isSubmitting: action.value };
+    case "setError":
+      return { ...state, error: action.error, message: null };
+    case "setMessage":
+      return { ...state, message: action.message, error: null };
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Public entry point
@@ -114,11 +172,35 @@ function ChannelBrowser({
 }) {
   const [page, setPage] = useState(initialPage);
   const [cursor, setCursor] = useState(0);
+  const [showComposerCursor, setShowComposerCursor] = useState(true);
+  const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
+  const [addComposer, dispatchAddComposer] = useReducer(
+    addComposerReducer,
+    INITIAL_ADD_COMPOSER_STATE,
+  );
+
+  useEffect(() => {
+    if (!addComposer.isOpen) {
+      setShowComposerCursor(true);
+      return;
+    }
+    const intervalId = setInterval(() => {
+      setShowComposerCursor((value) => !value);
+    }, 500);
+    return () => clearInterval(intervalId);
+  }, [addComposer.isOpen]);
+
+  useEffect(() => {
+    if (!refreshMessage) return;
+    const timeoutId = setTimeout(() => setRefreshMessage(null), 1200);
+    return () => clearTimeout(timeoutId);
+  }, [refreshMessage]);
 
   const {
     data,
     error,
     isLoading: loading,
+    mutate,
   } = useSWR(`channel/${slug}?page=${page}&per=${per}`, () =>
     Promise.all([
       getData(
@@ -139,6 +221,53 @@ function ChannelBrowser({
   const meta = data?.contents.meta;
 
   useInput((input, key) => {
+    if (addComposer.isOpen) {
+      if (key.escape) {
+        dispatchAddComposer({ type: "cancel" });
+        return;
+      }
+      if (key.backspace || key.delete) {
+        dispatchAddComposer({ type: "backspace" });
+        return;
+      }
+      if (key.return) {
+        const value = addComposer.value.trim();
+        if (!value) {
+          dispatchAddComposer({ type: "setError", error: "Value is required" });
+          return;
+        }
+        if (addComposer.isSubmitting || !data) return;
+        dispatchAddComposer({ type: "setSubmitting", value: true });
+        void getData(
+          client.POST("/v3/blocks", {
+            body: {
+              value,
+              channel_ids: [data.channel.id],
+            },
+          }),
+        )
+          .then(() => {
+            dispatchAddComposer({ type: "cancel" });
+            dispatchAddComposer({ type: "setMessage", message: "Added block" });
+            void mutate();
+          })
+          .catch((err: unknown) => {
+            dispatchAddComposer({
+              type: "setError",
+              error: err instanceof Error ? err.message : String(err),
+            });
+          })
+          .finally(() => {
+            dispatchAddComposer({ type: "setSubmitting", value: false });
+          });
+        return;
+      }
+      if (input && !key.ctrl && !key.meta) {
+        dispatchAddComposer({ type: "append", input });
+      }
+      return;
+    }
+
     if (input === "q" || key.escape) return onBack();
     if (loading || !data) return;
 
@@ -185,6 +314,13 @@ function ChannelBrowser({
         }
         break;
       }
+      case input === "r":
+        setRefreshMessage("Refreshed");
+        void mutate();
+        break;
+      case input === "a":
+        dispatchAddComposer({ type: "open" });
+        break;
     }
   });
 
@@ -213,6 +349,20 @@ function ChannelBrowser({
         </Text>
       </Box>
 
+      {addComposer.isOpen && (
+        <Box flexDirection="column" marginBottom={1}>
+          <Text>
+            +{" "}
+            <Text color="cyan">
+              {addComposer.value}
+              {showComposerCursor ? "█" : " "}
+            </Text>
+          </Text>
+          {addComposer.isSubmitting && <Text dimColor>submitting...</Text>}
+          {addComposer.error && <Text color="red">✕ {addComposer.error}</Text>}
+        </Box>
+      )}
+
       {items.length === 0 ? (
         <Text dimColor>This channel is empty</Text>
       ) : (
@@ -228,6 +378,10 @@ function ChannelBrowser({
       )}
 
       <Box marginTop={1} flexDirection="column">
+        {addComposer.message && (
+          <Text color="green">✓ {addComposer.message}</Text>
+        )}
+        {refreshMessage && <Text color="green">✓ {refreshMessage}</Text>}
         {meta && meta.total_pages > 1 && (
           <Text dimColor>
             Page {meta.current_page}/{meta.total_pages} ·{" "}
@@ -235,7 +389,9 @@ function ChannelBrowser({
           </Text>
         )}
         <Text dimColor>
-          ↑↓ navigate · ↵ open · ←→ page · o browser · q back
+          {addComposer.isOpen
+            ? "type text · ↵ submit · esc cancel"
+            : "↑↓ navigate · ↵ open · ←→ page · a add · r refresh · o browser · q back"}
         </Text>
       </Box>
     </Box>

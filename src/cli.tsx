@@ -20,7 +20,6 @@ function Help() {
           **
         </Text>
         <Text bold> Are.na</Text>
-        <Text dimColor> · Are.na from the terminal</Text>
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
