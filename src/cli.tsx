@@ -51,6 +51,7 @@ function Help() {
         <Text> --visibility &lt;v&gt; public, closed, or private</Text>
         <Text> --title &lt;t&gt; Title (for create/update)</Text>
         <Text> --description &lt;d&gt; Description (for create/update)</Text>
+        <Text> --no-fullscreen Disable session fullscreen mode</Text>
         <Text> --help Show help</Text>
       </Box>
 
@@ -136,18 +137,50 @@ function App({ children }: { children: React.ReactNode }) {
   return <SWRConfig value={SWR_OPTIONS}>{children}</SWRConfig>;
 }
 
+function shouldUseSessionFullscreen(flags: Flags): boolean {
+  if (flags["no-fullscreen"]) return false;
+  return Boolean(process.stdin.isTTY && process.stdout.isTTY);
+}
+
+async function runInk(
+  element: React.JSX.Element,
+  options?: { fullscreen?: boolean },
+) {
+  const fullscreen = options?.fullscreen ?? false;
+  let cleanedUp = false;
+
+  const cleanupFullscreen = () => {
+    if (!fullscreen || cleanedUp) return;
+    cleanedUp = true;
+    process.stdout.write("\u001B[?1049l\u001B[?25h");
+  };
+
+  if (fullscreen) {
+    // Enter alternate screen buffer and hide cursor for true fullscreen TUI.
+    process.stdout.write("\u001B[?1049h\u001B[2J\u001B[H\u001B[?25l");
+    process.once("exit", cleanupFullscreen);
+  }
+
+  const { waitUntilExit } = render(element);
+  try {
+    await waitUntilExit();
+  } finally {
+    process.removeListener("exit", cleanupFullscreen);
+    cleanupFullscreen();
+  }
+}
+
 if (flags.json && command) {
   await handleJson(command, rest, flags);
 } else if (flags.help || flags.h) {
-  const { waitUntilExit } = render(<Help />);
-  await waitUntilExit();
+  await runInk(<Help />, { fullscreen: false });
 } else if (!command) {
   const element = process.stdin.isTTY ? <SessionMode /> : <Help />;
-  const { waitUntilExit } = render(<App>{element}</App>);
-  await waitUntilExit();
+  await runInk(<App>{element}</App>, {
+    fullscreen: shouldUseSessionFullscreen(flags),
+  });
 } else {
-  const { waitUntilExit } = render(
-    <App>{routeCommand(command, rest, flags)}</App>,
-  );
-  await waitUntilExit();
+  await runInk(<App>{routeCommand(command, rest, flags)}</App>, {
+    fullscreen: false,
+  });
 }
