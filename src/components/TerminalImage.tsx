@@ -22,13 +22,50 @@ async function renderImage(
   return output;
 }
 
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function isLikelyITermTmux(): boolean {
+  return process.env.TERM_PROGRAM === "iTerm.app" && Boolean(process.env.TMUX);
+}
+
+class TerminalImageError extends Error {
+  reason: "fetch" | "render";
+  details: string[];
+
+  constructor(
+    reason: "fetch" | "render",
+    message: string,
+    details: string[] = [],
+  ) {
+    super(message);
+    this.name = "TerminalImageError";
+    this.reason = reason;
+    this.details = details;
+  }
+}
+
 async function fetchAndRender(src: string, width: number): Promise<string> {
-  const response = await fetch(src);
+  let response: Response;
+  try {
+    response = await fetch(src);
+  } catch (err: unknown) {
+    throw new TerminalImageError("fetch", "Image request failed", [
+      `url: ${src}`,
+      `error: ${errorMessage(err)}`,
+    ]);
+  }
   if (!response.ok) {
-    throw new Error(`Image request failed (${response.status})`);
+    throw new TerminalImageError(
+      "fetch",
+      `Image request failed (${response.status})`,
+      [`url: ${src}`],
+    );
   }
   const arrayBuffer = await response.arrayBuffer();
   const imageBuffer = Buffer.from(arrayBuffer);
+  let nativeError: unknown = null;
 
   try {
     // First attempt native protocols (iTerm/kitty/sixel) for best fidelity.
@@ -36,21 +73,33 @@ async function fetchAndRender(src: string, width: number): Promise<string> {
     if (nativeOutput && nativeOutput.trim().length > 0) {
       return nativeOutput;
     }
-  } catch {
+    nativeError = new Error("Native renderer produced no output");
+  } catch (err: unknown) {
+    nativeError = err;
     // Ignore and fall back to ANSI rendering below.
   }
 
   // Fall back to ANSI rendering for broader terminal compatibility.
-  const ansiOutput = await renderImage(imageBuffer, width, false);
-  if (ansiOutput && ansiOutput.trim().length > 0) {
-    return ansiOutput;
+  try {
+    const ansiOutput = await renderImage(imageBuffer, width, false);
+    if (ansiOutput && ansiOutput.trim().length > 0) {
+      return ansiOutput;
+    }
+    throw new Error("ANSI renderer produced no output");
+  } catch (ansiError: unknown) {
+    throw new TerminalImageError("render", "Image renderer failed", [
+      `native: ${errorMessage(nativeError)}`,
+      `ansi: ${errorMessage(ansiError)}`,
+      `term: ${process.env.TERM ?? "unknown"}`,
+      `term_program: ${process.env.TERM_PROGRAM ?? "unknown"}`,
+      `tmux: ${process.env.TMUX ? "yes" : "no"}`,
+    ]);
   }
-
-  throw new Error("Image renderer produced no output");
 }
 
 export function TerminalImage({ src, width }: TerminalImageProps) {
   const { stdout } = useStdout();
+  const debug = process.env.ARENA_IMAGE_DEBUG === "1";
 
   const resolvedWidth = useMemo(() => {
     if (width) return width;
@@ -68,7 +117,42 @@ export function TerminalImage({ src, width }: TerminalImageProps) {
   );
 
   if (isLoading) return <Spinner label="Loading image" />;
-  if (error || !data) return <Text dimColor>[image unavailable]</Text>;
+  if (error || !data) {
+    const renderError = error instanceof TerminalImageError ? error : null;
+
+    return (
+      <Box flexDirection="column">
+        <Text dimColor>
+          [image unavailable
+          {renderError ? `: ${renderError.reason}` : ""}]
+        </Text>
+        {renderError?.reason === "fetch" && (
+          <Text dimColor>
+            image download failed; check network/proxy and try again
+          </Text>
+        )}
+        {renderError?.reason === "render" && isLikelyITermTmux() && (
+          <Text dimColor>
+            iTerm2 + tmux detected; enable tmux passthrough for inline images
+          </Text>
+        )}
+        {renderError?.reason === "render" && (
+          <Text dimColor>
+            using ANSI fallback; set `ARENA_IMAGE_DEBUG=1` for renderer details
+          </Text>
+        )}
+        {debug && renderError?.details?.length ? (
+          <Box flexDirection="column">
+            {renderError.details.map((detail) => (
+              <Text key={detail} dimColor>
+                {detail}
+              </Text>
+            ))}
+          </Box>
+        ) : null}
+      </Box>
+    );
+  }
 
   return (
     <Box overflowX="hidden">
