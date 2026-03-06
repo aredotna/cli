@@ -6,6 +6,8 @@ import { BlockItem } from "../components/BlockItem";
 import { Spinner } from "../components/Spinner";
 import { truncate } from "../lib/format";
 import { indicators } from "../lib/theme";
+import { config } from "../lib/config";
+import { performOAuthFlow } from "../lib/oauth";
 import { openUrl } from "../lib/open";
 import { InteractiveChannel, BlockViewer } from "./channel";
 
@@ -31,36 +33,99 @@ const COMMANDS: Command[] = [
   { name: "search", args: "<query>", desc: "Search Are.na" },
   { name: "block", args: "<id>", desc: "View a block" },
   { name: "channels", args: null, desc: "Your channels" },
+  { name: "logout", args: null, desc: "Log out of your account" },
 ];
 
 // ---------------------------------------------------------------------------
 // Session root
 // ---------------------------------------------------------------------------
 
+type AuthState =
+  | { status: "checking" }
+  | { status: "login"; step: "opening" | "waiting" | "exchanging" }
+  | { status: "login_error"; message: string }
+  | { status: "ready"; user: User };
+
 export function SessionMode() {
   const { exit } = useApp();
+  const [auth, setAuth] = useState<AuthState>({ status: "checking" });
   const [stack, setStack] = useState<View[]>([{ kind: "home" }]);
   const stackRef = useRef(stack);
   stackRef.current = stack;
   const current = stack[stack.length - 1]!;
 
-  const [me, setMe] = useState<User | null>(null);
-
   useEffect(() => {
+    let cancelled = false;
+
     arena
       .getMe()
-      .then(setMe)
-      .catch(() => {});
+      .then((user) => {
+        if (!cancelled) setAuth({ status: "ready", user });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAuth({ status: "login", step: "opening" });
+
+        performOAuthFlow(config.getClientId(), {
+          onBrowserOpen: () => {
+            if (!cancelled) setAuth({ status: "login", step: "waiting" });
+          },
+          onCodeReceived: () => {
+            if (!cancelled) setAuth({ status: "login", step: "exchanging" });
+          },
+        })
+          .then(async (token) => {
+            if (cancelled) return;
+            config.setToken(token);
+            const user = await arena.getMe();
+            if (!cancelled) setAuth({ status: "ready", user });
+          })
+          .catch((err: unknown) => {
+            if (!cancelled)
+              setAuth({
+                status: "login_error",
+                message: err instanceof Error ? err.message : String(err),
+              });
+          });
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const push = useCallback((view: View) => {
-    setStack((s) => [...s, view]);
-  }, []);
+  useEffect(() => {
+    if (auth.status === "login_error") {
+      process.exitCode = 1;
+      exit();
+    }
+  }, [auth, exit]);
 
-  const pop = useCallback(() => {
+  if (auth.status === "checking") {
+    return <Spinner label="Checking authentication" />;
+  }
+
+  if (auth.status === "login") {
+    const labels = {
+      opening: "Opening browser",
+      waiting: "Waiting for authorization",
+      exchanging: "Logging in",
+    };
+    return <Spinner label={labels[auth.step]} />;
+  }
+
+  if (auth.status === "login_error") {
+    return <Text color="red">✕ {auth.message}</Text>;
+  }
+
+  const me = auth.user;
+
+  const push = (view: View) => setStack((s) => [...s, view]);
+
+  const pop = () => {
     if (stackRef.current.length <= 1) exit();
     else setStack((s) => s.slice(0, -1));
-  }, [exit]);
+  };
 
   switch (current.kind) {
     case "channel":
@@ -90,7 +155,17 @@ export function SessionMode() {
     case "channels":
       return <ChannelsListView me={me} onNavigate={push} onBack={pop} />;
     default:
-      return <HomeScreen me={me} onNavigate={push} onExit={() => exit()} />;
+      return (
+        <HomeScreen
+          me={me}
+          onNavigate={push}
+          onLogout={() => {
+            config.clearToken();
+            exit();
+          }}
+          onExit={() => exit()}
+        />
+      );
   }
 }
 
@@ -101,10 +176,11 @@ export function SessionMode() {
 interface HomeProps {
   me: User | null;
   onNavigate: (view: View) => void;
+  onLogout: () => void;
   onExit: () => void;
 }
 
-function HomeScreen({ me, onNavigate, onExit }: HomeProps) {
+function HomeScreen({ me, onNavigate, onLogout, onExit }: HomeProps) {
   const [input, setInput] = useState("");
   const [cursor, setCursor] = useState(0);
   const [activeCommand, setActiveCommand] = useState<Command | null>(null);
@@ -143,6 +219,10 @@ function HomeScreen({ me, onNavigate, onExit }: HomeProps) {
         break;
       case "channels":
         onNavigate({ kind: "channels" });
+        break;
+      case "logout":
+        config.clearToken();
+        onLogout();
         break;
     }
   }
@@ -225,9 +305,7 @@ function HomeScreen({ me, onNavigate, onExit }: HomeProps) {
         <Box flexDirection="column" marginLeft={2}>
           {filtered.map((cmd, i) => {
             const argsLen = cmd.args ? cmd.args.length + 1 : 0;
-            const pad = " ".repeat(
-              Math.max(2, 20 - cmd.name.length - argsLen),
-            );
+            const pad = " ".repeat(Math.max(2, 20 - cmd.name.length - argsLen));
             return (
               <Box key={cmd.name}>
                 <Text color={i === cursor ? "cyan" : undefined}>
@@ -320,9 +398,7 @@ function SearchResultsView({
     }
   }, [results.length, cursor]);
 
-  const channels = results.filter(
-    (i): i is Channel => i.type === "Channel",
-  );
+  const channels = results.filter((i): i is Channel => i.type === "Channel");
   const blocks = results.filter((i): i is Block => i.type !== "Channel");
 
   useInput((char, key) => {
@@ -398,7 +474,7 @@ function SearchResultsView({
       <Box flexDirection="column">
         {channels.length > 0 && (
           <>
-            <Text dimColor>  Channels</Text>
+            <Text dimColor> Channels</Text>
             {channels.map((ch, i) => {
               const selected = i === cursor;
               return (
@@ -410,7 +486,8 @@ function SearchResultsView({
                     {indicators.Channel} {truncate(ch.title, 50)}
                   </Text>
                   <Text dimColor>
-                    {" "}· {ch.visibility} · {ch.counts.contents}
+                    {" "}
+                    · {ch.visibility} · {ch.counts.contents}
                   </Text>
                 </Box>
               );
@@ -421,16 +498,12 @@ function SearchResultsView({
         {blocks.length > 0 && (
           <>
             {channels.length > 0 && <Text> </Text>}
-            <Text dimColor>  Blocks</Text>
+            <Text dimColor> Blocks</Text>
             {blocks.map((block, i) => {
               const idx = channels.length + i;
               const selected = idx === cursor;
               return (
-                <BlockItem
-                  key={block.id}
-                  item={block}
-                  selected={selected}
-                />
+                <BlockItem key={block.id} item={block} selected={selected} />
               );
             })}
           </>
@@ -439,8 +512,8 @@ function SearchResultsView({
 
       <Box marginTop={1}>
         <Text dimColor>
-          Page {page}/{totalPages} · ↑↓ navigate · ↵ open · ←→ page · o
-          browser · q back
+          Page {page}/{totalPages} · ↑↓ navigate · ↵ open · ←→ page · o browser
+          · q back
         </Text>
       </Box>
     </Box>
@@ -566,7 +639,8 @@ function ChannelsListView({
                 {indicators.Channel} {truncate(ch.title, 50)}
               </Text>
               <Text dimColor>
-                {" "}· {ch.visibility} · {ch.counts.contents}
+                {" "}
+                · {ch.visibility} · {ch.counts.contents}
               </Text>
             </Box>
           );
@@ -575,8 +649,8 @@ function ChannelsListView({
 
       <Box marginTop={1}>
         <Text dimColor>
-          Page {page}/{totalPages} · ↑↓ navigate · ↵ open · ←→ page · o
-          browser · q back
+          Page {page}/{totalPages} · ↑↓ navigate · ↵ open · ←→ page · o browser
+          · q back
         </Text>
       </Box>
     </Box>

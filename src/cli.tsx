@@ -9,6 +9,8 @@ import { CommentCommand } from "./commands/comment";
 import { ConnectCommand } from "./commands/connect";
 import { GroupView, GroupContents, GroupFollowers } from "./commands/group";
 import { LoginCommand } from "./commands/login";
+import { LogoutCommand } from "./commands/logout";
+import { config } from "./lib/config";
 import { PingCommand } from "./commands/ping";
 import { SearchCommand } from "./commands/search";
 import { SessionMode } from "./commands/session";
@@ -23,7 +25,6 @@ import { WhoamiCommand } from "./commands/whoami";
 import { Spinner } from "./components/Spinner";
 import { useCommand } from "./hooks/use-command";
 import { plural } from "./lib/format";
-
 
 interface ParsedArgs {
   args: string[];
@@ -153,7 +154,10 @@ function BlockConnectionsCommand({
       ) : (
         data.data.map((ch) => (
           <Text key={ch.id}>
-            {ch.title} <Text dimColor>@{ch.slug} · {ch.visibility}</Text>
+            {ch.title}{" "}
+            <Text dimColor>
+              @{ch.slug} · {ch.visibility}
+            </Text>
           </Text>
         ))
       )}
@@ -187,7 +191,10 @@ function ChannelCreateCommand({
       <Text color="green">✓ </Text>
       <Text>Created </Text>
       <Text bold>{data.title}</Text>
-      <Text dimColor> · {data.slug} · {data.visibility}</Text>
+      <Text dimColor>
+        {" "}
+        · {data.slug} · {data.visibility}
+      </Text>
     </Box>
   );
 }
@@ -263,7 +270,10 @@ function ChannelConnectionsCommand({
       ) : (
         data.data.map((ch) => (
           <Text key={ch.id}>
-            {ch.title} <Text dimColor>@{ch.slug} · {ch.visibility}</Text>
+            {ch.title}{" "}
+            <Text dimColor>
+              @{ch.slug} · {ch.visibility}
+            </Text>
           </Text>
         ))
       )}
@@ -418,67 +428,71 @@ function Help() {
 
       <Box flexDirection="column" marginBottom={1}>
         <Text dimColor>Channels</Text>
-        <Text> channel &lt;slug&gt;                View a channel</Text>
-        <Text> channel create &lt;title&gt;        Create a channel</Text>
-        <Text> channel update &lt;slug&gt;         Update a channel</Text>
-        <Text> channel delete &lt;slug&gt;         Delete a channel</Text>
-        <Text> channel connections &lt;slug&gt;    Where channel appears</Text>
-        <Text> channel followers &lt;slug&gt;      Channel followers</Text>
+        <Text> channel &lt;slug&gt; View a channel</Text>
+        <Text> channel create &lt;title&gt; Create a channel</Text>
+        <Text> channel update &lt;slug&gt; Update a channel</Text>
+        <Text> channel delete &lt;slug&gt; Delete a channel</Text>
+        <Text> channel connections &lt;slug&gt; Where channel appears</Text>
+        <Text> channel followers &lt;slug&gt; Channel followers</Text>
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
         <Text dimColor>Blocks</Text>
-        <Text> block &lt;id&gt;                    View a block</Text>
-        <Text> block update &lt;id&gt;             Update a block</Text>
-        <Text> block comments &lt;id&gt;           View block comments</Text>
-        <Text> block connections &lt;id&gt;        Where block appears</Text>
-        <Text> add &lt;channel&gt; &lt;value&gt;         Add content to a channel</Text>
-        <Text> upload &lt;file&gt; --channel &lt;ch&gt;   Upload a file</Text>
+        <Text> block &lt;id&gt; View a block</Text>
+        <Text> block update &lt;id&gt; Update a block</Text>
+        <Text> block comments &lt;id&gt; View block comments</Text>
+        <Text> block connections &lt;id&gt; Where block appears</Text>
+        <Text> add &lt;channel&gt; &lt;value&gt; Add content to a channel</Text>
+        <Text> upload &lt;file&gt; --channel &lt;ch&gt; Upload a file</Text>
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
         <Text dimColor>Connections</Text>
-        <Text> connect &lt;id&gt; &lt;channel&gt;        Connect block to channel</Text>
-        <Text> connection &lt;id&gt;               View a connection</Text>
-        <Text> connection delete &lt;id&gt;        Remove a connection</Text>
-        <Text> connection move &lt;id&gt;          Reposition a connection</Text>
+        <Text>
+          {" "}
+          connect &lt;id&gt; &lt;channel&gt; Connect block to channel
+        </Text>
+        <Text> connection &lt;id&gt; View a connection</Text>
+        <Text> connection delete &lt;id&gt; Remove a connection</Text>
+        <Text> connection move &lt;id&gt; Reposition a connection</Text>
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
         <Text dimColor>Comments</Text>
-        <Text> comment &lt;blockId&gt; &lt;text&gt;      Add a comment</Text>
-        <Text> comment delete &lt;id&gt;           Delete a comment</Text>
+        <Text> comment &lt;blockId&gt; &lt;text&gt; Add a comment</Text>
+        <Text> comment delete &lt;id&gt; Delete a comment</Text>
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
         <Text dimColor>Users &amp; Groups</Text>
-        <Text> user &lt;slug&gt;                  View a user</Text>
-        <Text> user contents &lt;slug&gt;         User's content</Text>
-        <Text> user followers &lt;slug&gt;        User's followers</Text>
-        <Text> user following &lt;slug&gt;        Who user follows</Text>
-        <Text> group &lt;slug&gt;                 View a group</Text>
-        <Text> group contents &lt;slug&gt;        Group's content</Text>
-        <Text> group followers &lt;slug&gt;       Group's followers</Text>
+        <Text> user &lt;slug&gt; View a user</Text>
+        <Text> user contents &lt;slug&gt; User's content</Text>
+        <Text> user followers &lt;slug&gt; User's followers</Text>
+        <Text> user following &lt;slug&gt; Who user follows</Text>
+        <Text> group &lt;slug&gt; View a group</Text>
+        <Text> group contents &lt;slug&gt; Group's content</Text>
+        <Text> group followers &lt;slug&gt; Group's followers</Text>
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
         <Text dimColor>Other</Text>
-        <Text> search &lt;query&gt;               Search Are.na</Text>
-        <Text> whoami                        Show current user</Text>
-        <Text> login                         Authenticate via OAuth</Text>
-        <Text> ping                          API health check</Text>
+        <Text> search &lt;query&gt; Search Are.na</Text>
+        <Text> whoami Show current user</Text>
+        <Text> login Authenticate via OAuth</Text>
+        <Text> logout Log out of your account</Text>
+        <Text> ping API health check</Text>
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
         <Text dimColor>Options</Text>
-        <Text> --json                 Output as JSON</Text>
-        <Text> --page &lt;n&gt;             Page number</Text>
-        <Text> --per &lt;n&gt;              Items per page</Text>
-        <Text> --type &lt;t&gt;             Filter by type</Text>
-        <Text> --visibility &lt;v&gt;       public, closed, or private</Text>
-        <Text> --title &lt;t&gt;            Title (for create/update)</Text>
-        <Text> --description &lt;d&gt;      Description (for create/update)</Text>
-        <Text> --help                 Show help</Text>
+        <Text> --json Output as JSON</Text>
+        <Text> --page &lt;n&gt; Page number</Text>
+        <Text> --per &lt;n&gt; Items per page</Text>
+        <Text> --type &lt;t&gt; Filter by type</Text>
+        <Text> --visibility &lt;v&gt; public, closed, or private</Text>
+        <Text> --title &lt;t&gt; Title (for create/update)</Text>
+        <Text> --description &lt;d&gt; Description (for create/update)</Text>
+        <Text> --help Show help</Text>
       </Box>
 
       <Box flexDirection="column">
@@ -514,13 +528,21 @@ async function handleJson(
         const sub = args[0];
         if (sub === "create") {
           result = await arena.createChannel(args[1]!, {
-            visibility: flags.visibility as "public" | "closed" | "private" | undefined,
+            visibility: flags.visibility as
+              | "public"
+              | "closed"
+              | "private"
+              | undefined,
             description: flags.description as string | undefined,
           });
         } else if (sub === "update") {
           result = await arena.updateChannel(args[1]!, {
             title: flags.title as string | undefined,
-            visibility: flags.visibility as "public" | "closed" | "private" | undefined,
+            visibility: flags.visibility as
+              | "public"
+              | "closed"
+              | "private"
+              | undefined,
             description: flags.description as string | undefined,
           });
         } else if (sub === "delete") {
@@ -675,12 +697,18 @@ async function handleJson(
         const filename = basename(file);
         const ext = filename.split(".").pop()?.toLowerCase() ?? "";
         const mimeMap: Record<string, string> = {
-          jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
-          gif: "image/gif", webp: "image/webp", pdf: "application/pdf",
+          jpg: "image/jpeg",
+          jpeg: "image/jpeg",
+          png: "image/png",
+          gif: "image/gif",
+          webp: "image/webp",
+          pdf: "application/pdf",
         };
         const contentType = mimeMap[ext] ?? "application/octet-stream";
         const fileBuffer = readFileSync(file);
-        const presigned = await arena.presignUpload([{ filename, content_type: contentType }]);
+        const presigned = await arena.presignUpload([
+          { filename, content_type: contentType },
+        ]);
         const target = presigned.files[0]!;
         await fetch(target.upload_url, {
           method: "PUT",
@@ -705,6 +733,13 @@ async function handleJson(
       case "ping":
         result = await arena.ping();
         break;
+
+      case "logout": {
+        const hadToken = !!config.getToken();
+        config.clearToken();
+        result = { logged_out: hadToken };
+        break;
+      }
 
       default:
         process.stderr.write(
@@ -752,7 +787,9 @@ if (flags.json && command) {
         element = (
           <ChannelCreateCommand
             title={rest[1]!}
-            visibility={flags.visibility as "public" | "closed" | "private" | undefined}
+            visibility={
+              flags.visibility as "public" | "closed" | "private" | undefined
+            }
             description={flags.description as string | undefined}
           />
         );
@@ -761,7 +798,9 @@ if (flags.json && command) {
           <ChannelUpdateCommand
             slug={rest[1]!}
             title={flags.title as string | undefined}
-            visibility={flags.visibility as "public" | "closed" | "private" | undefined}
+            visibility={
+              flags.visibility as "public" | "closed" | "private" | undefined
+            }
             description={flags.description as string | undefined}
           />
         );
@@ -800,11 +839,7 @@ if (flags.json && command) {
         );
       } else if (sub === "connections") {
         element = (
-          <BlockConnectionsCommand
-            id={Number(rest[1])}
-            page={page}
-            per={per}
-          />
+          <BlockConnectionsCommand id={Number(rest[1])} page={page} per={per} />
         );
       } else {
         element = <BlockCommand id={Number(sub)} />;
@@ -938,6 +973,10 @@ if (flags.json && command) {
 
     case "ping":
       element = <PingCommand />;
+      break;
+
+    case "logout":
+      element = <LogoutCommand />;
       break;
 
     default:
