@@ -9,16 +9,44 @@ interface TerminalImageProps {
   width?: number;
 }
 
+async function renderImage(
+  buffer: Buffer,
+  width: number,
+  preferNativeRender: boolean,
+): Promise<string> {
+  const output = await terminalImage.buffer(buffer, {
+    width,
+    preserveAspectRatio: true,
+    preferNativeRender,
+  });
+  return output;
+}
+
 async function fetchAndRender(src: string, width: number): Promise<string> {
   const response = await fetch(src);
   if (!response.ok) {
     throw new Error(`Image request failed (${response.status})`);
   }
   const arrayBuffer = await response.arrayBuffer();
-  return terminalImage.buffer(Buffer.from(arrayBuffer), {
-    width,
-    preserveAspectRatio: true,
-  });
+  const imageBuffer = Buffer.from(arrayBuffer);
+
+  try {
+    // First attempt native protocols (iTerm/kitty/sixel) for best fidelity.
+    const nativeOutput = await renderImage(imageBuffer, width, true);
+    if (nativeOutput && nativeOutput.trim().length > 0) {
+      return nativeOutput;
+    }
+  } catch {
+    // Ignore and fall back to ANSI rendering below.
+  }
+
+  // Fall back to ANSI rendering for broader terminal compatibility.
+  const ansiOutput = await renderImage(imageBuffer, width, false);
+  if (ansiOutput && ansiOutput.trim().length > 0) {
+    return ansiOutput;
+  }
+
+  throw new Error("Image renderer produced no output");
 }
 
 export function TerminalImage({ src, width }: TerminalImageProps) {
