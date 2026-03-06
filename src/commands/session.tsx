@@ -6,7 +6,7 @@ import type { Block, Channel, User } from "../api/types";
 import { BlockItem } from "../components/BlockItem";
 import { Spinner } from "../components/Spinner";
 import { truncate } from "../lib/format";
-import { channelColor, indicators } from "../lib/theme";
+import { channelColor, INDICATORS } from "../lib/theme";
 import { parsePositiveInt } from "../lib/args";
 import { config } from "../lib/config";
 import { openUrl } from "../lib/open";
@@ -248,7 +248,7 @@ function HomeScreen({
         <Text bold color="green">
           **
         </Text>
-        <Text bold> arena</Text>
+        <Text bold> Are.na</Text>
         <Text dimColor> · {me.name}</Text>
       </Box>
 
@@ -441,7 +441,7 @@ function SearchResultsView({
         <Text bold color="green">
           **
         </Text>
-        <Text bold> arena</Text>
+        <Text bold> Are.na</Text>
         <Text dimColor> · search · </Text>
         <Text>{query}</Text>
       </Box>
@@ -456,7 +456,7 @@ function SearchResultsView({
                   {i === cursor ? "▸ " : "  "}
                 </Text>
                 <Text color={channelColor(ch.visibility)} bold={i === cursor}>
-                  {indicators.Channel} {truncate(ch.title ?? "Untitled", 50)}
+                  {INDICATORS.Channel} {truncate(ch.title ?? "Untitled", 50)}
                 </Text>
                 <Text dimColor>
                   {" "}
@@ -603,7 +603,7 @@ function ChannelsListView({
         <Text bold color="green">
           **
         </Text>
-        <Text bold> arena</Text>
+        <Text bold> Are.na</Text>
         <Text dimColor> · channels · {me.name}</Text>
       </Box>
 
@@ -614,7 +614,7 @@ function ChannelsListView({
               {i === cursor ? "▸ " : "  "}
             </Text>
             <Text color={channelColor(ch.visibility)} bold={i === cursor}>
-              {indicators.Channel} {truncate(ch.title ?? "Untitled", 50)}
+              {INDICATORS.Channel} {truncate(ch.title ?? "Untitled", 50)}
             </Text>
             <Text dimColor>
               {" "}

@@ -19,7 +19,7 @@ function Help() {
         <Text bold color="green">
           **
         </Text>
-        <Text bold> arena</Text>
+        <Text bold> Are.na</Text>
         <Text dimColor> · Are.na from the terminal</Text>
       </Box>
 

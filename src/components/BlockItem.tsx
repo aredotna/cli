@@ -4,7 +4,7 @@ import {
   blockIconColor,
   blockTextColor,
   channelColor,
-  indicators,
+  INDICATORS,
 } from "../lib/theme";
 import { truncate } from "../lib/format";
 
@@ -37,7 +37,7 @@ interface Props {
 }
 
 export function BlockItem({ item, selected = false }: Props) {
-  const indicator = indicators[item.type] || "·";
+  const indicator = INDICATORS[item.type] || "·";
   const labelColor = blockTextColor();
   const iconColor = blockIconColor(item.type);
   const prefix = selected ? "▸ " : "  ";

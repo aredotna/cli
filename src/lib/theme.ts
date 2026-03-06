@@ -1,9 +1,9 @@
-export const indicators: Record<string, string> = {
-  Text: "■",
-  Image: "□",
-  Link: "◆",
+export const INDICATORS: Record<string, string> = {
+  Text: "≡",
+  Image: "▣",
+  Link: "↗",
   Attachment: "▲",
-  Embed: "●",
+  Embed: "▷",
   Channel: "□",
 };
 

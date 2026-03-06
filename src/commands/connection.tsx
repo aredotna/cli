@@ -4,7 +4,7 @@ import type { Movement } from "../api/types";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 import { plural } from "../lib/format";
-import { channelColor, indicators } from "../lib/theme";
+import { channelColor, INDICATORS } from "../lib/theme";
 
 export function ConnectionGetCommand({ id }: { id: number }) {
   const { data, error, loading } = useCommand(() =>
@@ -113,7 +113,7 @@ export function BlockConnectionsCommand({
       {data.data.map((ch) => (
         <Text key={ch.id}>
           <Text color={channelColor(ch.visibility)}>
-            {indicators.Channel} {ch.title}
+            {INDICATORS.Channel} {ch.title}
           </Text>{" "}
           <Text dimColor>
             @{ch.slug} · {ch.visibility}
@@ -158,7 +158,7 @@ export function ChannelConnectionsCommand({
       {data.data.map((ch) => (
         <Text key={ch.id}>
           <Text color={channelColor(ch.visibility)}>
-            {indicators.Channel} {ch.title}
+            {INDICATORS.Channel} {ch.title}
           </Text>{" "}
           <Text dimColor>
             @{ch.slug} · {ch.visibility}
