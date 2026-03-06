@@ -16,6 +16,9 @@
     "build": "tsup",
     "dev": "tsx src/cli.tsx",
     "typecheck": "tsc --noEmit",
+    "lint": "npm run typecheck",
+    "test": "tsx --test src/**/*.test.ts",
+    "check": "npm run lint && npm run test && npm run build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky"
@@ -26,6 +29,7 @@
   "dependencies": {
     "ink": "^6.8.0",
     "react": "^19.0.0",
+    "swr": "^2.4.1",
     "terminal-image": "^4.2.0"
   },
   "devDependencies": {

@@ -3,36 +3,44 @@ import { arena } from "../api/client";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 
-interface Props {
+export function CommentCommand({
+  blockId,
+  body,
+}: {
   blockId: number;
   body: string;
-}
-
-export function CommentCommand({ blockId, body }: Props) {
+}) {
   const { data, error, loading } = useCommand(async () => {
     await arena.createComment(blockId, body);
     return { blockId };
   });
 
   if (loading) return <Spinner label="Adding comment" />;
-
-  if (error) {
-    return (
-      <Box flexDirection="column">
-        <Text color="red">✕ {error}</Text>
-        {error.includes("Unauthorized") && (
-          <Text dimColor> Run `arena login` to authenticate</Text>
-        )}
-      </Box>
-    );
-  }
-
+  if (error) return <Text color="red">✕ {error}</Text>;
   if (!data) return null;
 
   return (
     <Box>
       <Text color="green">✓ </Text>
       <Text>Comment added to block {data.blockId}</Text>
+    </Box>
+  );
+}
+
+export function CommentDeleteCommand({ id }: { id: number }) {
+  const { data, error, loading } = useCommand(async () => {
+    await arena.deleteComment(id);
+    return { id };
+  });
+
+  if (loading) return <Spinner label="Deleting comment" />;
+  if (error) return <Text color="red">✕ {error}</Text>;
+  if (!data) return null;
+
+  return (
+    <Box>
+      <Text color="green">✓ </Text>
+      <Text>Deleted comment {data.id}</Text>
     </Box>
   );
 }

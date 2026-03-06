@@ -1,15 +1,18 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Box, Text, useApp, useInput } from "ink";
+import useSWR from "swr";
 import { arena, ArenaError } from "../api/client";
 import type { Block, Channel, User } from "../api/types";
 import { BlockItem } from "../components/BlockItem";
 import { Spinner } from "../components/Spinner";
 import { truncate } from "../lib/format";
 import { indicators } from "../lib/theme";
+import { parsePositiveInt } from "../lib/args";
 import { config } from "../lib/config";
-import { performOAuthFlow } from "../lib/oauth";
 import { openUrl } from "../lib/open";
 import { InteractiveChannel, BlockViewer } from "./channel";
+import { ARG_HINTS, COMMANDS, type SessionCommand } from "./session/constants";
+import { useSessionAuth } from "./session/use-session-auth";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -22,77 +25,17 @@ type View =
   | { kind: "search"; query: string }
   | { kind: "channels" };
 
-interface Command {
-  name: string;
-  args: string | null;
-  desc: string;
-}
-
-const COMMANDS: Command[] = [
-  { name: "channel", args: "<slug>", desc: "Browse a channel" },
-  { name: "search", args: "<query>", desc: "Search Are.na" },
-  { name: "block", args: "<id>", desc: "View a block" },
-  { name: "channels", args: null, desc: "Your channels" },
-  { name: "logout", args: null, desc: "Log out of your account" },
-];
-
 // ---------------------------------------------------------------------------
 // Session root
 // ---------------------------------------------------------------------------
 
-type AuthState =
-  | { status: "checking" }
-  | { status: "login"; step: "opening" | "waiting" | "exchanging" }
-  | { status: "login_error"; message: string }
-  | { status: "ready"; user: User };
-
 export function SessionMode() {
   const { exit } = useApp();
-  const [auth, setAuth] = useState<AuthState>({ status: "checking" });
+  const auth = useSessionAuth();
   const [stack, setStack] = useState<View[]>([{ kind: "home" }]);
   const stackRef = useRef(stack);
   stackRef.current = stack;
   const current = stack[stack.length - 1]!;
-
-  useEffect(() => {
-    let cancelled = false;
-
-    arena
-      .getMe()
-      .then((user) => {
-        if (!cancelled) setAuth({ status: "ready", user });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setAuth({ status: "login", step: "opening" });
-
-        performOAuthFlow(config.getClientId(), {
-          onBrowserOpen: () => {
-            if (!cancelled) setAuth({ status: "login", step: "waiting" });
-          },
-          onCodeReceived: () => {
-            if (!cancelled) setAuth({ status: "login", step: "exchanging" });
-          },
-        })
-          .then(async (token) => {
-            if (cancelled) return;
-            config.setToken(token);
-            const user = await arena.getMe();
-            if (!cancelled) setAuth({ status: "ready", user });
-          })
-          .catch((err: unknown) => {
-            if (!cancelled)
-              setAuth({
-                status: "login_error",
-                message: err instanceof Error ? err.message : String(err),
-              });
-          });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (auth.status === "login_error") {
@@ -101,30 +44,28 @@ export function SessionMode() {
     }
   }, [auth, exit]);
 
-  if (auth.status === "checking") {
-    return <Spinner label="Checking authentication" />;
-  }
-
-  if (auth.status === "login") {
-    const labels = {
-      opening: "Opening browser",
-      waiting: "Waiting for authorization",
-      exchanging: "Logging in",
-    };
-    return <Spinner label={labels[auth.step]} />;
-  }
-
-  if (auth.status === "login_error") {
-    return <Text color="red">✕ {auth.message}</Text>;
+  switch (auth.status) {
+    case "checking":
+      return <Spinner label="Checking authentication" />;
+    case "login": {
+      const labels = {
+        opening: "Opening browser",
+        waiting: "Waiting for authorization",
+        exchanging: "Logging in",
+      } as const;
+      return <Spinner label={labels[auth.step]} />;
+    }
+    case "login_error":
+      return <Text color="red">✕ {auth.message}</Text>;
+    case "ready":
+      break;
   }
 
   const me = auth.user;
-
   const push = (view: View) => setStack((s) => [...s, view]);
-
   const pop = () => {
-    if (stackRef.current.length <= 1) exit();
-    else setStack((s) => s.slice(0, -1));
+    if (stackRef.current.length <= 1) return exit();
+    setStack((s) => s.slice(0, -1));
   };
 
   switch (current.kind) {
@@ -173,17 +114,23 @@ export function SessionMode() {
 // Home — command prompt with tiered autocomplete
 // ---------------------------------------------------------------------------
 
-interface HomeProps {
-  me: User | null;
+function HomeScreen({
+  me,
+  onNavigate,
+  onLogout,
+  onExit,
+}: {
+  me: User;
   onNavigate: (view: View) => void;
   onLogout: () => void;
   onExit: () => void;
-}
-
-function HomeScreen({ me, onNavigate, onLogout, onExit }: HomeProps) {
+}) {
   const [input, setInput] = useState("");
   const [cursor, setCursor] = useState(0);
-  const [activeCommand, setActiveCommand] = useState<Command | null>(null);
+  const [activeCommand, setActiveCommand] = useState<SessionCommand | null>(
+    null,
+  );
+  const [inputError, setInputError] = useState<string | null>(null);
 
   const filtered = activeCommand
     ? []
@@ -197,7 +144,8 @@ function HomeScreen({ me, onNavigate, onLogout, onExit }: HomeProps) {
     }
   }, [filtered.length, cursor]);
 
-  function selectCommand(cmd: Command) {
+  function selectCommand(cmd: SessionCommand) {
+    setInputError(null);
     if (cmd.args) {
       setActiveCommand(cmd);
       setInput("");
@@ -207,23 +155,33 @@ function HomeScreen({ me, onNavigate, onLogout, onExit }: HomeProps) {
   }
 
   function execute(name: string, arg: string) {
+    const value = arg.trim();
+    setInputError(null);
+
     switch (name) {
       case "channel":
-        onNavigate({ kind: "channel", slug: arg });
-        break;
+        if (!value) return setInputError("Channel slug is required");
+        return onNavigate({ kind: "channel", slug: value });
       case "search":
-        onNavigate({ kind: "search", query: arg });
-        break;
+        if (!value) return setInputError("Search query is required");
+        return onNavigate({ kind: "search", query: value });
       case "block":
-        onNavigate({ kind: "block", blockIds: [Number(arg)], index: 0 });
-        break;
+        if (!value) return setInputError("Block ID is required");
+        try {
+          return onNavigate({
+            kind: "block",
+            blockIds: [parsePositiveInt(value, "block id")],
+            index: 0,
+          });
+        } catch (err: unknown) {
+          return setInputError(
+            err instanceof Error ? err.message : "Invalid block ID",
+          );
+        }
       case "channels":
-        onNavigate({ kind: "channels" });
-        break;
+        return onNavigate({ kind: "channels" });
       case "logout":
-        config.clearToken();
-        onLogout();
-        break;
+        return onLogout();
     }
   }
 
@@ -242,45 +200,37 @@ function HomeScreen({ me, onNavigate, onLogout, onExit }: HomeProps) {
     }
 
     if (activeCommand) {
-      if (key.return && input.trim()) {
-        execute(activeCommand.name, input.trim());
-        return;
-      }
+      if (key.return && input.trim())
+        return execute(activeCommand.name, input.trim());
       if (key.backspace || key.delete) {
-        if (input.length === 0) {
-          setActiveCommand(null);
-        } else {
-          setInput((i) => i.slice(0, -1));
-        }
+        if (input.length === 0) setActiveCommand(null);
+        else setInput((i) => i.slice(0, -1));
+        setInputError(null);
         return;
       }
       if (key.tab) return;
       if (char && !key.ctrl && !key.meta) {
         setInput((i) => i + char);
+        setInputError(null);
       }
       return;
     }
 
-    if (key.upArrow) {
-      setCursor((c) => Math.max(0, c - 1));
-      return;
-    }
-    if (key.downArrow) {
-      setCursor((c) => Math.min(filtered.length - 1, c + 1));
-      return;
-    }
-    if ((key.tab || key.return) && filtered[cursor]) {
-      selectCommand(filtered[cursor]!);
-      return;
-    }
+    if (key.upArrow) return setCursor((c) => Math.max(0, c - 1));
+    if (key.downArrow)
+      return setCursor((c) => Math.min(filtered.length - 1, c + 1));
+    if ((key.tab || key.return) && filtered[cursor])
+      return selectCommand(filtered[cursor]!);
     if (key.backspace || key.delete) {
       setInput((i) => i.slice(0, -1));
       setCursor(0);
+      setInputError(null);
       return;
     }
     if (char && !key.ctrl && !key.meta && !key.tab) {
       setInput((i) => i + char);
       setCursor(0);
+      setInputError(null);
     }
   });
 
@@ -291,7 +241,7 @@ function HomeScreen({ me, onNavigate, onLogout, onExit }: HomeProps) {
           **
         </Text>
         <Text bold> arena</Text>
-        {me && <Text dimColor> · {me.name}</Text>}
+        <Text dimColor> · {me.name}</Text>
       </Box>
 
       <Box>
@@ -323,13 +273,15 @@ function HomeScreen({ me, onNavigate, onLogout, onExit }: HomeProps) {
         </Box>
       )}
 
-      {activeCommand && (
+      {activeCommand?.args && (
         <Box marginLeft={2}>
-          <Text dimColor>
-            {activeCommand.args === "<slug>" && "enter channel slug"}
-            {activeCommand.args === "<query>" && "enter search query"}
-            {activeCommand.args === "<id>" && "enter block ID"}
-          </Text>
+          <Text dimColor>{ARG_HINTS[activeCommand.args] ?? "enter value"}</Text>
+        </Box>
+      )}
+
+      {inputError && (
+        <Box marginLeft={2}>
+          <Text color="red">✕ {inputError}</Text>
         </Box>
       )}
 
@@ -358,80 +310,82 @@ function SearchResultsView({
   onBack: () => void;
 }) {
   const PER = 20;
-  const [results, setResults] = useState<(Channel | Block)[]>([]);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [cursor, setCursor] = useState(0);
 
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    arena
-      .search(query, { page, per: PER })
-      .then((r) => {
-        const channels = r.data.filter(
-          (i): i is Channel => i.type === "Channel",
-        );
-        const blocks = r.data.filter(
-          (i): i is Block => i.type !== "Channel" && i.type !== "User",
-        );
-        setResults([...channels, ...blocks]);
-        setTotalPages(r.meta.total_pages);
-        setCursor(0);
-        setLoading(false);
-      })
-      .catch((err: unknown) => {
-        if (err instanceof ArenaError && err.status === 403) {
-          setError("Search requires Are.na Premium");
-        } else {
-          setError(err instanceof Error ? err.message : String(err));
-        }
-        setLoading(false);
-      });
-  }, [query, page]);
+  const {
+    data,
+    error,
+    isLoading: loading,
+  } = useSWR(`search/${query}?page=${page}&per=${PER}`, () =>
+    arena.search(query, { page, per: PER }).then((r) => {
+      const channels = r.data.filter((i): i is Channel => i.type === "Channel");
+      const blocks = r.data.filter(
+        (i): i is Block => i.type !== "Channel" && i.type !== "User",
+      );
+      return {
+        channels,
+        blocks,
+        items: [...channels, ...blocks],
+        meta: r.meta,
+      };
+    }),
+  );
+
+  const items = data?.items ?? [];
+  const channels = data?.channels ?? [];
+  const blocks = data?.blocks ?? [];
 
   useEffect(() => {
-    if (cursor >= results.length && results.length > 0) {
-      setCursor(results.length - 1);
+    if (cursor >= items.length && items.length > 0) {
+      setCursor(items.length - 1);
     }
-  }, [results.length, cursor]);
-
-  const channels = results.filter((i): i is Channel => i.type === "Channel");
-  const blocks = results.filter((i): i is Block => i.type !== "Channel");
+  }, [items.length, cursor]);
 
   useInput((char, key) => {
-    if (char === "q" || key.escape) {
-      onBack();
-      return;
-    }
+    if (char === "q" || key.escape) return onBack();
     if (loading) return;
 
-    if (key.upArrow || char === "k") {
-      setCursor((c) => Math.max(0, c - 1));
-    } else if (key.downArrow || char === "j") {
-      setCursor((c) => Math.min(results.length - 1, c + 1));
-    } else if (key.return && results[cursor]) {
-      const item = results[cursor]!;
-      if (item.type === "Channel") {
-        onNavigate({ kind: "channel", slug: (item as Channel).slug });
-      } else {
-        const blockIds = blocks.map((b) => b.id);
-        const idx = blockIds.indexOf(item.id);
-        onNavigate({ kind: "block", blockIds, index: idx });
+    switch (true) {
+      case key.upArrow || char === "k":
+        setCursor((c) => Math.max(0, c - 1));
+        break;
+      case key.downArrow || char === "j":
+        setCursor((c) => Math.min(items.length - 1, c + 1));
+        break;
+      case key.return && !!items[cursor]: {
+        const item = items[cursor]!;
+        if (item.type === "Channel") {
+          onNavigate({ kind: "channel", slug: (item as Channel).slug });
+        } else {
+          const blockIds = blocks.map((b) => b.id);
+          onNavigate({
+            kind: "block",
+            blockIds,
+            index: blockIds.indexOf(item.id),
+          });
+        }
+        break;
       }
-    } else if (key.rightArrow || char === "n") {
-      if (page < totalPages) setPage((p) => p + 1);
-    } else if (key.leftArrow || char === "p") {
-      if (page > 1) setPage((p) => p - 1);
-    } else if (char === "o" && results[cursor]) {
-      const item = results[cursor]!;
-      if (item.type === "Channel") {
-        const ch = item as Channel;
-        openUrl(`https://www.are.na/${ch.owner?.slug || ""}/${ch.slug}`);
-      } else {
-        openUrl(`https://www.are.na/block/${item.id}`);
+      case (key.rightArrow || char === "n") &&
+        !!data &&
+        page < data.meta.total_pages:
+        setPage((p) => p + 1);
+        setCursor(0);
+        break;
+      case (key.leftArrow || char === "p") && page > 1:
+        setPage((p) => p - 1);
+        setCursor(0);
+        break;
+      case char === "o" && !!items[cursor]: {
+        const item = items[cursor]!;
+        if (item.type === "Channel") {
+          const ch = item as Channel;
+          openUrl(`https://www.are.na/${ch.owner?.slug || ""}/${ch.slug}`);
+        } else {
+          openUrl(`https://www.are.na/block/${item.id}`);
+        }
+        break;
       }
     }
   });
@@ -439,9 +393,13 @@ function SearchResultsView({
   if (loading) return <Spinner label={`Searching "${query}"`} />;
 
   if (error) {
+    const isPermission = error instanceof ArenaError && error.status === 403;
+    const message = isPermission
+      ? "Search requires Are.na Premium"
+      : error.message;
     return (
       <Box flexDirection="column">
-        <Text color="red">✕ {error}</Text>
+        <Text color="red">✕ {message}</Text>
         <Box marginTop={1}>
           <Text dimColor>q back</Text>
         </Box>
@@ -449,7 +407,7 @@ function SearchResultsView({
     );
   }
 
-  if (results.length === 0) {
+  if (items.length === 0) {
     return (
       <Box flexDirection="column">
         <Text dimColor>No results for "{query}"</Text>
@@ -475,23 +433,20 @@ function SearchResultsView({
         {channels.length > 0 && (
           <>
             <Text dimColor> Channels</Text>
-            {channels.map((ch, i) => {
-              const selected = i === cursor;
-              return (
-                <Box key={ch.slug}>
-                  <Text color={selected ? "cyan" : undefined}>
-                    {selected ? "▸ " : "  "}
-                  </Text>
-                  <Text color="green" bold={selected}>
-                    {indicators.Channel} {truncate(ch.title, 50)}
-                  </Text>
-                  <Text dimColor>
-                    {" "}
-                    · {ch.visibility} · {ch.counts.contents}
-                  </Text>
-                </Box>
-              );
-            })}
+            {channels.map((ch, i) => (
+              <Box key={ch.slug}>
+                <Text color={i === cursor ? "cyan" : undefined}>
+                  {i === cursor ? "▸ " : "  "}
+                </Text>
+                <Text color="green" bold={i === cursor}>
+                  {indicators.Channel} {truncate(ch.title, 50)}
+                </Text>
+                <Text dimColor>
+                  {" "}
+                  · {ch.visibility} · {ch.counts.contents}
+                </Text>
+              </Box>
+            ))}
           </>
         )}
 
@@ -501,21 +456,26 @@ function SearchResultsView({
             <Text dimColor> Blocks</Text>
             {blocks.map((block, i) => {
               const idx = channels.length + i;
-              const selected = idx === cursor;
               return (
-                <BlockItem key={block.id} item={block} selected={selected} />
+                <BlockItem
+                  key={block.id}
+                  item={block}
+                  selected={idx === cursor}
+                />
               );
             })}
           </>
         )}
       </Box>
 
-      <Box marginTop={1}>
-        <Text dimColor>
-          Page {page}/{totalPages} · ↑↓ navigate · ↵ open · ←→ page · o browser
-          · q back
-        </Text>
-      </Box>
+      {data && (
+        <Box marginTop={1}>
+          <Text dimColor>
+            Page {page}/{data.meta.total_pages} · ↑↓ navigate · ↵ open · ←→ page
+            · o browser · q back
+          </Text>
+        </Box>
+      )}
     </Box>
   );
 }
@@ -529,39 +489,24 @@ function ChannelsListView({
   onNavigate,
   onBack,
 }: {
-  me: User | null;
+  me: User;
   onNavigate: (view: View) => void;
   onBack: () => void;
 }) {
   const PER = 24;
-  const [channels, setChannels] = useState<Channel[]>([]);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [cursor, setCursor] = useState(0);
 
-  useEffect(() => {
-    if (!me) {
-      setError("Not logged in. Run `arena login` first.");
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    arena
-      .getUserChannels(me.slug, { page, per: PER })
-      .then((r) => {
-        setChannels(r.data);
-        setTotalPages(r.meta.total_pages);
-        setCursor(0);
-        setLoading(false);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : String(err));
-        setLoading(false);
-      });
-  }, [me, page]);
+  const {
+    data,
+    error,
+    isLoading: loading,
+  } = useSWR(`user/${me.slug}/channels?page=${page}&per=${PER}`, () =>
+    arena.getUserChannels(me.slug, { page, per: PER }),
+  );
+
+  const channels = data?.data ?? [];
+  const meta = data?.meta;
 
   useEffect(() => {
     if (cursor >= channels.length && channels.length > 0) {
@@ -570,25 +515,34 @@ function ChannelsListView({
   }, [channels.length, cursor]);
 
   useInput((char, key) => {
-    if (char === "q" || key.escape) {
-      onBack();
-      return;
-    }
+    if (char === "q" || key.escape) return onBack();
     if (loading) return;
 
-    if (key.upArrow || char === "k") {
-      setCursor((c) => Math.max(0, c - 1));
-    } else if (key.downArrow || char === "j") {
-      setCursor((c) => Math.min(channels.length - 1, c + 1));
-    } else if (key.return && channels[cursor]) {
-      onNavigate({ kind: "channel", slug: channels[cursor]!.slug });
-    } else if (key.rightArrow || char === "n") {
-      if (page < totalPages) setPage((p) => p + 1);
-    } else if (key.leftArrow || char === "p") {
-      if (page > 1) setPage((p) => p - 1);
-    } else if (char === "o" && channels[cursor]) {
-      const ch = channels[cursor]!;
-      openUrl(`https://www.are.na/${ch.owner?.slug || ""}/${ch.slug}`);
+    switch (true) {
+      case key.upArrow || char === "k":
+        setCursor((c) => Math.max(0, c - 1));
+        break;
+      case key.downArrow || char === "j":
+        setCursor((c) => Math.min(channels.length - 1, c + 1));
+        break;
+      case key.return && !!channels[cursor]:
+        onNavigate({ kind: "channel", slug: channels[cursor]!.slug });
+        break;
+      case (key.rightArrow || char === "n") &&
+        !!meta &&
+        page < meta.total_pages:
+        setPage((p) => p + 1);
+        setCursor(0);
+        break;
+      case (key.leftArrow || char === "p") && page > 1:
+        setPage((p) => p - 1);
+        setCursor(0);
+        break;
+      case char === "o" && !!channels[cursor]: {
+        const ch = channels[cursor]!;
+        openUrl(`https://www.are.na/${ch.owner?.slug || ""}/${ch.slug}`);
+        break;
+      }
     }
   });
 
@@ -597,7 +551,7 @@ function ChannelsListView({
   if (error) {
     return (
       <Box flexDirection="column">
-        <Text color="red">✕ {error}</Text>
+        <Text color="red">✕ {error.message}</Text>
         <Box marginTop={1}>
           <Text dimColor>q back</Text>
         </Box>
@@ -623,36 +577,34 @@ function ChannelsListView({
           **
         </Text>
         <Text bold> arena</Text>
-        <Text dimColor> · channels</Text>
-        {me && <Text dimColor> · {me.name}</Text>}
+        <Text dimColor> · channels · {me.name}</Text>
       </Box>
 
       <Box flexDirection="column">
-        {channels.map((ch, i) => {
-          const selected = i === cursor;
-          return (
-            <Box key={ch.slug}>
-              <Text color={selected ? "cyan" : undefined}>
-                {selected ? "▸ " : "  "}
-              </Text>
-              <Text color="green" bold={selected}>
-                {indicators.Channel} {truncate(ch.title, 50)}
-              </Text>
-              <Text dimColor>
-                {" "}
-                · {ch.visibility} · {ch.counts.contents}
-              </Text>
-            </Box>
-          );
-        })}
+        {channels.map((ch, i) => (
+          <Box key={ch.slug}>
+            <Text color={i === cursor ? "cyan" : undefined}>
+              {i === cursor ? "▸ " : "  "}
+            </Text>
+            <Text color="green" bold={i === cursor}>
+              {indicators.Channel} {truncate(ch.title, 50)}
+            </Text>
+            <Text dimColor>
+              {" "}
+              · {ch.visibility} · {ch.counts.contents}
+            </Text>
+          </Box>
+        ))}
       </Box>
 
-      <Box marginTop={1}>
-        <Text dimColor>
-          Page {page}/{totalPages} · ↑↓ navigate · ↵ open · ←→ page · o browser
-          · q back
-        </Text>
-      </Box>
+      {meta && (
+        <Box marginTop={1}>
+          <Text dimColor>
+            Page {page}/{meta.total_pages} · ↑↓ navigate · ↵ open · ←→ page · o
+            browser · q back
+          </Text>
+        </Box>
+      )}
     </Box>
   );
 }

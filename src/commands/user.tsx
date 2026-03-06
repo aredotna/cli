@@ -1,16 +1,41 @@
 import { Box, Text } from "ink";
 import { arena } from "../api/client";
+import type { Followable } from "../api/types";
 import { BlockItem } from "../components/BlockItem";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 import { plural, timeAgo } from "../lib/format";
-import type { Followable } from "../api/types";
 
-interface UserViewProps {
-  slug: string;
+function formatCounts(data: {
+  counts?: { channels: number; followers: number; following: number };
+  channel_count?: number;
+  follower_count?: number;
+  following_count?: number;
+}): string {
+  if (data.counts) {
+    return [
+      plural(data.counts.channels, "channel"),
+      plural(data.counts.followers, "follower"),
+      `${data.counts.following} following`,
+    ].join(" · ");
+  }
+
+  return [
+    data.channel_count !== undefined
+      ? plural(data.channel_count, "channel")
+      : null,
+    data.follower_count !== undefined
+      ? plural(data.follower_count, "follower")
+      : null,
+    data.following_count !== undefined
+      ? `${data.following_count} following`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
-export function UserView({ slug }: UserViewProps) {
+export function UserView({ slug }: { slug: string }) {
   const { data, error, loading } = useCommand(() => arena.getUser(slug));
 
   if (loading) return <Spinner label="Loading user" />;
@@ -22,18 +47,7 @@ export function UserView({ slug }: UserViewProps) {
       <Text bold>{data.name}</Text>
       <Text dimColor>@{data.slug}</Text>
       {data.bio?.plain && <Text>{data.bio.plain}</Text>}
-      <Text dimColor>
-        {data.counts
-          ? `${plural(data.counts.channels, "channel")} · ${plural(data.counts.followers, "follower")} · ${data.counts.following} following`
-          : [
-              data.channel_count !== undefined &&
-                plural(data.channel_count, "channel"),
-              data.follower_count !== undefined &&
-                plural(data.follower_count, "follower"),
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-      </Text>
+      <Text dimColor>{formatCounts(data)}</Text>
       {data.created_at && (
         <Text dimColor>Joined {timeAgo(data.created_at)}</Text>
       )}
@@ -41,14 +55,17 @@ export function UserView({ slug }: UserViewProps) {
   );
 }
 
-interface UserContentsProps {
+export function UserContents({
+  slug,
+  page = 1,
+  per,
+  type,
+}: {
   slug: string;
   page?: number;
   per?: number;
   type?: string;
-}
-
-export function UserContents({ slug, page = 1, per, type }: UserContentsProps) {
+}) {
   const { data, error, loading } = useCommand(() =>
     arena.getUserContents(slug, { page, per, type }),
   );
@@ -57,13 +74,13 @@ export function UserContents({ slug, page = 1, per, type }: UserContentsProps) {
   if (error) return <Text color="red">✕ {error}</Text>;
   if (!data) return null;
 
+  if (data.data.length === 0) return <Text dimColor>No contents</Text>;
+
   return (
     <Box flexDirection="column">
-      {data.data.length === 0 ? (
-        <Text dimColor>No contents</Text>
-      ) : (
-        data.data.map((item) => <BlockItem key={item.id} item={item} />)
-      )}
+      {data.data.map((item) => (
+        <BlockItem key={item.id} item={item} />
+      ))}
       <Text dimColor>
         {"\n"}Page {data.meta.current_page}/{data.meta.total_pages} ·{" "}
         {plural(data.meta.total_count, "item")}
@@ -72,13 +89,15 @@ export function UserContents({ slug, page = 1, per, type }: UserContentsProps) {
   );
 }
 
-interface UserFollowersProps {
+export function UserFollowers({
+  slug,
+  page = 1,
+  per,
+}: {
   slug: string;
   page?: number;
   per?: number;
-}
-
-export function UserFollowers({ slug, page = 1, per }: UserFollowersProps) {
+}) {
   const { data, error, loading } = useCommand(() =>
     arena.getUserFollowers(slug, { page, per }),
   );
@@ -87,17 +106,15 @@ export function UserFollowers({ slug, page = 1, per }: UserFollowersProps) {
   if (error) return <Text color="red">✕ {error}</Text>;
   if (!data) return null;
 
+  if (data.data.length === 0) return <Text dimColor>No followers</Text>;
+
   return (
     <Box flexDirection="column">
-      {data.data.length === 0 ? (
-        <Text dimColor>No followers</Text>
-      ) : (
-        data.data.map((user) => (
-          <Text key={user.id}>
-            {user.name} <Text dimColor>@{user.slug}</Text>
-          </Text>
-        ))
-      )}
+      {data.data.map((user) => (
+        <Text key={user.id}>
+          {user.name} <Text dimColor>@{user.slug}</Text>
+        </Text>
+      ))}
       <Text dimColor>
         {"\n"}Page {data.meta.current_page}/{data.meta.total_pages} ·{" "}
         {plural(data.meta.total_count, "follower")}
@@ -107,17 +124,14 @@ export function UserFollowers({ slug, page = 1, per }: UserFollowersProps) {
 }
 
 function formatFollowable(item: Followable): string {
-  if (item.type === "User") return `${item.name} (@${item.slug})`;
-  if (item.type === "Channel") return `${item.title} [channel]`;
-  if (item.type === "Group") return `${item.name} [group]`;
-  return String((item as { id: number }).id);
-}
-
-interface UserFollowingProps {
-  slug: string;
-  page?: number;
-  per?: number;
-  type?: string;
+  switch (item.type) {
+    case "User":
+      return `${item.name} (@${item.slug})`;
+    case "Channel":
+      return `${item.title} [channel]`;
+    case "Group":
+      return `${item.name} [group]`;
+  }
 }
 
 export function UserFollowing({
@@ -125,7 +139,12 @@ export function UserFollowing({
   page = 1,
   per,
   type,
-}: UserFollowingProps) {
+}: {
+  slug: string;
+  page?: number;
+  per?: number;
+  type?: string;
+}) {
   const { data, error, loading } = useCommand(() =>
     arena.getUserFollowing(slug, { page, per, type }),
   );
@@ -134,15 +153,13 @@ export function UserFollowing({
   if (error) return <Text color="red">✕ {error}</Text>;
   if (!data) return null;
 
+  if (data.data.length === 0) return <Text dimColor>No following</Text>;
+
   return (
     <Box flexDirection="column">
-      {data.data.length === 0 ? (
-        <Text dimColor>No following</Text>
-      ) : (
-        data.data.map((item) => (
-          <Text key={item.id}>{formatFollowable(item)}</Text>
-        ))
-      )}
+      {data.data.map((item) => (
+        <Text key={item.id}>{formatFollowable(item)}</Text>
+      ))}
       <Text dimColor>
         {"\n"}Page {data.meta.current_page}/{data.meta.total_pages} ·{" "}
         {plural(data.meta.total_count, "item")}

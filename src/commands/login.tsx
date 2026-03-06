@@ -7,8 +7,9 @@ import { useCommand } from "../hooks/use-command";
 import { config } from "../lib/config";
 import { performOAuthFlow } from "../lib/oauth";
 
-interface Props {
-  token?: string;
+export function LoginCommand({ token }: { token?: string }) {
+  if (token) return <LoginToken token={token} />;
+  return <LoginOAuth />;
 }
 
 function LoginToken({ token }: { token: string }) {
@@ -38,37 +39,40 @@ function LoginToken({ token }: { token: string }) {
   return <LoginSuccess user={data} />;
 }
 
-type OAuthStep = "opening" | "waiting" | "exchanging" | "done" | "error";
+type OAuthState =
+  | { step: "opening" }
+  | { step: "waiting" }
+  | { step: "exchanging" }
+  | { step: "done"; user: User }
+  | { step: "error"; message: string };
 
 function LoginOAuth() {
   const { exit } = useApp();
-  const [step, setStep] = useState<OAuthStep>("opening");
-  const [user, setUser] = useState<User | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<OAuthState>({ step: "opening" });
 
   useEffect(() => {
     let cancelled = false;
 
     performOAuthFlow(config.getClientId(), {
       onBrowserOpen: () => {
-        if (!cancelled) setStep("waiting");
+        if (!cancelled) setState({ step: "waiting" });
       },
       onCodeReceived: () => {
-        if (!cancelled) setStep("exchanging");
+        if (!cancelled) setState({ step: "exchanging" });
       },
     })
       .then(async (token) => {
         if (cancelled) return;
         config.setToken(token);
-        const me = await arena.getMe();
-        if (cancelled) return;
-        setUser(me);
-        setStep("done");
+        const user = await arena.getMe();
+        if (!cancelled) setState({ step: "done", user });
       })
       .catch((err: unknown) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : String(err));
-        setStep("error");
+        if (!cancelled)
+          setState({
+            step: "error",
+            message: err instanceof Error ? err.message : String(err),
+          });
       });
 
     return () => {
@@ -77,13 +81,13 @@ function LoginOAuth() {
   }, []);
 
   useEffect(() => {
-    if (step === "done" || step === "error") {
-      if (step === "error") process.exitCode = 1;
+    if (state.step === "done" || state.step === "error") {
+      if (state.step === "error") process.exitCode = 1;
       exit();
     }
-  }, [step, exit]);
+  }, [state, exit]);
 
-  switch (step) {
+  switch (state.step) {
     case "opening":
       return <Spinner label="Opening browser" />;
     case "waiting":
@@ -91,13 +95,9 @@ function LoginOAuth() {
     case "exchanging":
       return <Spinner label="Logging in" />;
     case "error":
-      return (
-        <Box flexDirection="column">
-          <Text color="red">✕ {error}</Text>
-        </Box>
-      );
+      return <Text color="red">✕ {state.message}</Text>;
     case "done":
-      return user ? <LoginSuccess user={user} /> : null;
+      return <LoginSuccess user={state.user} />;
   }
 }
 
@@ -113,9 +113,4 @@ function LoginSuccess({ user }: { user: User }) {
       <Text dimColor> Token saved to {config.getConfigPath()}</Text>
     </Box>
   );
-}
-
-export function LoginCommand({ token }: Props) {
-  if (token) return <LoginToken token={token} />;
-  return <LoginOAuth />;
 }

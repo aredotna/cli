@@ -4,6 +4,46 @@ import { timeAgo } from "../lib/format";
 import { blockColor } from "../lib/theme";
 import { TerminalImage } from "./TerminalImage";
 
+function BlockBody({ block }: { block: Block }) {
+  switch (block.type) {
+    case "Text":
+      return block.content?.plain ? <Text>{block.content.plain}</Text> : null;
+
+    case "Link":
+      if (!block.source) return null;
+      return (
+        <Box flexDirection="column">
+          <Text color="cyan">{block.source.url}</Text>
+          {block.source.title && block.source.title !== block.title && (
+            <Text dimColor>{block.source.title}</Text>
+          )}
+        </Box>
+      );
+
+    case "Image":
+      if (!block.image) return null;
+      return (
+        <Box flexDirection="column">
+          <TerminalImage src={block.image.src} />
+          <Text dimColor>
+            {block.image.filename} · {block.image.width}x{block.image.height}
+          </Text>
+        </Box>
+      );
+
+    case "Attachment":
+      return block.attachment ? (
+        <Text color="magenta">{block.attachment.file_name}</Text>
+      ) : null;
+
+    case "Embed":
+      return block.embed ? <Text color="blue">{block.embed.url}</Text> : null;
+
+    default:
+      return null;
+  }
+}
+
 export function BlockContent({ block }: { block: Block }) {
   const color = blockColor(block.type);
 
@@ -15,41 +55,9 @@ export function BlockContent({ block }: { block: Block }) {
         </Text>
       )}
 
-      {block.type === "Text" && block.content?.plain && (
-        <Box marginTop={block.title ? 1 : 0}>
-          <Text>{block.content.plain}</Text>
-        </Box>
-      )}
-
-      {block.type === "Link" && block.source && (
-        <Box flexDirection="column" marginTop={block.title ? 1 : 0}>
-          <Text color="cyan">{block.source.url}</Text>
-          {block.source.title && block.source.title !== block.title && (
-            <Text dimColor>{block.source.title}</Text>
-          )}
-        </Box>
-      )}
-
-      {block.type === "Image" && block.image && (
-        <Box flexDirection="column" marginTop={block.title ? 1 : 0}>
-          <TerminalImage src={block.image.src} />
-          <Text dimColor>
-            {block.image.filename} · {block.image.width}x{block.image.height}
-          </Text>
-        </Box>
-      )}
-
-      {block.type === "Attachment" && block.attachment && (
-        <Box marginTop={block.title ? 1 : 0}>
-          <Text color="magenta">{block.attachment.file_name}</Text>
-        </Box>
-      )}
-
-      {block.type === "Embed" && block.embed && (
-        <Box marginTop={block.title ? 1 : 0}>
-          <Text color="blue">{block.embed.url}</Text>
-        </Box>
-      )}
+      <Box marginTop={block.title ? 1 : 0}>
+        <BlockBody block={block} />
+      </Box>
 
       {block.description?.plain && (
         <Box marginTop={1}>

@@ -19,6 +19,10 @@ function generateChallenge(verifier: string): string {
   return createHash("sha256").update(verifier).digest("base64url");
 }
 
+function generateState(): string {
+  return randomBytes(16).toString("base64url");
+}
+
 export interface OAuthCallbacks {
   onBrowserOpen?: () => void;
   onCodeReceived?: () => void;
@@ -30,6 +34,7 @@ export async function performOAuthFlow(
 ): Promise<string> {
   const verifier = generateVerifier();
   const challenge = generateChallenge(verifier);
+  const state = generateState();
 
   // Find an open port and start the callback server
   const { code, redirectUri } = await new Promise<{
@@ -65,6 +70,16 @@ export async function performOAuthFlow(
         return;
       }
 
+      const returnedState = url.searchParams.get("state");
+      if (returnedState !== state) {
+        res.writeHead(400, { "Content-Type": "text/html" });
+        res.end(resultPage(false, "State mismatch"));
+        clearTimeout(timeout);
+        server.close();
+        reject(new Error("OAuth state mismatch"));
+        return;
+      }
+
       res.writeHead(200, { "Content-Type": "text/html" });
       res.end(resultPage(true));
       clearTimeout(timeout);
@@ -93,6 +108,7 @@ export async function performOAuthFlow(
       authUrl.searchParams.set("scope", "write");
       authUrl.searchParams.set("code_challenge", challenge);
       authUrl.searchParams.set("code_challenge_method", "S256");
+      authUrl.searchParams.set("state", state);
 
       callbacks?.onBrowserOpen?.();
       openUrl(authUrl.toString());
@@ -126,10 +142,12 @@ export async function performOAuthFlow(
 function resultPage(success: boolean, message?: string): string {
   const color = success ? "#17ac10" : "#e53e3e";
   const icon = success ? "✓" : "✕";
-  const title = success ? "Authenticated" : "Authorization Failed";
-  const body = success
-    ? "You can close this tab and return to the terminal."
-    : message || "Something went wrong.";
+  const title = escapeHtml(success ? "Authenticated" : "Authorization Failed");
+  const body = escapeHtml(
+    success
+      ? "You can close this tab and return to the terminal."
+      : message || "Something went wrong.",
+  );
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>${title}</title>
@@ -146,4 +164,13 @@ p{color:#888;font-size:.9rem}
 <h1>${title}</h1>
 <p>${body}</p>
 </div></body></html>`;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }

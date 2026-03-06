@@ -1,13 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Box, Text, useApp, useInput } from "ink";
+import useSWR from "swr";
 import { arena } from "../api/client";
-import type {
-  Block,
-  Channel,
-  ChannelRef,
-  Connectable,
-  PaginatedResponse,
-} from "../api/types";
+import type { Block, ChannelRef, Connectable, Visibility } from "../api/types";
 import { BlockContent } from "../components/BlockContent";
 import { BlockItem } from "../components/BlockItem";
 import { Spinner } from "../components/Spinner";
@@ -20,13 +15,19 @@ type NavItem =
   | { kind: "channel"; slug: string }
   | { kind: "block"; blockIds: number[]; index: number };
 
-interface Props {
+// ---------------------------------------------------------------------------
+// Public entry point
+// ---------------------------------------------------------------------------
+
+export function ChannelCommand({
+  slug,
+  page: initialPage,
+  per = 24,
+}: {
   slug: string;
   page?: number;
   per?: number;
-}
-
-export function ChannelCommand({ slug, page: initialPage, per = 24 }: Props) {
+}) {
   if (!process.stdin.isTTY) {
     return <StaticChannelView slug={slug} page={initialPage ?? 1} per={per} />;
   }
@@ -53,7 +54,6 @@ export function InteractiveChannel({
   const onExit = onExitProp ?? exit;
 
   const [stack, setStack] = useState<NavItem[]>([{ kind: "channel", slug }]);
-
   const stackRef = useRef(stack);
   stackRef.current = stack;
 
@@ -64,11 +64,8 @@ export function InteractiveChannel({
   }, []);
 
   const pop = useCallback(() => {
-    if (stackRef.current.length <= 1) {
-      onExit();
-    } else {
-      setStack((s) => s.slice(0, -1));
-    }
+    if (stackRef.current.length <= 1) return onExit();
+    setStack((s) => s.slice(0, -1));
   }, [onExit]);
 
   if (current.kind === "block") {
@@ -102,88 +99,82 @@ export function InteractiveChannel({
 // Channel browser — interactive list with cursor, pagination, drill-in
 // ---------------------------------------------------------------------------
 
-interface BrowserProps {
-  slug: string;
-  initialPage?: number;
-  per: number;
-  onNavigate: (item: NavItem) => void;
-  onBack: () => void;
-}
-
 function ChannelBrowser({
   slug,
   initialPage = 1,
   per,
   onNavigate,
   onBack,
-}: BrowserProps) {
+}: {
+  slug: string;
+  initialPage?: number;
+  per: number;
+  onNavigate: (item: NavItem) => void;
+  onBack: () => void;
+}) {
   const [page, setPage] = useState(initialPage);
   const [cursor, setCursor] = useState(0);
-  const [channel, setChannel] = useState<Channel | null>(null);
-  const [contents, setContents] =
-    useState<PaginatedResponse<Connectable> | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
+  const {
+    data,
+    error,
+    isLoading: loading,
+  } = useSWR(`channel/${slug}?page=${page}&per=${per}`, () =>
     Promise.all([
       arena.getChannel(slug),
       arena.getChannelContents(slug, { page, per }),
-    ])
-      .then(([ch, co]) => {
-        setChannel(ch);
-        setContents(co);
-        setCursor(0);
-        setLoading(false);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : String(err));
-        setLoading(false);
-      });
-  }, [slug, page, per]);
+    ]).then(([channel, contents]) => ({ channel, contents })),
+  );
+
+  const items = data?.contents.data ?? [];
+  const meta = data?.contents.meta;
 
   useInput((input, key) => {
-    if (input === "q" || key.escape) {
-      onBack();
-      return;
-    }
+    if (input === "q" || key.escape) return onBack();
+    if (loading || !data) return;
 
-    if (loading || !contents) return;
-    const items = contents.data;
-
-    if (key.upArrow || input === "k") {
-      setCursor((c) => Math.max(0, c - 1));
-    } else if (key.downArrow || input === "j") {
-      setCursor((c) => Math.min(items.length - 1, c + 1));
-    } else if (key.return) {
-      const item = items[cursor];
-      if (!item) return;
-      if (item.type === "Channel" && "slug" in item) {
-        onNavigate({ kind: "channel", slug: (item as ChannelRef).slug });
-      } else {
-        const blockIds = items
-          .filter((i) => i.type !== "Channel")
-          .map((i) => i.id);
-        const blockIndex = blockIds.indexOf(item.id);
-        onNavigate({ kind: "block", blockIds, index: blockIndex });
+    switch (true) {
+      case key.upArrow || input === "k":
+        setCursor((c) => Math.max(0, c - 1));
+        break;
+      case key.downArrow || input === "j":
+        setCursor((c) => Math.min(items.length - 1, c + 1));
+        break;
+      case key.return: {
+        const item = items[cursor];
+        if (!item) break;
+        if (item.type === "Channel" && "slug" in item) {
+          onNavigate({ kind: "channel", slug: (item as ChannelRef).slug });
+        } else {
+          const blockIds = items
+            .filter((i) => i.type !== "Channel")
+            .map((i) => i.id);
+          onNavigate({
+            kind: "block",
+            blockIds,
+            index: blockIds.indexOf(item.id),
+          });
+        }
+        break;
       }
-    } else if (
-      (input === "n" || key.rightArrow) &&
-      contents.meta.has_more_pages
-    ) {
-      setPage((p) => p + 1);
-    } else if ((input === "p" || key.leftArrow) && page > 1) {
-      setPage((p) => p - 1);
-    } else if (input === "o") {
-      const item = items[cursor];
-      if (!item) return;
-      if (item.type === "Channel" && "slug" in item) {
-        const ch = item as ChannelRef;
-        openUrl(`https://www.are.na/${ch.owner?.slug || ""}/${ch.slug}`);
-      } else {
-        openUrl(`https://www.are.na/block/${item.id}`);
+      case (input === "n" || key.rightArrow) && !!meta?.has_more_pages:
+        setPage((p) => p + 1);
+        setCursor(0);
+        break;
+      case (input === "p" || key.leftArrow) && page > 1:
+        setPage((p) => p - 1);
+        setCursor(0);
+        break;
+      case input === "o": {
+        const item = items[cursor];
+        if (!item) break;
+        if (item.type === "Channel" && "slug" in item) {
+          const ch = item as ChannelRef;
+          openUrl(`https://www.are.na/${ch.owner?.slug || ""}/${ch.slug}`);
+        } else {
+          openUrl(`https://www.are.na/block/${item.id}`);
+        }
+        break;
       }
     }
   });
@@ -193,13 +184,15 @@ function ChannelBrowser({
   if (error) {
     return (
       <Box flexDirection="column">
-        <Text color="red">✕ {error}</Text>
+        <Text color="red">✕ {error.message}</Text>
         <Text dimColor> Press q to go back</Text>
       </Box>
     );
   }
 
-  if (!channel || !contents) return null;
+  if (!data) return null;
+
+  const { channel } = data;
 
   return (
     <Box flexDirection="column">
@@ -211,11 +204,11 @@ function ChannelBrowser({
         </Text>
       </Box>
 
-      {contents.data.length === 0 ? (
+      {items.length === 0 ? (
         <Text dimColor>This channel is empty</Text>
       ) : (
         <Box flexDirection="column">
-          {contents.data.map((item, i) => (
+          {items.map((item, i) => (
             <BlockItem
               key={`${item.type}-${item.id}`}
               item={item}
@@ -226,10 +219,10 @@ function ChannelBrowser({
       )}
 
       <Box marginTop={1} flexDirection="column">
-        {contents.meta.total_pages > 1 && (
+        {meta && meta.total_pages > 1 && (
           <Text dimColor>
-            Page {contents.meta.current_page}/{contents.meta.total_pages} ·{" "}
-            {plural(contents.meta.total_count, "block")}
+            Page {meta.current_page}/{meta.total_pages} ·{" "}
+            {plural(meta.total_count, "block")}
           </Text>
         )}
         <Text dimColor>
@@ -259,34 +252,26 @@ export function BlockViewer({
   const hasPrev = index > 0;
   const hasNext = index < blockIds.length - 1;
 
-  const [block, setBlock] = useState<Block | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    arena
-      .getBlock(id)
-      .then((b) => {
-        setBlock(b);
-        setLoading(false);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : String(err));
-        setLoading(false);
-      });
-  }, [id]);
+  const {
+    data: block,
+    error,
+    isLoading: loading,
+  } = useSWR(`block/${id}`, () => arena.getBlock(id));
 
   useInput((input, key) => {
-    if (input === "q" || key.escape) {
-      onBack();
-    } else if (key.leftArrow && hasPrev) {
-      onNavigate(index - 1);
-    } else if (key.rightArrow && hasNext) {
-      onNavigate(index + 1);
-    } else if (input === "o" && block) {
-      openUrl(`https://www.are.na/block/${block.id}`);
+    switch (true) {
+      case input === "q" || key.escape:
+        onBack();
+        break;
+      case key.leftArrow && hasPrev:
+        onNavigate(index - 1);
+        break;
+      case key.rightArrow && hasNext:
+        onNavigate(index + 1);
+        break;
+      case input === "o" && !!block:
+        openUrl(`https://www.are.na/block/${block.id}`);
+        break;
     }
   });
 
@@ -295,7 +280,7 @@ export function BlockViewer({
   if (error) {
     return (
       <Box flexDirection="column">
-        <Text color="red">✕ {error}</Text>
+        <Text color="red">✕ {error.message}</Text>
         <Text dimColor> Press q to go back</Text>
       </Box>
     );
@@ -333,13 +318,12 @@ function StaticChannelView({
   page: number;
   per: number;
 }) {
-  const { data, error, loading } = useCommand(async () => {
-    const [channel, contents] = await Promise.all([
+  const { data, error, loading } = useCommand(() =>
+    Promise.all([
       arena.getChannel(slug),
       arena.getChannelContents(slug, { page, per }),
-    ]);
-    return { channel, contents };
-  });
+    ]).then(([channel, contents]) => ({ channel, contents })),
+  );
 
   if (loading) return <Spinner label={`Loading ${slug}`} />;
 
@@ -383,6 +367,87 @@ function StaticChannelView({
           </Text>
         </Box>
       )}
+    </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Channel CRUD commands (non-interactive, used by CLI router)
+// ---------------------------------------------------------------------------
+
+export function ChannelCreateCommand({
+  title,
+  visibility,
+  description,
+}: {
+  title: string;
+  visibility?: Visibility;
+  description?: string;
+}) {
+  const { data, error, loading } = useCommand(() =>
+    arena.createChannel(title, { visibility, description }),
+  );
+
+  if (loading) return <Spinner label="Creating channel" />;
+  if (error) return <Text color="red">✕ {error}</Text>;
+  if (!data) return null;
+
+  return (
+    <Box>
+      <Text color="green">✓ </Text>
+      <Text>Created </Text>
+      <Text bold>{data.title}</Text>
+      <Text dimColor>
+        {" "}
+        · {data.slug} · {data.visibility}
+      </Text>
+    </Box>
+  );
+}
+
+export function ChannelUpdateCommand({
+  slug,
+  title,
+  visibility,
+  description,
+}: {
+  slug: string;
+  title?: string;
+  visibility?: Visibility;
+  description?: string;
+}) {
+  const { data, error, loading } = useCommand(() =>
+    arena.updateChannel(slug, { title, visibility, description }),
+  );
+
+  if (loading) return <Spinner label="Updating channel" />;
+  if (error) return <Text color="red">✕ {error}</Text>;
+  if (!data) return null;
+
+  return (
+    <Box>
+      <Text color="green">✓ </Text>
+      <Text>Updated </Text>
+      <Text bold>{data.title}</Text>
+      <Text dimColor> · {data.slug}</Text>
+    </Box>
+  );
+}
+
+export function ChannelDeleteCommand({ slug }: { slug: string }) {
+  const { data, error, loading } = useCommand(async () => {
+    await arena.deleteChannel(slug);
+    return { slug };
+  });
+
+  if (loading) return <Spinner label="Deleting channel" />;
+  if (error) return <Text color="red">✕ {error}</Text>;
+  if (!data) return null;
+
+  return (
+    <Box>
+      <Text color="green">✓ </Text>
+      <Text>Deleted channel {data.slug}</Text>
     </Box>
   );
 }
