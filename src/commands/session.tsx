@@ -37,6 +37,12 @@ export function SessionMode() {
   stackRef.current = stack;
   const current = stack[stack.length - 1]!;
 
+  useInput((input, key) => {
+    if ((key.ctrl && input === "c") || input === "\u0003") {
+      exit();
+    }
+  });
+
   useEffect(() => {
     if (auth.status === "login_error") {
       process.exitCode = 1;
@@ -182,6 +188,8 @@ function HomeScreen({
         return onNavigate({ kind: "channels" });
       case "logout":
         return onLogout();
+      case "exit":
+        return onExit();
     }
   }
 
@@ -289,7 +297,7 @@ function HomeScreen({
         <Text dimColor>
           {activeCommand
             ? "↵ submit · esc back"
-            : "tab complete · ↑↓ navigate · esc quit"}
+            : "tab complete · ↑↓ navigate · esc quit · ctrl+c exit"}
         </Text>
       </Box>
     </Box>

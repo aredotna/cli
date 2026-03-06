@@ -15,6 +15,7 @@ export const COMMANDS: SessionCommand[] = [
       desc: cmd.session!.desc,
     })),
   { name: "channels", args: null, desc: "Your channels" },
+  { name: "exit", args: null, desc: "Exit session" },
 ];
 
 export const ARG_HINTS: Record<string, string> = {
