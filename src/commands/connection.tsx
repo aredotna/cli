@@ -4,6 +4,7 @@ import type { Movement } from "../api/types";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 import { plural } from "../lib/format";
+import { channelColor, indicators } from "../lib/theme";
 
 export function ConnectionGetCommand({ id }: { id: number }) {
   const { data, error, loading } = useCommand(() => arena.getConnection(id));
@@ -94,7 +95,9 @@ export function BlockConnectionsCommand({
     <Box flexDirection="column">
       {data.data.map((ch) => (
         <Text key={ch.id}>
-          {ch.title}{" "}
+          <Text color={channelColor(ch.visibility)}>
+            {indicators.Channel} {ch.title}
+          </Text>{" "}
           <Text dimColor>
             @{ch.slug} · {ch.visibility}
           </Text>
@@ -133,7 +136,9 @@ export function ChannelConnectionsCommand({
     <Box flexDirection="column">
       {data.data.map((ch) => (
         <Text key={ch.id}>
-          {ch.title}{" "}
+          <Text color={channelColor(ch.visibility)}>
+            {indicators.Channel} {ch.title}
+          </Text>{" "}
           <Text dimColor>
             @{ch.slug} · {ch.visibility}
           </Text>

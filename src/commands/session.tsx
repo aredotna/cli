@@ -6,7 +6,7 @@ import type { Block, Channel, User } from "../api/types";
 import { BlockItem } from "../components/BlockItem";
 import { Spinner } from "../components/Spinner";
 import { truncate } from "../lib/format";
-import { indicators } from "../lib/theme";
+import { channelColor, indicators } from "../lib/theme";
 import { parsePositiveInt } from "../lib/args";
 import { config } from "../lib/config";
 import { openUrl } from "../lib/open";
@@ -446,7 +446,7 @@ function SearchResultsView({
                 <Text color={i === cursor ? "cyan" : undefined}>
                   {i === cursor ? "▸ " : "  "}
                 </Text>
-                <Text color="green" bold={i === cursor}>
+                <Text color={channelColor(ch.visibility)} bold={i === cursor}>
                   {indicators.Channel} {truncate(ch.title, 50)}
                 </Text>
                 <Text dimColor>
@@ -594,7 +594,7 @@ function ChannelsListView({
             <Text color={i === cursor ? "cyan" : undefined}>
               {i === cursor ? "▸ " : "  "}
             </Text>
-            <Text color="green" bold={i === cursor}>
+            <Text color={channelColor(ch.visibility)} bold={i === cursor}>
               {indicators.Channel} {truncate(ch.title, 50)}
             </Text>
             <Text dimColor>

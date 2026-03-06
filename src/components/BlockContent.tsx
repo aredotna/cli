@@ -1,7 +1,7 @@
 import { Box, Text } from "ink";
 import type { Block } from "../api/types";
 import { timeAgo } from "../lib/format";
-import { blockColor } from "../lib/theme";
+import { blockTextColor } from "../lib/theme";
 import { TerminalImage } from "./TerminalImage";
 
 function BlockBody({ block }: { block: Block }) {
@@ -45,7 +45,7 @@ function BlockBody({ block }: { block: Block }) {
 }
 
 export function BlockContent({ block }: { block: Block }) {
-  const color = blockColor(block.type);
+  const color = blockTextColor();
 
   return (
     <Box flexDirection="column">

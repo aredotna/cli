@@ -1,6 +1,11 @@
 import { Box, Text } from "ink";
 import type { Block, ChannelRef, Connectable } from "../api/types";
-import { blockColor, indicators } from "../lib/theme";
+import {
+  blockIconColor,
+  blockTextColor,
+  channelColor,
+  indicators,
+} from "../lib/theme";
 import { truncate } from "../lib/format";
 
 function isChannelRef(item: Connectable): item is ChannelRef {
@@ -33,10 +38,12 @@ interface Props {
 
 export function BlockItem({ item, selected = false }: Props) {
   const indicator = indicators[item.type] || "·";
-  const color = blockColor(item.type);
+  const labelColor = blockTextColor();
+  const iconColor = blockIconColor(item.type);
   const prefix = selected ? "▸ " : "  ";
 
   if (isChannelRef(item)) {
+    const color = channelColor(item.visibility);
     return (
       <Box>
         <Text color={selected ? "cyan" : undefined}>{prefix}</Text>
@@ -56,10 +63,12 @@ export function BlockItem({ item, selected = false }: Props) {
   return (
     <Box>
       <Text color={selected ? "cyan" : undefined}>{prefix}</Text>
-      <Text color={color} bold={selected}>
+      <Text color={iconColor} bold={selected}>
         {indicator}{" "}
       </Text>
-      <Text bold={selected}>{truncate(label, 60)}</Text>
+      <Text color={labelColor} bold={selected}>
+        {truncate(label, 60)}
+      </Text>
     </Box>
   );
 }
