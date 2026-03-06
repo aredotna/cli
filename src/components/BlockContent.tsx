@@ -18,8 +18,8 @@ function formatFileSize(bytes?: number | null): string | null {
 
 export function BlockContent({ block }: { block: Block }) {
   const color = blockTextColor();
-  const previewImage =
-    "image" in block && block.image?.src ? block.image : null;
+  const previewImage = "image" in block ? block.image : null;
+  const previewSrc = previewImage?.small?.src ?? previewImage?.src;
 
   const body =
     block.type === "Text" ? (
@@ -28,7 +28,7 @@ export function BlockContent({ block }: { block: Block }) {
       ) : null
     ) : block.type === "Link" ? (
       <Box flexDirection="column">
-        {previewImage?.src ? <TerminalImage src={previewImage.src} /> : null}
+        {previewSrc ? <TerminalImage src={previewSrc} /> : null}
         {block.source ? (
           <>
             <Text color="cyan">{block.source.url}</Text>
@@ -39,21 +39,21 @@ export function BlockContent({ block }: { block: Block }) {
         ) : null}
       </Box>
     ) : block.type === "Image" ? (
-      block.image?.src ? (
+      previewSrc ? (
         <Box flexDirection="column">
-          <TerminalImage src={block.image.src} />
+          <TerminalImage src={previewSrc} />
         </Box>
       ) : null
     ) : block.type === "Attachment" ? (
       <Box flexDirection="column">
-        {previewImage?.src ? <TerminalImage src={previewImage.src} /> : null}
+        {previewSrc ? <TerminalImage src={previewSrc} /> : null}
         {block.attachment ? (
           <Text color="magenta">{block.attachment.filename}</Text>
         ) : null}
       </Box>
     ) : block.type === "Embed" ? (
       <Box flexDirection="column">
-        {previewImage?.src ? <TerminalImage src={previewImage.src} /> : null}
+        {previewSrc ? <TerminalImage src={previewSrc} /> : null}
         {block.embed ? <Text color="blue">{block.embed.url}</Text> : null}
       </Box>
     ) : null;
