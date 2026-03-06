@@ -1,27 +1,52 @@
+import { useEffect, useState } from "react";
 import { Box, Text } from "ink";
 import type { Block } from "../api/types";
 import { timeAgo } from "../lib/format";
 import { blockTextColor } from "../lib/theme";
 import { TerminalImage } from "./TerminalImage";
 
+function BlockImagePreview({ block }: { block: Block }) {
+  if (!("image" in block)) return null;
+  const image = block.image;
+  if (!image?.src) return null;
+
+  return (
+    <>
+      <TerminalImage src={image.src} />
+      {image.filename && (
+        <Text dimColor>
+          {image.filename} · {image.width}x{image.height}
+        </Text>
+      )}
+    </>
+  );
+}
+
 function BlockBody({ block }: { block: Block }) {
+  const hasImage = "image" in block;
+
   switch (block.type) {
     case "Text":
-      return block.content?.plain ? <Text>{block.content.plain}</Text> : null;
+      return block.content.plain ? <Text>{block.content.plain}</Text> : null;
 
     case "Link":
-      if (!block.source) return null;
       return (
         <Box flexDirection="column">
-          <Text color="cyan">{block.source.url}</Text>
-          {block.source.title && block.source.title !== block.title && (
-            <Text dimColor>{block.source.title}</Text>
+          {hasImage && <BlockImagePreview block={block} />}
+          {!block.source ? null : (
+            <>
+              <Text color="cyan">{block.source.url}</Text>
+              {block.source.title && block.source.title !== block.title && (
+                <Text dimColor>{block.source.title}</Text>
+              )}
+            </>
           )}
         </Box>
       );
 
     case "Image":
-      if (!block.image?.src) return null;
+      if (!block.image.src) return null;
+
       return (
         <Box flexDirection="column">
           <TerminalImage src={block.image.src} />
@@ -32,16 +57,42 @@ function BlockBody({ block }: { block: Block }) {
       );
 
     case "Attachment":
-      return block.attachment ? (
-        <Text color="magenta">{block.attachment.filename}</Text>
-      ) : null;
+      return (
+        <Box flexDirection="column">
+          {hasImage && <BlockImagePreview block={block} />}
+          {block.attachment ? (
+            <Text color="magenta">{block.attachment.filename}</Text>
+          ) : null}
+        </Box>
+      );
 
     case "Embed":
-      return block.embed ? <Text color="blue">{block.embed.url}</Text> : null;
+      return (
+        <Box flexDirection="column">
+          {hasImage && <BlockImagePreview block={block} />}
+          {block.embed ? <Text color="blue">{block.embed.url}</Text> : null}
+        </Box>
+      );
 
     default:
       return null;
   }
+}
+
+function BlockTypeLabel({ type }: { type: string }) {
+  const isPending = type.toLowerCase() === "pendingblock";
+  const [dotCount, setDotCount] = useState(1);
+
+  useEffect(() => {
+    if (!isPending) return;
+    const intervalId = setInterval(() => {
+      setDotCount((count) => (count % 3) + 1);
+    }, 450);
+    return () => clearInterval(intervalId);
+  }, [isPending]);
+
+  if (!isPending) return <>{type.toLowerCase()}</>;
+  return <>Processing{".".repeat(dotCount)}</>;
 }
 
 export function BlockContent({ block }: { block: Block }) {
@@ -68,7 +119,7 @@ export function BlockContent({ block }: { block: Block }) {
       <Box marginTop={1}>
         <Text dimColor>
           {block.user.name} · {timeAgo(block.created_at)} ·{" "}
-          {block.type.toLowerCase()}
+          <BlockTypeLabel type={block.type} />
         </Text>
       </Box>
     </Box>
