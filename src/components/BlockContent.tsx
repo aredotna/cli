@@ -1,70 +1,9 @@
+import { useMemo } from "react";
 import { Box, Text } from "ink";
 import type { Block } from "../api/types";
 import { timeAgo } from "../lib/format";
 import { blockTextColor } from "../lib/theme";
 import { TerminalImage } from "./TerminalImage";
-
-function BlockImagePreview({ block }: { block: Block }) {
-  if (!("image" in block)) return null;
-  const image = block.image;
-  if (!image?.src) return null;
-
-  return <TerminalImage src={image.src} />;
-}
-
-function BlockBody({ block }: { block: Block }) {
-  const hasImage = "image" in block;
-
-  switch (block.type) {
-    case "Text":
-      return block.content.plain ? <Text>{block.content.plain}</Text> : null;
-
-    case "Link":
-      return (
-        <Box flexDirection="column">
-          {hasImage && <BlockImagePreview block={block} />}
-          {!block.source ? null : (
-            <>
-              <Text color="cyan">{block.source.url}</Text>
-              {block.source.title && block.source.title !== block.title && (
-                <Text dimColor>{block.source.title}</Text>
-              )}
-            </>
-          )}
-        </Box>
-      );
-
-    case "Image":
-      if (!block.image.src) return null;
-
-      return (
-        <Box flexDirection="column">
-          <TerminalImage src={block.image.src} />
-        </Box>
-      );
-
-    case "Attachment":
-      return (
-        <Box flexDirection="column">
-          {hasImage && <BlockImagePreview block={block} />}
-          {block.attachment ? (
-            <Text color="magenta">{block.attachment.filename}</Text>
-          ) : null}
-        </Box>
-      );
-
-    case "Embed":
-      return (
-        <Box flexDirection="column">
-          {hasImage && <BlockImagePreview block={block} />}
-          {block.embed ? <Text color="blue">{block.embed.url}</Text> : null}
-        </Box>
-      );
-
-    default:
-      return null;
-  }
-}
 
 function formatFileSize(bytes?: number | null): string | null {
   if (!bytes || bytes <= 0) return null;
@@ -77,75 +16,110 @@ function formatFileSize(bytes?: number | null): string | null {
   return `${gb.toFixed(1)} GB`;
 }
 
-function addRow(
-  rows: Array<{ label: string; value: string }>,
-  label: string,
-  value: string | null | undefined,
-) {
-  if (!value) return;
-  rows.push({ label, value });
-}
+export function BlockContent({ block }: { block: Block }) {
+  const color = blockTextColor();
+  const previewImage =
+    "image" in block && block.image?.src ? block.image : null;
 
-function BlockMetadata({ block }: { block: Block }) {
-  const rows: Array<{ label: string; value: string }> = [];
+  const body =
+    block.type === "Text" ? (
+      block.content?.plain ? (
+        <Text>{block.content.plain}</Text>
+      ) : null
+    ) : block.type === "Link" ? (
+      <Box flexDirection="column">
+        {previewImage?.src ? <TerminalImage src={previewImage.src} /> : null}
+        {block.source ? (
+          <>
+            <Text color="cyan">{block.source.url}</Text>
+            {block.source.title && block.source.title !== block.title && (
+              <Text dimColor>{block.source.title}</Text>
+            )}
+          </>
+        ) : null}
+      </Box>
+    ) : block.type === "Image" ? (
+      block.image?.src ? (
+        <Box flexDirection="column">
+          <TerminalImage src={block.image.src} />
+        </Box>
+      ) : null
+    ) : block.type === "Attachment" ? (
+      <Box flexDirection="column">
+        {previewImage?.src ? <TerminalImage src={previewImage.src} /> : null}
+        {block.attachment ? (
+          <Text color="magenta">{block.attachment.filename}</Text>
+        ) : null}
+      </Box>
+    ) : block.type === "Embed" ? (
+      <Box flexDirection="column">
+        {previewImage?.src ? <TerminalImage src={previewImage.src} /> : null}
+        {block.embed ? <Text color="blue">{block.embed.url}</Text> : null}
+      </Box>
+    ) : null;
 
-  addRow(rows, "ID", String(block.id));
-  addRow(rows, "Type", block.type);
-  addRow(rows, "Added", `${block.created_at} (${timeAgo(block.created_at)})`);
-  addRow(
-    rows,
-    "Modified",
-    `${block.updated_at} (${timeAgo(block.updated_at)})`,
-  );
-  addRow(rows, "By", block.user.name);
+  const rows = useMemo(() => {
+    const dimensionValue =
+      previewImage?.width && previewImage?.height
+        ? `${previewImage.width} × ${previewImage.height}`
+        : null;
 
-  if ("image" in block && block.image) {
-    addRow(rows, "Image", block.image.filename);
-    if (block.image.width && block.image.height) {
-      addRow(
-        rows,
-        "Dimensions",
-        `${block.image.width} × ${block.image.height}`,
-      );
-    }
-    addRow(rows, "Alt text", block.image.alt_text ?? undefined);
-  }
+    const candidates: Array<{
+      label: string;
+      value: string | null | undefined;
+    }> = [
+      { label: "ID", value: String(block.id) },
+      { label: "Type", value: block.type },
+      {
+        label: "Added",
+        value: `${block.created_at} (${timeAgo(block.created_at)})`,
+      },
+      {
+        label: "Modified",
+        value: `${block.updated_at} (${timeAgo(block.updated_at)})`,
+      },
+      { label: "By", value: block.user.name },
+      ...(previewImage
+        ? [
+            { label: "Image", value: previewImage.filename },
+            { label: "Dimensions", value: dimensionValue },
+            { label: "Alt text", value: previewImage.alt_text },
+          ]
+        : []),
+      ...(block.type === "Attachment" && block.attachment
+        ? [
+            { label: "Filename", value: block.attachment.filename },
+            { label: "Content Type", value: block.attachment.content_type },
+            {
+              label: "File Size",
+              value: formatFileSize(block.attachment.file_size),
+            },
+          ]
+        : []),
+      ...(block.type === "Link" && block.source
+        ? [
+            { label: "URL", value: block.source.url },
+            { label: "Source", value: block.source.provider?.name },
+          ]
+        : []),
+      ...(block.type === "Embed" && block.embed
+        ? [
+            { label: "Embed URL", value: block.embed.url },
+            { label: "Embed type", value: block.embed.type },
+          ]
+        : []),
+    ];
 
-  if (block.type === "Attachment" && block.attachment) {
-    addRow(rows, "Filename", block.attachment.filename);
-    addRow(rows, "Content Type", block.attachment.content_type ?? undefined);
-    addRow(rows, "File Size", formatFileSize(block.attachment.file_size));
-  }
-
-  if (block.type === "Link" && block.source) {
-    addRow(rows, "URL", block.source.url);
-    addRow(rows, "Source", block.source.provider?.name ?? undefined);
-  }
-
-  if (block.type === "Embed" && block.embed) {
-    addRow(rows, "Embed URL", block.embed.url);
-    addRow(rows, "Embed type", block.embed.type ?? undefined);
-  }
+    return candidates.filter(
+      (candidate): candidate is { label: string; value: string } =>
+        Boolean(candidate.value),
+    );
+  }, [block, previewImage]);
 
   const labelWidth = rows.reduce(
     (max, row) => Math.max(max, row.label.length),
     0,
   );
-
-  return (
-    <Box flexDirection="column">
-      {rows.map((row) => (
-        <Text key={row.label}>
-          <Text dimColor>{`${row.label.padEnd(labelWidth)}  `}</Text>
-          {row.value}
-        </Text>
-      ))}
-    </Box>
-  );
-}
-
-export function BlockContent({ block }: { block: Block }) {
-  const color = blockTextColor();
 
   return (
     <Box flexDirection="column">
@@ -156,7 +130,7 @@ export function BlockContent({ block }: { block: Block }) {
       )}
 
       <Box marginTop={block.title ? 1 : 0} marginBottom={1}>
-        <BlockBody block={block} />
+        {body}
       </Box>
 
       {block.description?.plain && (
@@ -166,7 +140,14 @@ export function BlockContent({ block }: { block: Block }) {
       )}
 
       <Box marginTop={1}>
-        <BlockMetadata block={block} />
+        <Box flexDirection="column">
+          {rows.map((row, index) => (
+            <Text key={`${row.label}-${index}`}>
+              <Text dimColor>{`${row.label.padEnd(labelWidth)}  `}</Text>
+              {row.value}
+            </Text>
+          ))}
+        </Box>
       </Box>
     </Box>
   );
