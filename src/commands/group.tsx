@@ -10,7 +10,7 @@ interface GroupViewProps {
   slug: string;
 }
 
-export function GroupView({ slug }: GroupViewProps) {
+export function GroupViewCommand({ slug }: GroupViewProps) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.GET("/v3/groups/{id}", {
@@ -44,7 +44,7 @@ interface GroupContentsProps {
   type?: string;
 }
 
-export function GroupContents({
+export function GroupContentsCommand({
   slug,
   page = 1,
   per,
@@ -86,7 +86,11 @@ interface GroupFollowersProps {
   per?: number;
 }
 
-export function GroupFollowers({ slug, page = 1, per }: GroupFollowersProps) {
+export function GroupFollowersCommand({
+  slug,
+  page = 1,
+  per,
+}: GroupFollowersProps) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.GET("/v3/groups/{id}/followers", {

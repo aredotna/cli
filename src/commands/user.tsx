@@ -1,45 +1,12 @@
 import { Box, Text } from "ink";
 import { client, getData } from "../api/client";
-import type {
-  ContentTypeFilter,
-  Followable,
-  FollowableType,
-} from "../api/types";
+import type { ContentTypeFilter, FollowableType } from "../api/types";
 import { BlockItem } from "../components/BlockItem";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
-import { plural, timeAgo } from "../lib/format";
+import { formatCounts, formatFollowable, plural, timeAgo } from "../lib/format";
 
-function formatCounts(data: {
-  counts?: { channels: number; followers: number; following: number };
-  channel_count?: number;
-  follower_count?: number;
-  following_count?: number;
-}): string {
-  if (data.counts) {
-    return [
-      plural(data.counts.channels, "channel"),
-      plural(data.counts.followers, "follower"),
-      `${data.counts.following} following`,
-    ].join(" · ");
-  }
-
-  return [
-    data.channel_count !== undefined
-      ? plural(data.channel_count, "channel")
-      : null,
-    data.follower_count !== undefined
-      ? plural(data.follower_count, "follower")
-      : null,
-    data.following_count !== undefined
-      ? `${data.following_count} following`
-      : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}
-
-export function UserView({ slug }: { slug: string }) {
+export function UserViewCommand({ slug }: { slug: string }) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.GET("/v3/users/{id}", {
@@ -65,7 +32,7 @@ export function UserView({ slug }: { slug: string }) {
   );
 }
 
-export function UserContents({
+export function UserContentsCommand({
   slug,
   page = 1,
   per,
@@ -106,7 +73,7 @@ export function UserContents({
   );
 }
 
-export function UserFollowers({
+export function UserFollowersCommand({
   slug,
   page = 1,
   per,
@@ -144,18 +111,7 @@ export function UserFollowers({
   );
 }
 
-function formatFollowable(item: Followable): string {
-  switch (item.type) {
-    case "User":
-      return `${item.name} (@${item.slug})`;
-    case "Channel":
-      return `${item.title} [channel]`;
-    case "Group":
-      return `${item.name} [group]`;
-  }
-}
-
-export function UserFollowing({
+export function UserFollowingCommand({
   slug,
   page = 1,
   per,

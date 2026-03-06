@@ -44,17 +44,21 @@ import {
   ChannelConnectionsCommand,
   ChannelFollowersCommand,
 } from "../commands/connection";
-import { GroupView, GroupContents, GroupFollowers } from "../commands/group";
+import {
+  GroupContentsCommand,
+  GroupFollowersCommand,
+  GroupViewCommand,
+} from "../commands/group";
 import { LoginCommand } from "../commands/login";
 import { LogoutCommand } from "../commands/logout";
 import { PingCommand } from "../commands/ping";
 import { SearchCommand } from "../commands/search";
 import { UploadCommand } from "../commands/upload";
 import {
-  UserView,
-  UserContents,
-  UserFollowers,
-  UserFollowing,
+  UserContentsCommand,
+  UserFollowersCommand,
+  UserFollowingCommand,
+  UserViewCommand,
 } from "../commands/user";
 import { WhoamiCommand } from "../commands/whoami";
 import { config } from "./config";
@@ -583,7 +587,7 @@ export const commands: CommandDefinition[] = [
       switch (sub) {
         case "contents":
           return (
-            <UserContents
+            <UserContentsCommand
               slug={requireArg(args, 1, "slug")}
               page={optPage(flags)}
               per={optPer(flags)}
@@ -592,7 +596,7 @@ export const commands: CommandDefinition[] = [
           );
         case "followers":
           return (
-            <UserFollowers
+            <UserFollowersCommand
               slug={requireArg(args, 1, "slug")}
               page={optPage(flags)}
               per={optPer(flags)}
@@ -600,7 +604,7 @@ export const commands: CommandDefinition[] = [
           );
         case "following":
           return (
-            <UserFollowing
+            <UserFollowingCommand
               slug={requireArg(args, 1, "slug")}
               page={optPage(flags)}
               per={optPer(flags)}
@@ -608,7 +612,7 @@ export const commands: CommandDefinition[] = [
             />
           );
         default:
-          return <UserView slug={requireArg(args, 0, "slug")} />;
+          return <UserViewCommand slug={requireArg(args, 0, "slug")} />;
       }
     },
     async json(args, flags) {
@@ -673,7 +677,7 @@ export const commands: CommandDefinition[] = [
       switch (sub) {
         case "contents":
           return (
-            <GroupContents
+            <GroupContentsCommand
               slug={requireArg(args, 1, "slug")}
               page={optPage(flags)}
               per={optPer(flags)}
@@ -682,14 +686,14 @@ export const commands: CommandDefinition[] = [
           );
         case "followers":
           return (
-            <GroupFollowers
+            <GroupFollowersCommand
               slug={requireArg(args, 1, "slug")}
               page={optPage(flags)}
               per={optPer(flags)}
             />
           );
         default:
-          return <GroupView slug={requireArg(args, 0, "slug")} />;
+          return <GroupViewCommand slug={requireArg(args, 0, "slug")} />;
       }
     },
     async json(args, flags) {
