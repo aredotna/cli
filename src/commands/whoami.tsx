@@ -15,7 +15,8 @@ export function WhoamiCommand() {
 
   const stats = [
     plural(data.counts.channels, "channel"),
-    `${data.counts.following} following`,
+
+    `${data.counts.following.toLocaleString()} following`,
     plural(data.counts.followers, "follower"),
   ]
     .filter(Boolean)
