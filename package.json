@@ -19,7 +19,8 @@
   },
   "dependencies": {
     "ink": "^6.8.0",
-    "react": "^19.0.0"
+    "react": "^19.0.0",
+    "terminal-image": "^4.2.0"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",

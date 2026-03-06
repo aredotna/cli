@@ -5,10 +5,17 @@ export interface User {
   slug: string;
   avatar: string;
   initials: string;
+  bio?: Description | null;
+  created_at?: string;
+  updated_at?: string;
+  counts?: {
+    channels: number;
+    followers: number;
+    following: number;
+  };
   channel_count?: number;
   following_count?: number;
   follower_count?: number;
-  created_at?: string;
 }
 
 export interface Owner {
@@ -115,6 +122,56 @@ export interface ChannelRef {
   position?: number;
 }
 
+export interface Comment {
+  id: number;
+  type: "Comment";
+  body: Description | null;
+  created_at: string;
+  updated_at: string;
+  user: User;
+}
+
+export interface Group {
+  id: number;
+  type: "Group";
+  name: string;
+  slug: string;
+  avatar: string | null;
+  initials: string;
+  bio?: Description | null;
+  created_at: string;
+  updated_at: string;
+  user: User;
+  counts: {
+    channels: number;
+    users: number;
+  };
+}
+
+export interface Connection {
+  id: number;
+  position: number;
+  pinned: boolean;
+  connected_at: string;
+  connected_by: User | null;
+  can: { remove: boolean };
+}
+
+export type ConnectableType = "Block" | "Channel";
+
+export type Movement =
+  | "insert_at"
+  | "move_to_top"
+  | "move_to_bottom"
+  | "move_up"
+  | "move_down";
+
+export interface PresignedFile {
+  upload_url: string;
+  key: string;
+  content_type: string;
+}
+
 export interface PaginationMeta {
   current_page: number;
   per_page: number;
@@ -133,3 +190,5 @@ export interface PaginatedResponse<T> {
 export type Connectable = Block | ChannelRef;
 
 export type SearchResult = Block | Channel | User;
+
+export type Followable = User | Channel | Group;
