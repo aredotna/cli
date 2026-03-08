@@ -371,7 +371,11 @@ export const commands: CommandDefinition[] = [
     render(args, flags) {
       const value = requireArg([args.slice(1).join(" ")], 0, "value");
       return (
-        <AddCommand channel={requireArg(args, 0, "channel")} value={value} />
+        <AddCommand
+          channel={requireArg(args, 0, "channel")}
+          value={value}
+          description={flag(flags, "description")}
+        />
       );
     },
     async json(args, flags) {
