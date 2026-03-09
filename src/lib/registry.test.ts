@@ -18,6 +18,17 @@ async function json(...args: string[]): Promise<unknown> {
   return JSON.parse(stdout);
 }
 
+/** Run a command and return its exit code (does not throw). */
+async function exitCode(...args: string[]): Promise<number> {
+  try {
+    await run(...args);
+    return 0;
+  } catch (err: unknown) {
+    const e = err as { code?: number };
+    return e.code ?? 1;
+  }
+}
+
 // ── Ping & Auth ──
 
 describe("ping", () => {
@@ -441,6 +452,22 @@ describe("error handling", () => {
 
   test("non-existent block returns Not Found", async () => {
     await assert.rejects(run("block", "999999999"), /Not Found/);
+  });
+
+  test("exit code 0 on success", async () => {
+    assert.equal(await exitCode("ping"), 0);
+  });
+
+  test("exit code 1 for client errors (bad args)", async () => {
+    assert.equal(await exitCode("block", "not-a-number"), 1);
+  });
+
+  test("exit code 3 for 404 not found", async () => {
+    assert.equal(await exitCode("block", "999999999"), 3);
+  });
+
+  test("exit code 6 for 403 forbidden", async () => {
+    assert.equal(await exitCode("search", "test"), 6);
   });
 });
 
