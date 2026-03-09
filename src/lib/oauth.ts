@@ -1,6 +1,10 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "http";
 import { randomBytes, createHash } from "crypto";
 import { openUrl } from "./open";
+import { loadEnv } from "./env";
+
+// Ensure env is populated before reading OAuth URLs.
+loadEnv();
 
 function authorizeUrl(): string {
   return (
