@@ -3,7 +3,7 @@ import { render, Box, Text, useApp } from "ink";
 import { SWRConfig } from "swr";
 import { parseArgs, type Flags } from "./lib/args";
 import { commandMap, groupedCommands } from "./lib/registry";
-import { exitCodeFromError } from "./lib/exit-codes";
+import { exitCodeFromError, formatJsonError } from "./lib/exit-codes";
 import { SessionMode } from "./commands/session";
 
 // ── Help ──
@@ -92,7 +92,11 @@ async function handleJson(command: string, args: string[], flags: Flags) {
 
   if (!def || !def.json) {
     process.stderr.write(
-      JSON.stringify({ error: `Unknown command: ${command}` }) + "\n",
+      JSON.stringify({
+        error: `Unknown command: ${command}`,
+        code: null,
+        type: "unknown_command",
+      }) + "\n",
     );
     process.exit(1);
   }
@@ -101,8 +105,7 @@ async function handleJson(command: string, args: string[], flags: Flags) {
     const result = await def.json(args, flags);
     process.stdout.write(JSON.stringify(result, null, 2) + "\n");
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    process.stderr.write(JSON.stringify({ error: message }) + "\n");
+    process.stderr.write(JSON.stringify(formatJsonError(err)) + "\n");
     process.exit(exitCodeFromError(err));
   }
 }

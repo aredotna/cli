@@ -29,6 +29,19 @@ async function exitCode(...args: string[]): Promise<number> {
   }
 }
 
+/** Run a command expecting failure, return parsed stderr JSON. */
+async function jsonError(
+  ...args: string[]
+): Promise<{ error: string; code: number | null; type: string }> {
+  try {
+    await run(...args);
+    throw new Error("Expected command to fail");
+  } catch (err: unknown) {
+    const e = err as { stderr?: string };
+    return JSON.parse(e.stderr ?? "{}");
+  }
+}
+
 // ── Ping & Auth ──
 
 describe("ping", () => {
@@ -468,6 +481,19 @@ describe("error handling", () => {
 
   test("exit code 6 for 403 forbidden", async () => {
     assert.equal(await exitCode("search", "test"), 6);
+  });
+
+  test("structured error includes code and type for API errors", async () => {
+    const err = await jsonError("block", "999999999");
+    assert.equal(err.code, 404);
+    assert.equal(err.type, "not_found");
+    assert.ok(err.error.length > 0);
+  });
+
+  test("structured error has null code for client errors", async () => {
+    const err = await jsonError("block", "not-a-number");
+    assert.equal(err.code, null);
+    assert.equal(err.type, "client_error");
   });
 });
 
