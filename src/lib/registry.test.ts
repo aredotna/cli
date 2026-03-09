@@ -569,3 +569,24 @@ describe("aliases", () => {
     await assert.rejects(run("s", "test"), /Forbidden/);
   });
 });
+
+// ── Quiet mode ──
+
+describe("quiet mode", () => {
+  test("--quiet reduces output to just id", async () => {
+    const data = (await json("whoami", "--quiet")) as Record<string, unknown>;
+    assert.ok("id" in data);
+    assert.ok(!("name" in data));
+    assert.ok(!("slug" in data));
+  });
+
+  test("--quiet passes through objects without id or slug", async () => {
+    const data = (await json("ping", "--quiet")) as Record<string, unknown>;
+    assert.equal(data.status, "ok");
+  });
+
+  test("--quiet outputs compact JSON (no indentation)", async () => {
+    const { stdout } = await run("ping", "--quiet");
+    assert.ok(!stdout.includes("\n  "), "Expected compact JSON");
+  });
+});

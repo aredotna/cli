@@ -46,6 +46,7 @@ function Help() {
       <Box flexDirection="column" marginBottom={1}>
         <Text dimColor>Options</Text>
         <Text> --json Output as JSON</Text>
+        <Text> --quiet Minimal output (just IDs)</Text>
         <Text> --page &lt;n&gt; Page number</Text>
         <Text> --per &lt;n&gt; Items per page</Text>
         <Text> --sort &lt;s&gt; Sort order</Text>
@@ -85,6 +86,15 @@ function RenderError({ message }: { message: string }) {
   return <Text color="red">✕ {message}</Text>;
 }
 
+function quietResult(result: unknown): unknown {
+  if (!result || typeof result !== "object") return result;
+  if (Array.isArray(result)) return result.map(quietResult);
+  const obj = result as Record<string, unknown>;
+  if ("id" in obj) return { id: obj.id };
+  if ("slug" in obj) return { slug: obj.slug };
+  return result;
+}
+
 // ── JSON handler ──
 
 async function handleJson(command: string, args: string[], flags: Flags) {
@@ -103,7 +113,9 @@ async function handleJson(command: string, args: string[], flags: Flags) {
 
   try {
     const result = await def.json(args, flags);
-    process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+    const output = flags.quiet ? quietResult(result) : result;
+    const indent = flags.quiet ? undefined : 2;
+    process.stdout.write(JSON.stringify(output, null, indent) + "\n");
   } catch (err: unknown) {
     process.stderr.write(JSON.stringify(formatJsonError(err)) + "\n");
     process.exit(exitCodeFromError(err));
