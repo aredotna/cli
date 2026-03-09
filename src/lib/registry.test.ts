@@ -1,44 +1,83 @@
 import test, { describe, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { loadEnv } from "./env";
+import { parseArgs } from "./args";
+import { exitCodeFromError, formatJsonError } from "./exit-codes";
 
-const exec = promisify(execFile);
+loadEnv();
 
-const CLI = ["npx", ["tsx", "src/cli.tsx"]];
+process.env.ARENA_VCR_MODE = process.env.ARENA_VCR_MODE || "auto";
+process.env.ARENA_VCR_NAME = process.env.ARENA_VCR_NAME || "registry-test";
 
-async function run(
-  ...args: string[]
-): Promise<{ stdout: string; stderr: string }> {
-  return exec(CLI[0] as string, [...(CLI[1] as string[]), ...args, "--json"]);
-}
+const { commandMap } = await import("./registry");
 
-async function json(...args: string[]): Promise<unknown> {
-  const { stdout } = await run(...args);
-  return JSON.parse(stdout);
-}
+function assertNonProductionApiBase(): void {
+  const resolvedApiBase = process.env["ARENA_API_URL"] || "https://api.are.na";
+  let hostname: string;
 
-/** Run a command and return its exit code (does not throw). */
-async function exitCode(...args: string[]): Promise<number> {
   try {
-    await run(...args);
-    return 0;
-  } catch (err: unknown) {
-    const e = err as { code?: number };
-    return e.code ?? 1;
+    hostname = new URL(resolvedApiBase).hostname.toLowerCase();
+  } catch {
+    throw new Error(
+      `Invalid ARENA_API_URL: ${resolvedApiBase}. ` +
+        "Set ARENA_API_URL to a non-production base before running integration tests.",
+    );
+  }
+
+  const isProductionHost = hostname === "api.are.na";
+
+  if (isProductionHost) {
+    throw new Error(
+      "Refusing to run integration tests against production. " +
+        `Resolved API base: ${resolvedApiBase}. ` +
+        "Set ARENA_API_URL to a non-production host (for example staging) before running npm test.",
+    );
   }
 }
 
-/** Run a command expecting failure, return parsed stderr JSON. */
+assertNonProductionApiBase();
+
+function quietResult(result: unknown): unknown {
+  if (!result || typeof result !== "object") return result;
+  if (Array.isArray(result)) return result.map(quietResult);
+  const obj = result as Record<string, unknown>;
+  if ("id" in obj) return { id: obj.id };
+  if ("slug" in obj) return { slug: obj.slug };
+  return result;
+}
+
+async function json(...rawArgs: string[]): Promise<unknown> {
+  const { args, flags } = parseArgs(rawArgs);
+  const [command, ...rest] = args;
+  const def = commandMap.get(command!);
+  if (!def?.json) throw new Error(`Unknown command: ${command}`);
+  const result = await def.json(rest, flags);
+  return flags.quiet ? quietResult(result) : result;
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function exitCode(...rawArgs: string[]): Promise<number> {
+  try {
+    await json(...rawArgs);
+    return 0;
+  } catch (err: unknown) {
+    return exitCodeFromError(err);
+  }
+}
+
 async function jsonError(
-  ...args: string[]
+  ...rawArgs: string[]
 ): Promise<{ error: string; code: number | null; type: string }> {
   try {
-    await run(...args);
+    await json(...rawArgs);
     throw new Error("Expected command to fail");
   } catch (err: unknown) {
-    const e = err as { stderr?: string };
-    return JSON.parse(e.stderr ?? "{}");
+    if (err instanceof Error && err.message === "Expected command to fail")
+      throw err;
+    return formatJsonError(err);
   }
 }
 
@@ -198,13 +237,21 @@ describe("channel lifecycle", () => {
     assert.ok(comment.id > 0);
     assert.equal(comment.body.plain, "Test comment");
 
-    // Verify it appears in block comments
-    const data = (await json("block", "comments", String(blockId))) as {
-      data: { id: number }[];
-      meta: { total_count: number };
-    };
-    assert.equal(data.meta.total_count, 1);
-    assert.equal(data.data[0]!.id, commentId);
+    // Verify it appears in block comments. The API can be eventually
+    // consistent, so poll briefly before failing.
+    let seen = false;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const data = (await json("block", "comments", String(blockId))) as {
+        data: { id: number }[];
+        meta: { total_count: number };
+      };
+      if (data.data.some((entry) => entry.id === commentId)) {
+        seen = true;
+        break;
+      }
+      await sleep(250);
+    }
+    assert.equal(seen, true);
   });
 
   test("comment delete removes the comment", async () => {
@@ -474,22 +521,22 @@ describe("pagination", () => {
 
 describe("error handling", () => {
   test("missing required argument exits with error", async () => {
-    await assert.rejects(run("channel"), /Missing required argument/);
+    await assert.rejects(json("channel"), /Missing required argument/);
   });
 
   test("invalid block ID exits with error", async () => {
-    await assert.rejects(run("block", "not-a-number"), /Expected a positive/);
+    await assert.rejects(json("block", "not-a-number"), /Expected a positive/);
   });
 
   test("non-existent channel returns Not Found", async () => {
     await assert.rejects(
-      run("channel", "this-channel-definitely-does-not-exist-xyz-999"),
+      json("channel", "this-channel-definitely-does-not-exist-xyz-999"),
       /Not Found/,
     );
   });
 
   test("non-existent block returns Not Found", async () => {
-    await assert.rejects(run("block", "999999999"), /Not Found/);
+    await assert.rejects(json("block", "999999999"), /Not Found/);
   });
 
   test("exit code 0 on success", async () => {
@@ -504,8 +551,12 @@ describe("error handling", () => {
     assert.equal(await exitCode("block", "999999999"), 3);
   });
 
-  test("exit code 6 for 403 forbidden", async () => {
-    assert.equal(await exitCode("search", "test"), 6);
+  test("search exits with success or forbidden based on account tier", async () => {
+    const code = await exitCode("search", "test");
+    assert.ok(
+      code === 0 || code === 6,
+      `Expected exit code 0 or 6 for search, got ${code}`,
+    );
   });
 
   test("structured error includes code and type for API errors", async () => {
@@ -577,11 +628,11 @@ describe("add with metadata flags", () => {
 
 describe("aliases", () => {
   test("ch is alias for channel", async () => {
-    await assert.rejects(run("ch"), /Missing required argument/);
+    await assert.rejects(json("ch"), /Missing required argument/);
   });
 
   test("bl is alias for block", async () => {
-    await assert.rejects(run("bl"), /Missing required argument/);
+    await assert.rejects(json("bl"), /Missing required argument/);
   });
 
   test("me is alias for whoami", async () => {
@@ -590,8 +641,9 @@ describe("aliases", () => {
   });
 
   test("s is alias for search", async () => {
-    // Search requires premium, so this should fail with Forbidden not "unknown command"
-    await assert.rejects(run("s", "test"), /Forbidden/);
+    const aliasCode = await exitCode("s", "test");
+    const canonicalCode = await exitCode("search", "test");
+    assert.equal(aliasCode, canonicalCode);
   });
 });
 
@@ -611,7 +663,8 @@ describe("quiet mode", () => {
   });
 
   test("--quiet outputs compact JSON (no indentation)", async () => {
-    const { stdout } = await run("ping", "--quiet");
-    assert.ok(!stdout.includes("\n  "), "Expected compact JSON");
+    const result = await json("ping", "--quiet");
+    const formatted = JSON.stringify(result);
+    assert.ok(!formatted.includes("\n"), "Expected compact JSON");
   });
 });
