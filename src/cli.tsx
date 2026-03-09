@@ -67,6 +67,7 @@ function Help() {
         <Text> $ arena channel worldmaking</Text>
         <Text> $ arena search "brutalist architecture" --type Image</Text>
         <Text> $ arena add my-channel "Hello world"</Text>
+        <Text> $ echo "piped text" | arena add my-channel --json</Text>
         <Text> $ arena block 12345 --json</Text>
         <Text> $ arena channel create "My Research" --visibility private</Text>
         <Text> $ arena user damon-zucconi</Text>

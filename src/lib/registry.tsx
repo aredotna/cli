@@ -23,6 +23,7 @@ import {
   optPer,
   page,
   per,
+  readStdin,
   requireArg,
   requireFlag,
   type Flags,
@@ -417,10 +418,16 @@ export const commands: CommandDefinition[] = [
           params: { path: { id: requireArg(args, 0, "channel") } },
         }),
       );
+
+      const argValue = args.slice(1).join(" ").trim() || undefined;
+      const stdin = argValue ? undefined : await readStdin();
+      const value = argValue ?? stdin;
+      if (!value) throw new Error("Missing required argument: value");
+
       return getData(
         client.POST("/v3/blocks", {
           body: {
-            value: requireArg([args.slice(1).join(" ")], 0, "value"),
+            value,
             channel_ids: [ch.id],
             title: flag(flags, "title"),
             description: flag(flags, "description"),

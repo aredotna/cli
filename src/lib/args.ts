@@ -126,6 +126,17 @@ export function optPer(flags: Flags): number | undefined {
   return parseOptionalPositiveInt(flags, "per", "per");
 }
 
+/** Read all of stdin as a string. Returns undefined if stdin is a TTY. */
+export async function readStdin(): Promise<string | undefined> {
+  if (process.stdin.isTTY) return undefined;
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(chunk as Buffer);
+  }
+  const text = Buffer.concat(chunks).toString("utf-8").trimEnd();
+  return text || undefined;
+}
+
 /** Read a flag and cast its string value to `T`. Returns `undefined` if absent. */
 export function flagAs<T extends string>(
   flags: Flags,
