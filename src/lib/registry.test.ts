@@ -232,6 +232,35 @@ describe("channel lifecycle", () => {
     assert.ok(data.contents.some((b) => b.id === blockId));
   });
 
+  test("channel contents subcommand returns raw paginated data", async () => {
+    const data = (await json("channel", "contents", channelSlug)) as {
+      data: { id: number }[];
+      meta: { current_page: number; per_page: number; total_count: number };
+    };
+    assert.ok(Array.isArray(data.data));
+    assert.ok(data.data.some((b) => b.id === blockId));
+    assert.equal(data.meta.current_page, 1);
+    assert.ok(data.meta.total_count >= 1);
+    // Should NOT have channel metadata (title, slug, etc.)
+    assert.ok(!("title" in data));
+    assert.ok(!("slug" in data));
+  });
+
+  test("channel contents subcommand supports --per flag", async () => {
+    const data = (await json(
+      "channel",
+      "contents",
+      channelSlug,
+      "--per",
+      "1",
+    )) as {
+      data: unknown[];
+      meta: { per_page: number };
+    };
+    assert.equal(data.meta.per_page, 1);
+    assert.equal(data.data.length, 1);
+  });
+
   test("channel connections lists where channel appears", async () => {
     const data = (await json("channel", "connections", channelSlug)) as {
       data: unknown[];

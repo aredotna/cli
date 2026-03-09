@@ -184,6 +184,54 @@ function StaticChannelView({
 }
 
 // ---------------------------------------------------------------------------
+// Channel contents — paginated contents without channel metadata
+// ---------------------------------------------------------------------------
+
+export function ChannelContentsCommand({
+  slug,
+  page = 1,
+  per = 24,
+}: {
+  slug: string;
+  page?: number;
+  per?: number;
+}) {
+  const { data, error, loading } = useCommand(() =>
+    getData(
+      client.GET("/v3/channels/{id}/contents", {
+        params: {
+          path: { id: slug },
+          query: { page, per, sort: "position_desc" },
+        },
+      }),
+    ),
+  );
+
+  if (loading) return <Spinner label={`Loading ${slug} contents`} />;
+  if (error) return <Text color="red">✕ {error}</Text>;
+  if (!data) return null;
+
+  return (
+    <Box flexDirection="column">
+      <Box flexDirection="column">
+        {data.data.map((item) => (
+          <BlockItem key={`${item.type}-${item.id}`} item={item} />
+        ))}
+      </Box>
+
+      {data.meta.total_pages > 1 && (
+        <Box marginTop={1}>
+          <Text dimColor>
+            Page {data.meta.current_page}/{data.meta.total_pages} ·{" "}
+            {plural(data.meta.total_count, "block")}
+          </Text>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Channel CRUD commands (non-interactive, used by CLI router)
 // ---------------------------------------------------------------------------
 

@@ -35,6 +35,7 @@ import {
 } from "../commands/block";
 import {
   ChannelCommand,
+  ChannelContentsCommand,
   ChannelCreateCommand,
   ChannelUpdateCommand,
   ChannelDeleteCommand,
@@ -97,6 +98,10 @@ export const commands: CommandDefinition[] = [
     group: "Channels",
     help: [
       { usage: "channel <slug>", description: "View a channel" },
+      {
+        usage: "channel contents <slug>",
+        description: "Channel contents (paginated)",
+      },
       { usage: "channel create <title>", description: "Create a channel" },
       { usage: "channel update <slug>", description: "Update a channel" },
       { usage: "channel delete <slug>", description: "Delete a channel" },
@@ -130,6 +135,14 @@ export const commands: CommandDefinition[] = [
           );
         case "delete":
           return <ChannelDeleteCommand slug={requireArg(args, 1, "slug")} />;
+        case "contents":
+          return (
+            <ChannelContentsCommand
+              slug={requireArg(args, 1, "slug")}
+              page={optPage(flags)}
+              per={optPer(flags)}
+            />
+          );
         case "connections":
           return (
             <ChannelConnectionsCommand
@@ -187,6 +200,22 @@ export const commands: CommandDefinition[] = [
             params: { path: { id: requireArg(args, 1, "slug") } },
           });
           return { deleted: true, slug: requireArg(args, 1, "slug") };
+        case "contents":
+          return getData(
+            client.GET("/v3/channels/{id}/contents", {
+              params: {
+                path: { id: requireArg(args, 1, "slug") },
+                query: {
+                  page: page(flags),
+                  per: per(flags),
+                  sort:
+                    flagAs<ChannelContentSort>(flags, "sort") ??
+                    "position_desc",
+                  user_id: intFlag(flags, "user-id"),
+                },
+              },
+            }),
+          );
         case "connections":
           return getData(
             client.GET("/v3/channels/{id}/connections", {
