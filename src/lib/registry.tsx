@@ -1,4 +1,5 @@
 import React from "react";
+import { Text } from "ink";
 import type {
   ChannelContentSort,
   ConnectionFilter,
@@ -475,6 +476,59 @@ export const commands: CommandDefinition[] = [
             channel_ids: [ch.id],
             title: flag(flags, "title"),
             description: flag(flags, "description"),
+          },
+        }),
+      );
+    },
+  },
+
+  {
+    name: "batch",
+    aliases: [],
+    group: "Blocks",
+    help: [
+      {
+        usage: "batch <channel> [values...]",
+        description: "Batch create blocks (async)",
+      },
+      {
+        usage: "batch status <batch_id>",
+        description: "Check batch status",
+      },
+    ],
+    render(_args) {
+      return <Text dimColor>batch is only available with --json</Text>;
+    },
+    async json(args, flags) {
+      const sub = args[0];
+      if (sub === "status") {
+        return getData(
+          client.GET("/v3/blocks/batch/{batch_id}", {
+            params: { path: { batch_id: requireArg(args, 1, "batch_id") } },
+          }),
+        );
+      }
+
+      const channel = requireArg(args, 0, "channel");
+      const argValues = args.slice(1).filter(Boolean);
+      const stdin = argValues.length ? undefined : await readStdin();
+      const values =
+        argValues.length > 0
+          ? argValues
+          : stdin
+            ? stdin.split("\n").filter(Boolean)
+            : [];
+      if (!values.length) throw new Error("No values provided");
+
+      return getData(
+        client.POST("/v3/blocks/batch", {
+          body: {
+            channel_ids: [channel],
+            blocks: values.map((value) => ({
+              value,
+              title: flag(flags, "title"),
+              description: flag(flags, "description"),
+            })),
           },
         }),
       );
