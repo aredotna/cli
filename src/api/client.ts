@@ -1,6 +1,7 @@
 import createClient, { type Middleware } from "openapi-fetch";
 import { loadEnv } from "../lib/env";
 import { config } from "../lib/config";
+import { vcrFetch } from "../lib/vcr";
 import type { paths } from "./schema";
 
 // Ensure env is populated before reading API URL at module init time.
@@ -79,6 +80,7 @@ export const arenaApiBaseUrl =
 
 export const client = createClient<paths>({
   baseUrl: arenaApiBaseUrl,
+  fetch: vcrFetch,
 });
 
 client.use(baseUrlMiddleware);
