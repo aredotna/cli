@@ -1,6 +1,10 @@
 import createClient, { type Middleware } from "openapi-fetch";
+import { loadEnv } from "../lib/env";
 import { config } from "../lib/config";
 import type { paths } from "./schema";
+
+// Ensure env is populated before reading API URL at module init time.
+loadEnv();
 
 export class ArenaError extends Error {
   status: number;
@@ -70,8 +74,11 @@ const errorMiddleware: Middleware = {
   },
 };
 
+export const arenaApiBaseUrl =
+  process.env["ARENA_API_URL"] || "https://api.are.na";
+
 export const client = createClient<paths>({
-  baseUrl: process.env["ARENA_API_URL"] || "https://api.are.na",
+  baseUrl: arenaApiBaseUrl,
 });
 
 client.use(baseUrlMiddleware);

@@ -1,6 +1,7 @@
 import { Box, Text, useInput } from "ink";
 import useSWR from "swr";
 import { client, getData } from "../api/client";
+import { clearTerminalViewport } from "../lib/terminalViewport";
 import { openUrl } from "../lib/open";
 import { BlockContent } from "./BlockContent";
 import { Spinner } from "./Spinner";
@@ -31,12 +32,15 @@ export function BlockViewer({
   useInput((input, key) => {
     switch (true) {
       case input === "q" || key.escape:
+        clearTerminalViewport();
         onBack();
         break;
       case key.leftArrow && hasPrev:
+        clearTerminalViewport();
         onNavigate(index - 1);
         break;
       case key.rightArrow && hasNext:
+        clearTerminalViewport();
         onNavigate(index + 1);
         break;
       case input === "o" && !!block:

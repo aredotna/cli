@@ -14,7 +14,7 @@ import type {
   SearchTypeFilter,
   Visibility,
 } from "../api/types";
-import { client, getData } from "../api/client";
+import { arenaApiBaseUrl, client, getData } from "../api/client";
 import {
   flag,
   flagAs,
@@ -847,7 +847,8 @@ export const commands: CommandDefinition[] = [
       return <WhoamiCommand />;
     },
     async json() {
-      return getData(client.GET("/v3/me"));
+      const me = await getData(client.GET("/v3/me"));
+      return { ...me, api_base: arenaApiBaseUrl };
     },
   },
 

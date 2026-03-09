@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { Text, useApp, useInput } from "ink";
 import { ChannelsList } from "../components/ChannelsList";
 import { Spinner } from "../components/Spinner";
 import { HomeScreen } from "../components/HomeScreen";
 import { SearchResults } from "../components/SearchResults";
 import { config } from "../lib/config";
+import { useStackNavigator } from "../hooks/useStackNavigator";
+import { clearTerminalViewport } from "../lib/terminalViewport";
 import { BlockViewer } from "../components/BlockViewer";
 import { InteractiveChannel } from "./channel";
 import { useSessionAuth } from "./session/use-session-auth";
@@ -27,10 +29,10 @@ type View =
 export function SessionMode() {
   const { exit } = useApp();
   const auth = useSessionAuth();
-  const [stack, setStack] = useState<View[]>([{ kind: "home" }]);
-  const stackRef = useRef(stack);
-  stackRef.current = stack;
-  const current = stack[stack.length - 1]!;
+  const { current, push, pop, replace } = useStackNavigator<View>(
+    { kind: "home" },
+    { onPopRoot: exit, beforeTransition: clearTerminalViewport },
+  );
 
   useInput((input, key) => {
     if ((key.ctrl && input === "c") || input === "\u0003") {
@@ -63,26 +65,30 @@ export function SessionMode() {
   }
 
   const me = auth.user;
-  const push = (view: View) => setStack((s) => [...s, view]);
-  const pop = () => {
-    if (stackRef.current.length <= 1) return exit();
-    setStack((s) => s.slice(0, -1));
-  };
 
   switch (current.kind) {
     case "channel":
-      return <InteractiveChannel slug={current.slug} per={24} onExit={pop} />;
+      return (
+        <InteractiveChannel
+          key={`channel:${current.slug}`}
+          slug={current.slug}
+          per={24}
+          onExit={pop}
+        />
+      );
     case "block":
       return (
         <BlockViewer
+          key={`block:${current.index}:${current.blockIds.length}`}
           blockIds={current.blockIds}
           index={current.index}
           onBack={pop}
           onNavigate={(newIndex) => {
-            setStack((s) => [
-              ...s.slice(0, -1),
-              { kind: "block", blockIds: current.blockIds, index: newIndex },
-            ]);
+            replace({
+              kind: "block",
+              blockIds: current.blockIds,
+              index: newIndex,
+            });
           }}
         />
       );

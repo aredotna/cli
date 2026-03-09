@@ -1,4 +1,3 @@
-import { useState, useCallback, useRef } from "react";
 import { Box, Text, useApp } from "ink";
 import { client, getData } from "../api/client";
 import type { Visibility } from "../api/types";
@@ -10,7 +9,9 @@ import {
 } from "../components/ChannelBrowser";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
+import { useStackNavigator } from "../hooks/useStackNavigator";
 import { plural, timeAgo } from "../lib/format";
+import { clearTerminalViewport } from "../lib/terminalViewport";
 import { visibilityLabel } from "../lib/theme";
 
 // ---------------------------------------------------------------------------
@@ -50,47 +51,29 @@ export function InteractiveChannel({
 }) {
   const { exit } = useApp();
   const onExit = onExitProp ?? exit;
-
-  const [stack, setStack] = useState<NavItem[]>([
+  const { current, push, pop, replace } = useStackNavigator<NavItem>(
     { kind: "channel", slug, page: initialPage ?? 1, cursor: 0 },
-  ]);
-  const stackRef = useRef(stack);
-  stackRef.current = stack;
-
-  const current = stack[stack.length - 1]!;
-
-  const push = useCallback((item: NavItem) => {
-    setStack((s) => [...s, item]);
-  }, []);
-
-  const pop = useCallback(() => {
-    if (stackRef.current.length <= 1) return onExit();
-    setStack((s) => s.slice(0, -1));
-  }, [onExit]);
+    { onPopRoot: onExit, beforeTransition: clearTerminalViewport },
+  );
 
   if (current.kind === "block") {
     return (
       <ChannelBlockViewer
+        key={`block:${current.slug}:${current.page}:${current.index}`}
         slug={current.slug}
         initialPage={current.page}
         per={per}
         index={current.index}
         onBack={({ page, cursor }) => {
-          setStack((s) => [
-            ...s.slice(0, -1),
-            {
-              kind: "channel",
-              slug: current.slug,
-              page,
-              cursor,
-            },
-          ]);
+          replace({
+            kind: "channel",
+            slug: current.slug,
+            page,
+            cursor,
+          });
         }}
         onNavigate={({ page, index }) => {
-          setStack((s) => [
-            ...s.slice(0, -1),
-            { kind: "block", slug: current.slug, page, index },
-          ]);
+          replace({ kind: "block", slug: current.slug, page, index });
         }}
       />
     );
@@ -98,6 +81,7 @@ export function InteractiveChannel({
 
   return (
     <ChannelBrowser
+      key={`channel:${current.slug}:${current.page}:${current.cursor}`}
       slug={current.slug}
       initialPage={current.page}
       initialCursor={current.cursor}

@@ -2,24 +2,12 @@ import { useMemo } from "react";
 import { Box, Text, useStdout } from "ink";
 import useSWR from "swr";
 import terminalImage from "terminal-image";
+import termImg from "term-img";
 import { Spinner } from "./Spinner";
 
 interface TerminalImageProps {
   src: string;
   width?: number;
-}
-
-async function renderImage(
-  buffer: Buffer,
-  width: number,
-  preferNativeRender: boolean,
-): Promise<string> {
-  const output = await terminalImage.buffer(buffer, {
-    width,
-    preserveAspectRatio: true,
-    preferNativeRender,
-  });
-  return output;
 }
 
 function errorMessage(err: unknown): string {
@@ -46,7 +34,15 @@ class TerminalImageError extends Error {
   }
 }
 
-async function fetchAndRender(src: string, width: number): Promise<string> {
+interface RenderResult {
+  output: string;
+  native: boolean;
+}
+
+async function fetchAndRender(
+  src: string,
+  width: number,
+): Promise<RenderResult> {
   let response: Response;
   try {
     response = await fetch(src);
@@ -67,23 +63,31 @@ async function fetchAndRender(src: string, width: number): Promise<string> {
   const imageBuffer = Buffer.from(arrayBuffer);
   let nativeError: unknown = null;
 
+  // Try native inline image protocols through term-img (iTerm2, WezTerm,
+  // Konsole, etc). It returns a printable escape-sequence string and does
+  // not write directly to stdout.
   try {
-    // First attempt native protocols (iTerm/kitty/sixel) for best fidelity.
-    const nativeOutput = await renderImage(imageBuffer, width, true);
+    const nativeOutput = termImg(imageBuffer, {
+      width,
+      fallback: () => "",
+    });
     if (nativeOutput && nativeOutput.trim().length > 0) {
-      return nativeOutput;
+      return { output: nativeOutput, native: true };
     }
-    nativeError = new Error("Native renderer produced no output");
+    nativeError = new Error("Terminal does not support inline images");
   } catch (err: unknown) {
     nativeError = err;
-    // Ignore and fall back to ANSI rendering below.
   }
 
-  // Fall back to ANSI rendering for broader terminal compatibility.
+  // Fall back to ANSI block-character rendering for broad compatibility.
   try {
-    const ansiOutput = await renderImage(imageBuffer, width, false);
+    const ansiOutput = await terminalImage.buffer(imageBuffer, {
+      width,
+      preserveAspectRatio: true,
+      preferNativeRender: false,
+    });
     if (ansiOutput && ansiOutput.trim().length > 0) {
-      return ansiOutput;
+      return { output: ansiOutput, native: false };
     }
     throw new Error("ANSI renderer produced no output");
   } catch (ansiError: unknown) {
@@ -137,9 +141,7 @@ export function TerminalImage({ src, width }: TerminalImageProps) {
           </Text>
         )}
         {renderError?.reason === "render" && (
-          <Text dimColor>
-            using ANSI fallback; set `ARENA_IMAGE_DEBUG=1` for renderer details
-          </Text>
+          <Text dimColor>set `ARENA_IMAGE_DEBUG=1` for renderer details</Text>
         )}
         {debug && renderError?.details?.length ? (
           <Box flexDirection="column">
@@ -154,9 +156,7 @@ export function TerminalImage({ src, width }: TerminalImageProps) {
     );
   }
 
-  return (
-    <Box overflowX="hidden">
-      <Text wrap="truncate-end">{data}</Text>
-    </Box>
-  );
+  // Render both native protocol and ANSI fallback output through Ink so image
+  // placement stays aligned with surrounding UI layout.
+  return <Text>{data.output}</Text>;
 }

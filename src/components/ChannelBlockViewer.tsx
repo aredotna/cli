@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { client, getData } from "../api/client";
 import type { Block } from "../api/types";
 import { openUrl } from "../lib/open";
+import { clearTerminalViewport } from "../lib/terminalViewport";
 import { BlockContent } from "./BlockContent";
 import { Spinner } from "./Spinner";
 
@@ -88,6 +89,7 @@ export function ChannelBlockViewer({
   useInput((input, key) => {
     switch (true) {
       case input === "q" || key.escape:
+        clearTerminalViewport();
         onBack({
           page,
           cursor: Math.max(0, currentItemIndex),
@@ -95,24 +97,28 @@ export function ChannelBlockViewer({
         break;
       case key.leftArrow:
         if (index > 0) {
+          clearTerminalViewport();
           const nextIndex = index - 1;
           setIndex(nextIndex);
           onNavigate({ page, index: nextIndex });
           break;
         }
         if (page > 1 && !contentsLoading) {
+          clearTerminalViewport();
           setPendingBoundary("prev");
           setPage((p) => p - 1);
         }
         break;
       case key.rightArrow:
         if (index < blocks.length - 1) {
+          clearTerminalViewport();
           const nextIndex = index + 1;
           setIndex(nextIndex);
           onNavigate({ page, index: nextIndex });
           break;
         }
         if (contents?.meta?.has_more_pages && !contentsLoading) {
+          clearTerminalViewport();
           setPendingBoundary("next");
           setPage((p) => p + 1);
         }

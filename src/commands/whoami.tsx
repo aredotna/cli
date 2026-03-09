@@ -1,5 +1,5 @@
 import { Box, Text } from "ink";
-import { client, getData } from "../api/client";
+import { arenaApiBaseUrl, client, getData } from "../api/client";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 import { plural } from "../lib/format";
@@ -27,6 +27,7 @@ export function WhoamiCommand() {
       <Text bold>{data.name}</Text>
       <Text dimColor>@{data.slug}</Text>
       {stats && <Text dimColor>{stats}</Text>}
+      <Text dimColor>API: {arenaApiBaseUrl}</Text>
     </Box>
   );
 }
