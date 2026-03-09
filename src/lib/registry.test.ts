@@ -99,17 +99,17 @@ describe("channel lifecycle", () => {
     assert.equal(result.deleted, true);
   });
 
-  test("channel view returns channel info and contents", async () => {
+  test("channel view returns channel info", async () => {
     const data = (await json("channel", channelSlug)) as {
       id: number;
       slug: string;
-      contents: unknown[];
-      meta: { current_page: number };
+      title: string;
+      counts: { contents: number };
     };
     assert.equal(data.id, channelId);
     assert.equal(data.slug, channelSlug);
-    assert.ok(Array.isArray(data.contents));
-    assert.ok(data.meta.current_page >= 1);
+    assert.ok(data.title.length > 0);
+    assert.ok(typeof data.counts.contents === "number");
   });
 
   test("channel update modifies title, description, and visibility", async () => {
@@ -225,13 +225,6 @@ describe("channel lifecycle", () => {
     assert.ok(data.data.some((ch) => ch.id === channelId));
   });
 
-  test("channel contents view returns the block", async () => {
-    const data = (await json("channel", channelSlug)) as {
-      contents: { id: number }[];
-    };
-    assert.ok(data.contents.some((b) => b.id === blockId));
-  });
-
   test("channel contents subcommand returns raw paginated data", async () => {
     const data = (await json("channel", "contents", channelSlug)) as {
       data: { id: number }[];
@@ -278,16 +271,17 @@ describe("channel lifecycle", () => {
     assert.ok(Array.isArray(data.data));
   });
 
-  test("channel view supports --sort flag", async () => {
+  test("channel contents supports --sort flag", async () => {
     const data = (await json(
       "channel",
+      "contents",
       channelSlug,
       "--sort",
       "created_at_desc",
     )) as {
-      contents: unknown[];
+      data: unknown[];
     };
-    assert.ok(Array.isArray(data.contents));
+    assert.ok(Array.isArray(data.data));
   });
 
   // ── Connection lifecycle (within channel tests) ──
@@ -309,10 +303,10 @@ describe("channel lifecycle", () => {
       assert.equal(result.connected, true);
 
       // Get the connection ID from the second channel's contents
-      const contents = (await json("channel", ch2.slug)) as {
-        contents: { connection: { id: number } }[];
+      const contents = (await json("channel", "contents", ch2.slug)) as {
+        data: { connection: { id: number } }[];
       };
-      connectionId = contents.contents[0]!.connection.id;
+      connectionId = contents.data[0]!.connection.id;
 
       // View the connection
       const conn = (await json("connection", String(connectionId))) as {
@@ -441,33 +435,35 @@ describe("pagination", () => {
 
       const page1 = (await json(
         "channel",
+        "contents",
         ch.slug,
         "--per",
         "1",
         "--page",
         "1",
       )) as {
-        contents: unknown[];
+        data: unknown[];
         meta: { current_page: number; per_page: number; total_count: number };
       };
       assert.equal(page1.meta.current_page, 1);
       assert.equal(page1.meta.per_page, 1);
-      assert.equal(page1.contents.length, 1);
+      assert.equal(page1.data.length, 1);
       assert.ok(page1.meta.total_count >= 2);
 
       const page2 = (await json(
         "channel",
+        "contents",
         ch.slug,
         "--per",
         "1",
         "--page",
         "2",
       )) as {
-        contents: unknown[];
+        data: unknown[];
         meta: { current_page: number };
       };
       assert.equal(page2.meta.current_page, 2);
-      assert.equal(page2.contents.length, 1);
+      assert.equal(page2.data.length, 1);
     } finally {
       await json("channel", "delete", ch.slug);
     }

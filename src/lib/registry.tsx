@@ -242,36 +242,12 @@ export const commands: CommandDefinition[] = [
               },
             }),
           );
-        default: {
-          const slug = requireArg(args, 0, "slug");
-          const [channel, contents] = await Promise.all([
-            getData(
-              client.GET("/v3/channels/{id}", {
-                params: { path: { id: slug } },
-              }),
-            ),
-            getData(
-              client.GET("/v3/channels/{id}/contents", {
-                params: {
-                  path: { id: slug },
-                  query: {
-                    page: page(flags),
-                    per: per(flags),
-                    sort:
-                      flagAs<ChannelContentSort>(flags, "sort") ??
-                      "position_desc",
-                    user_id: intFlag(flags, "user-id"),
-                  },
-                },
-              }),
-            ),
-          ]);
-          return {
-            ...channel,
-            contents: contents.data,
-            meta: contents.meta,
-          };
-        }
+        default:
+          return getData(
+            client.GET("/v3/channels/{id}", {
+              params: { path: { id: requireArg(args, 0, "slug") } },
+            }),
+          );
       }
     },
   },
