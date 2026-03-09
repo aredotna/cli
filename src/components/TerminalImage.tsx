@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Box, Text, useStdout } from "ink";
 import useSWR from "swr";
 import terminalImage from "terminal-image";
@@ -46,7 +46,15 @@ class TerminalImageError extends Error {
   }
 }
 
-async function fetchAndRender(src: string, width: number): Promise<string> {
+interface RenderResult {
+  output: string;
+  native: boolean;
+}
+
+async function fetchAndRender(
+  src: string,
+  width: number,
+): Promise<RenderResult> {
   let response: Response;
   try {
     response = await fetch(src);
@@ -71,7 +79,7 @@ async function fetchAndRender(src: string, width: number): Promise<string> {
     // First attempt native protocols (iTerm/kitty/sixel) for best fidelity.
     const nativeOutput = await renderImage(imageBuffer, width, true);
     if (nativeOutput && nativeOutput.trim().length > 0) {
-      return nativeOutput;
+      return { output: nativeOutput, native: true };
     }
     nativeError = new Error("Native renderer produced no output");
   } catch (err: unknown) {
@@ -83,7 +91,7 @@ async function fetchAndRender(src: string, width: number): Promise<string> {
   try {
     const ansiOutput = await renderImage(imageBuffer, width, false);
     if (ansiOutput && ansiOutput.trim().length > 0) {
-      return ansiOutput;
+      return { output: ansiOutput, native: false };
     }
     throw new Error("ANSI renderer produced no output");
   } catch (ansiError: unknown) {
@@ -115,6 +123,17 @@ export function TerminalImage({ src, width }: TerminalImageProps) {
     `terminal-image:${src}:${resolvedWidth}`,
     () => fetchAndRender(src, resolvedWidth),
   );
+
+  // Write native protocol output directly to stdout, bypassing Ink's text
+  // processing which mangles proprietary escape sequences (e.g. iTerm2's
+  // \x1b]1337;File=... inline image protocol).
+  const [nativeWritten, setNativeWritten] = useState(false);
+  useEffect(() => {
+    if (data?.native && !nativeWritten) {
+      process.stdout.write(data.output);
+      setNativeWritten(true);
+    }
+  }, [data, nativeWritten]);
 
   if (isLoading) return <Spinner label="Loading image" />;
   if (error || !data) {
@@ -154,9 +173,12 @@ export function TerminalImage({ src, width }: TerminalImageProps) {
     );
   }
 
-  return (
-    <Box overflowX="hidden">
-      <Text wrap="truncate-end">{data}</Text>
-    </Box>
-  );
+  // Native output was written directly to stdout; render an empty placeholder
+  // so Ink's layout accounts for the space.
+  if (data.native) {
+    return <Box />;
+  }
+
+  // ANSI block character output is safe to render through Ink's <Text>.
+  return <Text>{data.output}</Text>;
 }
