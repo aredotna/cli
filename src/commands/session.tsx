@@ -63,8 +63,16 @@ export function SessionMode() {
   }
 
   const me = auth.user;
-  const push = (view: View) => setStack((s) => [...s, view]);
+  const clearViewport = () => {
+    if (!process.stdout.isTTY) return;
+    process.stdout.write("\u001B[2J\u001B[3J\u001B[H");
+  };
+  const push = (view: View) => {
+    clearViewport();
+    setStack((s) => [...s, view]);
+  };
   const pop = () => {
+    clearViewport();
     if (stackRef.current.length <= 1) return exit();
     setStack((s) => s.slice(0, -1));
   };
@@ -79,6 +87,7 @@ export function SessionMode() {
           index={current.index}
           onBack={pop}
           onNavigate={(newIndex) => {
+            clearViewport();
             setStack((s) => [
               ...s.slice(0, -1),
               { kind: "block", blockIds: current.blockIds, index: newIndex },

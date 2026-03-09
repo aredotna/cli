@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Box, Text, useInput } from "ink";
+import { Box, Text, useInput, useStdout } from "ink";
 import useSWR from "swr";
 import { client, getData } from "../api/client";
 import type { Block } from "../api/types";
@@ -22,6 +22,12 @@ export function ChannelBlockViewer({
   onBack: (state: { page: number; cursor: number }) => void;
   onNavigate: (state: { page: number; index: number }) => void;
 }) {
+  const { stdout } = useStdout();
+  const clearViewport = () => {
+    if (!stdout.isTTY) return;
+    // Also clear scrollback to remove stale inline-image fragments.
+    stdout.write("\u001B[2J\u001B[3J\u001B[H");
+  };
   const [page, setPage] = useState(initialPage);
   const [index, setIndex] = useState(initialIndex);
   const [pendingBoundary, setPendingBoundary] = useState<
@@ -47,6 +53,10 @@ export function ChannelBlockViewer({
   const blocks = items.filter((item) => item.type !== "Channel") as Block[];
   const currentBlock = blocks[index];
   const currentId = currentBlock?.id;
+
+  useEffect(() => {
+    clearViewport();
+  }, [currentId]);
 
   useEffect(() => {
     if (!pendingBoundary) return;
@@ -95,24 +105,28 @@ export function ChannelBlockViewer({
         break;
       case key.leftArrow:
         if (index > 0) {
+          clearViewport();
           const nextIndex = index - 1;
           setIndex(nextIndex);
           onNavigate({ page, index: nextIndex });
           break;
         }
         if (page > 1 && !contentsLoading) {
+          clearViewport();
           setPendingBoundary("prev");
           setPage((p) => p - 1);
         }
         break;
       case key.rightArrow:
         if (index < blocks.length - 1) {
+          clearViewport();
           const nextIndex = index + 1;
           setIndex(nextIndex);
           onNavigate({ page, index: nextIndex });
           break;
         }
         if (contents?.meta?.has_more_pages && !contentsLoading) {
+          clearViewport();
           setPendingBoundary("next");
           setPage((p) => p + 1);
         }

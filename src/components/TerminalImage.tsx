@@ -1,25 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Box, Text, useStdout } from "ink";
 import useSWR from "swr";
 import terminalImage from "terminal-image";
+import termImg from "term-img";
 import { Spinner } from "./Spinner";
 
 interface TerminalImageProps {
   src: string;
   width?: number;
-}
-
-async function renderImage(
-  buffer: Buffer,
-  width: number,
-  preferNativeRender: boolean,
-): Promise<string> {
-  const output = await terminalImage.buffer(buffer, {
-    width,
-    preserveAspectRatio: true,
-    preferNativeRender,
-  });
-  return output;
 }
 
 function errorMessage(err: unknown): string {
@@ -75,21 +63,29 @@ async function fetchAndRender(
   const imageBuffer = Buffer.from(arrayBuffer);
   let nativeError: unknown = null;
 
+  // Try native inline image protocols through term-img (iTerm2, WezTerm,
+  // Konsole, etc). It returns a printable escape-sequence string and does
+  // not write directly to stdout.
   try {
-    // First attempt native protocols (iTerm/kitty/sixel) for best fidelity.
-    const nativeOutput = await renderImage(imageBuffer, width, true);
+    const nativeOutput = termImg(imageBuffer, {
+      width,
+      fallback: () => "",
+    });
     if (nativeOutput && nativeOutput.trim().length > 0) {
       return { output: nativeOutput, native: true };
     }
-    nativeError = new Error("Native renderer produced no output");
+    nativeError = new Error("Terminal does not support inline images");
   } catch (err: unknown) {
     nativeError = err;
-    // Ignore and fall back to ANSI rendering below.
   }
 
-  // Fall back to ANSI rendering for broader terminal compatibility.
+  // Fall back to ANSI block-character rendering for broad compatibility.
   try {
-    const ansiOutput = await renderImage(imageBuffer, width, false);
+    const ansiOutput = await terminalImage.buffer(imageBuffer, {
+      width,
+      preserveAspectRatio: true,
+      preferNativeRender: false,
+    });
     if (ansiOutput && ansiOutput.trim().length > 0) {
       return { output: ansiOutput, native: false };
     }
@@ -124,17 +120,6 @@ export function TerminalImage({ src, width }: TerminalImageProps) {
     () => fetchAndRender(src, resolvedWidth),
   );
 
-  // Write native protocol output directly to stdout, bypassing Ink's text
-  // processing which mangles proprietary escape sequences (e.g. iTerm2's
-  // \x1b]1337;File=... inline image protocol).
-  const [nativeWritten, setNativeWritten] = useState(false);
-  useEffect(() => {
-    if (data?.native && !nativeWritten) {
-      process.stdout.write(data.output);
-      setNativeWritten(true);
-    }
-  }, [data, nativeWritten]);
-
   if (isLoading) return <Spinner label="Loading image" />;
   if (error || !data) {
     const renderError = error instanceof TerminalImageError ? error : null;
@@ -156,9 +141,7 @@ export function TerminalImage({ src, width }: TerminalImageProps) {
           </Text>
         )}
         {renderError?.reason === "render" && (
-          <Text dimColor>
-            using ANSI fallback; set `ARENA_IMAGE_DEBUG=1` for renderer details
-          </Text>
+          <Text dimColor>set `ARENA_IMAGE_DEBUG=1` for renderer details</Text>
         )}
         {debug && renderError?.details?.length ? (
           <Box flexDirection="column">
@@ -173,12 +156,7 @@ export function TerminalImage({ src, width }: TerminalImageProps) {
     );
   }
 
-  // Native output was written directly to stdout; render an empty placeholder
-  // so Ink's layout accounts for the space.
-  if (data.native) {
-    return <Box />;
-  }
-
-  // ANSI block character output is safe to render through Ink's <Text>.
+  // Render both native protocol and ANSI fallback output through Ink so image
+  // placement stays aligned with surrounding UI layout.
   return <Text>{data.output}</Text>;
 }

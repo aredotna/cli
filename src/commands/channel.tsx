@@ -58,12 +58,18 @@ export function InteractiveChannel({
   stackRef.current = stack;
 
   const current = stack[stack.length - 1]!;
+  const clearViewport = () => {
+    if (!process.stdout.isTTY) return;
+    process.stdout.write("\u001B[2J\u001B[3J\u001B[H");
+  };
 
   const push = useCallback((item: NavItem) => {
+    clearViewport();
     setStack((s) => [...s, item]);
   }, []);
 
   const pop = useCallback(() => {
+    clearViewport();
     if (stackRef.current.length <= 1) return onExit();
     setStack((s) => s.slice(0, -1));
   }, [onExit]);
@@ -76,6 +82,7 @@ export function InteractiveChannel({
         per={per}
         index={current.index}
         onBack={({ page, cursor }) => {
+          clearViewport();
           setStack((s) => [
             ...s.slice(0, -1),
             {
@@ -87,6 +94,7 @@ export function InteractiveChannel({
           ]);
         }}
         onNavigate={({ page, index }) => {
+          clearViewport();
           setStack((s) => [
             ...s.slice(0, -1),
             { kind: "block", slug: current.slug, page, index },
