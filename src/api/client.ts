@@ -32,6 +32,20 @@ function toArenaMessage(body: unknown, fallback: string): string {
   return fallback;
 }
 
+const baseUrlMiddleware: Middleware = {
+  async onRequest({ request }) {
+    const customUrl = process.env["ARENA_API_URL"];
+    if (customUrl) {
+      const url = new URL(request.url);
+      const base = new URL(customUrl);
+      url.protocol = base.protocol;
+      url.host = base.host;
+      return new Request(url, request);
+    }
+    return request;
+  },
+};
+
 const authMiddleware: Middleware = {
   async onRequest({ request }) {
     const token = config.getToken();
@@ -60,5 +74,6 @@ export const client = createClient<paths>({
   baseUrl: process.env["ARENA_API_URL"] || "https://api.are.na",
 });
 
+client.use(baseUrlMiddleware);
 client.use(authMiddleware);
 client.use(errorMiddleware);

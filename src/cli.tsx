@@ -1,3 +1,6 @@
+import { loadEnv } from "./lib/env";
+loadEnv();
+
 import React, { useEffect } from "react";
 import { render, Box, Text, useApp } from "ink";
 import { SWRConfig } from "swr";

@@ -2,9 +2,15 @@ import { createServer, type IncomingMessage, type ServerResponse } from "http";
 import { randomBytes, createHash } from "crypto";
 import { openUrl } from "./open";
 
-const AUTHORIZE_URL =
-  process.env["ARENA_AUTHORIZE_URL"] || "https://www.are.na/oauth/authorize";
-const TOKEN_URL = `${process.env["ARENA_API_URL"] || "https://api.are.na"}/v3/oauth/token`;
+function authorizeUrl(): string {
+  return (
+    process.env["ARENA_AUTHORIZE_URL"] || "https://www.are.na/oauth/authorize"
+  );
+}
+
+function tokenUrl(): string {
+  return `${process.env["ARENA_API_URL"] || "https://api.are.na"}/v3/oauth/token`;
+}
 
 interface TokenResponse {
   access_token: string;
@@ -102,7 +108,7 @@ export async function performOAuthFlow(
       listenPort = (server.address() as { port: number }).port;
       const redirect = `http://127.0.0.1:${listenPort}/callback`;
 
-      const authUrl = new URL(AUTHORIZE_URL);
+      const authUrl = new URL(authorizeUrl());
       authUrl.searchParams.set("client_id", clientId);
       authUrl.searchParams.set("redirect_uri", redirect);
       authUrl.searchParams.set("response_type", "code");
@@ -117,7 +123,7 @@ export async function performOAuthFlow(
   });
 
   // Exchange code for token
-  const response = await fetch(TOKEN_URL, {
+  const response = await fetch(tokenUrl(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
