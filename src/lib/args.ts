@@ -125,3 +125,16 @@ export function optPage(flags: Flags): number | undefined {
 export function optPer(flags: Flags): number | undefined {
   return parseOptionalPositiveInt(flags, "per", "per");
 }
+
+/** Read a flag and cast its string value to `T`. Returns `undefined` if absent. */
+export function flagAs<T extends string>(
+  flags: Flags,
+  key: string,
+): T | undefined {
+  return flag(flags, key) as T | undefined;
+}
+
+/** Read a flag as an optional positive integer. */
+export function intFlag(flags: Flags, key: string): number | undefined {
+  return parseOptionalPositiveInt(flags, key, key);
+}

@@ -16,12 +16,13 @@ import type {
 import { client, getData } from "../api/client";
 import {
   flag,
+  flagAs,
   idArg,
+  intFlag,
   optPage,
   optPer,
   page,
   per,
-  parsePositiveInt,
   requireArg,
   requireFlag,
   type Flags,
@@ -108,7 +109,7 @@ export const commands: CommandDefinition[] = [
     session: { args: "<slug>", desc: "Browse a channel" },
     render(args, flags) {
       const sub = args[0];
-      const visibility = flag(flags, "visibility") as Visibility | undefined;
+      const visibility = flagAs<Visibility>(flags, "visibility");
       switch (sub) {
         case "create":
           return (
@@ -157,23 +158,19 @@ export const commands: CommandDefinition[] = [
     },
     async json(args, flags) {
       const sub = args[0];
-      const visibility = flag(flags, "visibility") as Visibility | undefined;
+      const visibility = flagAs<Visibility>(flags, "visibility");
       switch (sub) {
-        case "create": {
-          const groupId = flag(flags, "group-id");
+        case "create":
           return getData(
             client.POST("/v3/channels", {
               body: {
                 title: requireArg(args, 1, "title"),
                 visibility,
                 description: flag(flags, "description"),
-                group_id: groupId
-                  ? parsePositiveInt(groupId, "group-id")
-                  : undefined,
+                group_id: intFlag(flags, "group-id"),
               },
             }),
           );
-        }
         case "update":
           return getData(
             client.PUT("/v3/channels/{id}", {
@@ -198,7 +195,7 @@ export const commands: CommandDefinition[] = [
                 query: {
                   page: page(flags),
                   per: per(flags),
-                  sort: flag(flags, "sort") as ConnectionSort | undefined,
+                  sort: flagAs<ConnectionSort>(flags, "sort"),
                 },
               },
             }),
@@ -211,17 +208,13 @@ export const commands: CommandDefinition[] = [
                 query: {
                   page: page(flags),
                   per: per(flags),
-                  sort: flag(flags, "sort") as ConnectionSort | undefined,
+                  sort: flagAs<ConnectionSort>(flags, "sort"),
                 },
               },
             }),
           );
         default: {
           const slug = requireArg(args, 0, "slug");
-          const contentSort = flag(flags, "sort") as
-            | ChannelContentSort
-            | undefined;
-          const userId = flag(flags, "user-id");
           const [channel, contents] = await Promise.all([
             getData(
               client.GET("/v3/channels/{id}", {
@@ -235,10 +228,10 @@ export const commands: CommandDefinition[] = [
                   query: {
                     page: page(flags),
                     per: per(flags),
-                    sort: contentSort ?? "position_desc",
-                    user_id: userId
-                      ? parsePositiveInt(userId, "user-id")
-                      : undefined,
+                    sort:
+                      flagAs<ChannelContentSort>(flags, "sort") ??
+                      "position_desc",
+                    user_id: intFlag(flags, "user-id"),
                   },
                 },
               }),
@@ -321,7 +314,7 @@ export const commands: CommandDefinition[] = [
                 query: {
                   page: page(flags),
                   per: per(flags),
-                  sort: flag(flags, "sort") as ConnectionSort | undefined,
+                  sort: flagAs<ConnectionSort>(flags, "sort"),
                 },
               },
             }),
@@ -334,8 +327,8 @@ export const commands: CommandDefinition[] = [
                 query: {
                   page: page(flags),
                   per: per(flags),
-                  sort: flag(flags, "sort") as ConnectionSort | undefined,
-                  filter: flag(flags, "filter") as ConnectionFilter | undefined,
+                  sort: flagAs<ConnectionSort>(flags, "sort"),
+                  filter: flagAs<ConnectionFilter>(flags, "filter"),
                 },
               },
             }),
@@ -368,10 +361,8 @@ export const commands: CommandDefinition[] = [
       );
     },
     async json(args, flags) {
-      const seedRaw = flag(flags, "seed");
-      const userIdRaw = flag(flags, "user-id");
-      const groupIdRaw = flag(flags, "group-id");
-      const channelIdRaw = flag(flags, "channel-id");
+      const typeFlag = flagAs<SearchTypeFilter>(flags, "type");
+      const extFlag = flagAs<FileExtension>(flags, "ext");
       return getData(
         client.GET("/v3/search", {
           params: {
@@ -379,25 +370,15 @@ export const commands: CommandDefinition[] = [
               query: requireArg([args.join(" ")], 0, "query"),
               page: page(flags),
               per: per(flags),
-              type: flag(flags, "type")
-                ? [flag(flags, "type") as SearchTypeFilter]
-                : undefined,
-              sort: flag(flags, "sort") as SearchSort | undefined,
-              scope: flag(flags, "scope") as SearchScope | undefined,
-              ext: flag(flags, "ext")
-                ? [flag(flags, "ext") as FileExtension]
-                : undefined,
+              type: typeFlag ? [typeFlag] : undefined,
+              sort: flagAs<SearchSort>(flags, "sort"),
+              scope: flagAs<SearchScope>(flags, "scope"),
+              ext: extFlag ? [extFlag] : undefined,
               after: flag(flags, "after"),
-              seed: seedRaw ? parsePositiveInt(seedRaw, "seed") : undefined,
-              user_id: userIdRaw
-                ? parsePositiveInt(userIdRaw, "user-id")
-                : undefined,
-              group_id: groupIdRaw
-                ? parsePositiveInt(groupIdRaw, "group-id")
-                : undefined,
-              channel_id: channelIdRaw
-                ? parsePositiveInt(channelIdRaw, "channel-id")
-                : undefined,
+              seed: intFlag(flags, "seed"),
+              user_id: intFlag(flags, "user-id"),
+              group_id: intFlag(flags, "group-id"),
+              channel_id: intFlag(flags, "channel-id"),
             },
           },
         }),
@@ -431,7 +412,6 @@ export const commands: CommandDefinition[] = [
           params: { path: { id: requireArg(args, 0, "channel") } },
         }),
       );
-      const insertAtRaw = flag(flags, "insert-at");
       return getData(
         client.POST("/v3/blocks", {
           body: {
@@ -442,9 +422,7 @@ export const commands: CommandDefinition[] = [
             alt_text: flag(flags, "alt-text"),
             original_source_url: flag(flags, "original-source-url"),
             original_source_title: flag(flags, "original-source-title"),
-            insert_at: insertAtRaw
-              ? parsePositiveInt(insertAtRaw, "insert-at")
-              : undefined,
+            insert_at: intFlag(flags, "insert-at"),
           },
         }),
       );
@@ -510,16 +488,13 @@ export const commands: CommandDefinition[] = [
       );
     },
     async json(args, flags) {
-      const positionRaw = flag(flags, "position");
       await client.POST("/v3/connections", {
         body: {
           connectable_id: idArg(args, 0, "block id"),
           channel_ids: [requireArg(args, 1, "channel")],
           connectable_type:
-            (flag(flags, "type") as "Block" | "Channel") || "Block",
-          position: positionRaw
-            ? parsePositiveInt(positionRaw, "position")
-            : undefined,
+            flagAs<"Block" | "Channel">(flags, "type") || "Block",
+          position: intFlag(flags, "position"),
         },
       });
       return { connected: true };
@@ -549,12 +524,8 @@ export const commands: CommandDefinition[] = [
           return (
             <ConnectionMoveCommand
               id={idArg(args, 1, "connection id")}
-              movement={(flag(flags, "movement") as Movement) || "insert_at"}
-              position={
-                flag(flags, "position")
-                  ? parsePositiveInt(flag(flags, "position")!, "position")
-                  : undefined
-              }
+              movement={flagAs<Movement>(flags, "movement") || "insert_at"}
+              position={intFlag(flags, "position")}
             />
           );
         default:
@@ -574,10 +545,8 @@ export const commands: CommandDefinition[] = [
             client.POST("/v3/connections/{id}/move", {
               params: { path: { id: idArg(args, 1, "connection id") } },
               body: {
-                movement: (flag(flags, "movement") as Movement) || "insert_at",
-                position: flag(flags, "position")
-                  ? parsePositiveInt(flag(flags, "position")!, "position")
-                  : undefined,
+                movement: flagAs<Movement>(flags, "movement") || "insert_at",
+                position: intFlag(flags, "position"),
               },
             }),
           );
@@ -687,8 +656,8 @@ export const commands: CommandDefinition[] = [
                 query: {
                   page: page(flags),
                   per: per(flags),
-                  type: flag(flags, "type") as ContentTypeFilter | undefined,
-                  sort: flag(flags, "sort") as ContentSort | undefined,
+                  type: flagAs<ContentTypeFilter>(flags, "type"),
+                  sort: flagAs<ContentSort>(flags, "sort"),
                 },
               },
             }),
@@ -701,7 +670,7 @@ export const commands: CommandDefinition[] = [
                 query: {
                   page: page(flags),
                   per: per(flags),
-                  sort: flag(flags, "sort") as ConnectionSort | undefined,
+                  sort: flagAs<ConnectionSort>(flags, "sort"),
                 },
               },
             }),
@@ -714,8 +683,8 @@ export const commands: CommandDefinition[] = [
                 query: {
                   page: page(flags),
                   per: per(flags),
-                  type: flag(flags, "type") as FollowableType | undefined,
-                  sort: flag(flags, "sort") as ConnectionSort | undefined,
+                  type: flagAs<FollowableType>(flags, "type"),
+                  sort: flagAs<ConnectionSort>(flags, "sort"),
                 },
               },
             }),
@@ -774,8 +743,8 @@ export const commands: CommandDefinition[] = [
                 query: {
                   page: page(flags),
                   per: per(flags),
-                  type: flag(flags, "type") as ContentTypeFilter | undefined,
-                  sort: flag(flags, "sort") as ContentSort | undefined,
+                  type: flagAs<ContentTypeFilter>(flags, "type"),
+                  sort: flagAs<ContentSort>(flags, "sort"),
                 },
               },
             }),
@@ -788,7 +757,7 @@ export const commands: CommandDefinition[] = [
                 query: {
                   page: page(flags),
                   per: per(flags),
-                  sort: flag(flags, "sort") as ConnectionSort | undefined,
+                  sort: flagAs<ConnectionSort>(flags, "sort"),
                 },
               },
             }),
