@@ -2,8 +2,9 @@ import { createServer, type IncomingMessage, type ServerResponse } from "http";
 import { randomBytes, createHash } from "crypto";
 import { openUrl } from "./open";
 
-const AUTHORIZE_URL = "https://www.are.na/oauth/authorize";
-const TOKEN_URL = "https://api.are.na/v3/oauth/token";
+const AUTHORIZE_URL =
+  process.env["ARENA_AUTHORIZE_URL"] || "https://www.are.na/oauth/authorize";
+const TOKEN_URL = `${process.env["ARENA_API_URL"] || "https://api.are.na"}/v3/oauth/token`;
 
 interface TokenResponse {
   access_token: string;

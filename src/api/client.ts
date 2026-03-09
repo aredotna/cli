@@ -57,7 +57,7 @@ const errorMiddleware: Middleware = {
 };
 
 export const client = createClient<paths>({
-  baseUrl: "https://api.are.na",
+  baseUrl: process.env["ARENA_API_URL"] || "https://api.are.na",
 });
 
 client.use(authMiddleware);
