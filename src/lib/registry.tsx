@@ -1,5 +1,9 @@
 import React from "react";
 import type {
+  ChannelContentSort,
+  ConnectionFilter,
+  ConnectionSort,
+  ContentSort,
   ContentTypeFilter,
   FileExtension,
   FollowableType,
@@ -155,16 +159,21 @@ export const commands: CommandDefinition[] = [
       const sub = args[0];
       const visibility = flag(flags, "visibility") as Visibility | undefined;
       switch (sub) {
-        case "create":
+        case "create": {
+          const groupId = flag(flags, "group-id");
           return getData(
             client.POST("/v3/channels", {
               body: {
                 title: requireArg(args, 1, "title"),
                 visibility,
                 description: flag(flags, "description"),
+                group_id: groupId
+                  ? parsePositiveInt(groupId, "group-id")
+                  : undefined,
               },
             }),
           );
+        }
         case "update":
           return getData(
             client.PUT("/v3/channels/{id}", {
@@ -186,7 +195,11 @@ export const commands: CommandDefinition[] = [
             client.GET("/v3/channels/{id}/connections", {
               params: {
                 path: { id: requireArg(args, 1, "slug") },
-                query: { page: page(flags), per: per(flags) },
+                query: {
+                  page: page(flags),
+                  per: per(flags),
+                  sort: flag(flags, "sort") as ConnectionSort | undefined,
+                },
               },
             }),
           );
@@ -195,12 +208,20 @@ export const commands: CommandDefinition[] = [
             client.GET("/v3/channels/{id}/followers", {
               params: {
                 path: { id: requireArg(args, 1, "slug") },
-                query: { page: page(flags), per: per(flags) },
+                query: {
+                  page: page(flags),
+                  per: per(flags),
+                  sort: flag(flags, "sort") as ConnectionSort | undefined,
+                },
               },
             }),
           );
         default: {
           const slug = requireArg(args, 0, "slug");
+          const contentSort = flag(flags, "sort") as
+            | ChannelContentSort
+            | undefined;
+          const userId = flag(flags, "user-id");
           const [channel, contents] = await Promise.all([
             getData(
               client.GET("/v3/channels/{id}", {
@@ -214,7 +235,10 @@ export const commands: CommandDefinition[] = [
                   query: {
                     page: page(flags),
                     per: per(flags),
-                    sort: "position_desc",
+                    sort: contentSort ?? "position_desc",
+                    user_id: userId
+                      ? parsePositiveInt(userId, "user-id")
+                      : undefined,
                   },
                 },
               }),
@@ -294,7 +318,11 @@ export const commands: CommandDefinition[] = [
             client.GET("/v3/blocks/{id}/comments", {
               params: {
                 path: { id: idArg(args, 1, "block id") },
-                query: { page: page(flags), per: per(flags) },
+                query: {
+                  page: page(flags),
+                  per: per(flags),
+                  sort: flag(flags, "sort") as ConnectionSort | undefined,
+                },
               },
             }),
           );
@@ -303,7 +331,12 @@ export const commands: CommandDefinition[] = [
             client.GET("/v3/blocks/{id}/connections", {
               params: {
                 path: { id: idArg(args, 1, "block id") },
-                query: { page: page(flags), per: per(flags) },
+                query: {
+                  page: page(flags),
+                  per: per(flags),
+                  sort: flag(flags, "sort") as ConnectionSort | undefined,
+                  filter: flag(flags, "filter") as ConnectionFilter | undefined,
+                },
               },
             }),
           );
@@ -335,6 +368,10 @@ export const commands: CommandDefinition[] = [
       );
     },
     async json(args, flags) {
+      const seedRaw = flag(flags, "seed");
+      const userIdRaw = flag(flags, "user-id");
+      const groupIdRaw = flag(flags, "group-id");
+      const channelIdRaw = flag(flags, "channel-id");
       return getData(
         client.GET("/v3/search", {
           params: {
@@ -351,6 +388,16 @@ export const commands: CommandDefinition[] = [
                 ? [flag(flags, "ext") as FileExtension]
                 : undefined,
               after: flag(flags, "after"),
+              seed: seedRaw ? parsePositiveInt(seedRaw, "seed") : undefined,
+              user_id: userIdRaw
+                ? parsePositiveInt(userIdRaw, "user-id")
+                : undefined,
+              group_id: groupIdRaw
+                ? parsePositiveInt(groupIdRaw, "group-id")
+                : undefined,
+              channel_id: channelIdRaw
+                ? parsePositiveInt(channelIdRaw, "channel-id")
+                : undefined,
             },
           },
         }),
@@ -384,6 +431,7 @@ export const commands: CommandDefinition[] = [
           params: { path: { id: requireArg(args, 0, "channel") } },
         }),
       );
+      const insertAtRaw = flag(flags, "insert-at");
       return getData(
         client.POST("/v3/blocks", {
           body: {
@@ -392,6 +440,11 @@ export const commands: CommandDefinition[] = [
             title: flag(flags, "title"),
             description: flag(flags, "description"),
             alt_text: flag(flags, "alt-text"),
+            original_source_url: flag(flags, "original-source-url"),
+            original_source_title: flag(flags, "original-source-title"),
+            insert_at: insertAtRaw
+              ? parsePositiveInt(insertAtRaw, "insert-at")
+              : undefined,
           },
         }),
       );
@@ -457,12 +510,16 @@ export const commands: CommandDefinition[] = [
       );
     },
     async json(args, flags) {
+      const positionRaw = flag(flags, "position");
       await client.POST("/v3/connections", {
         body: {
           connectable_id: idArg(args, 0, "block id"),
           channel_ids: [requireArg(args, 1, "channel")],
           connectable_type:
             (flag(flags, "type") as "Block" | "Channel") || "Block",
+          position: positionRaw
+            ? parsePositiveInt(positionRaw, "position")
+            : undefined,
         },
       });
       return { connected: true };
@@ -631,6 +688,7 @@ export const commands: CommandDefinition[] = [
                   page: page(flags),
                   per: per(flags),
                   type: flag(flags, "type") as ContentTypeFilter | undefined,
+                  sort: flag(flags, "sort") as ContentSort | undefined,
                 },
               },
             }),
@@ -640,7 +698,11 @@ export const commands: CommandDefinition[] = [
             client.GET("/v3/users/{id}/followers", {
               params: {
                 path: { id: requireArg(args, 1, "slug") },
-                query: { page: page(flags), per: per(flags) },
+                query: {
+                  page: page(flags),
+                  per: per(flags),
+                  sort: flag(flags, "sort") as ConnectionSort | undefined,
+                },
               },
             }),
           );
@@ -653,6 +715,7 @@ export const commands: CommandDefinition[] = [
                   page: page(flags),
                   per: per(flags),
                   type: flag(flags, "type") as FollowableType | undefined,
+                  sort: flag(flags, "sort") as ConnectionSort | undefined,
                 },
               },
             }),
@@ -712,6 +775,7 @@ export const commands: CommandDefinition[] = [
                   page: page(flags),
                   per: per(flags),
                   type: flag(flags, "type") as ContentTypeFilter | undefined,
+                  sort: flag(flags, "sort") as ContentSort | undefined,
                 },
               },
             }),
@@ -721,7 +785,11 @@ export const commands: CommandDefinition[] = [
             client.GET("/v3/groups/{id}/followers", {
               params: {
                 path: { id: requireArg(args, 1, "slug") },
-                query: { page: page(flags), per: per(flags) },
+                query: {
+                  page: page(flags),
+                  per: per(flags),
+                  sort: flag(flags, "sort") as ConnectionSort | undefined,
+                },
               },
             }),
           );

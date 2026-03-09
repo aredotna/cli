@@ -47,7 +47,12 @@ function Help() {
         <Text> --json Output as JSON</Text>
         <Text> --page &lt;n&gt; Page number</Text>
         <Text> --per &lt;n&gt; Items per page</Text>
+        <Text> --sort &lt;s&gt; Sort order</Text>
         <Text> --type &lt;t&gt; Filter by type</Text>
+        <Text>
+          {" "}
+          --filter &lt;f&gt; Filter connections (ALL, OWN, EXCLUDE_OWN)
+        </Text>
         <Text> --visibility &lt;v&gt; public, closed, or private</Text>
         <Text> --title &lt;t&gt; Title (for create/update)</Text>
         <Text> --description &lt;d&gt; Description (for create/update)</Text>

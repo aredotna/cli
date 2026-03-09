@@ -29,6 +29,10 @@ export type SearchTypeFilter = Schemas["SearchTypeFilter"];
 export type SearchSort = Schemas["SearchSort"];
 export type SearchScope = Schemas["SearchScope"];
 export type FileExtension = Schemas["FileExtension"];
+export type ConnectionSort = Schemas["ConnectionSort"];
+export type ChannelContentSort = Schemas["ChannelContentSort"];
+export type ContentSort = Schemas["ContentSort"];
+export type ConnectionFilter = Schemas["ConnectionFilter"];
 
 export type PresignedFile = Schemas["PresignedFile"];
 export type PaginationMeta = Schemas["PaginationMeta"];
