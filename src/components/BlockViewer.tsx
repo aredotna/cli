@@ -1,7 +1,7 @@
-import { useEffect } from "react";
-import { Box, Text, useInput, useStdout } from "ink";
+import { Box, Text, useInput } from "ink";
 import useSWR from "swr";
 import { client, getData } from "../api/client";
+import { clearTerminalViewport } from "../lib/terminalViewport";
 import { openUrl } from "../lib/open";
 import { BlockContent } from "./BlockContent";
 import { Spinner } from "./Spinner";
@@ -18,12 +18,6 @@ export function BlockViewer({
   onNavigate: (index: number) => void;
 }) {
   const id = blockIds[index]!;
-  const { stdout } = useStdout();
-  const clearViewport = () => {
-    if (!stdout.isTTY) return;
-    // Also clear scrollback to remove stale inline-image fragments.
-    stdout.write("\u001B[2J\u001B[3J\u001B[H");
-  };
   const hasPrev = index > 0;
   const hasNext = index < blockIds.length - 1;
 
@@ -35,23 +29,18 @@ export function BlockViewer({
     getData(client.GET("/v3/blocks/{id}", { params: { path: { id } } })),
   );
 
-  useEffect(() => {
-    // iTerm inline images can leave stale pixels when the next frame is
-    // shorter; clear before drawing a new block.
-    clearViewport();
-  }, [id]);
-
   useInput((input, key) => {
     switch (true) {
       case input === "q" || key.escape:
+        clearTerminalViewport();
         onBack();
         break;
       case key.leftArrow && hasPrev:
-        clearViewport();
+        clearTerminalViewport();
         onNavigate(index - 1);
         break;
       case key.rightArrow && hasNext:
-        clearViewport();
+        clearTerminalViewport();
         onNavigate(index + 1);
         break;
       case input === "o" && !!block:
