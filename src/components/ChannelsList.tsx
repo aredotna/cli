@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Box, Text, useInput } from "ink";
 import useSWR from "swr";
 import { client, getData } from "../api/client";
 import type { Channel, User } from "../api/types";
 import { truncate } from "../lib/format";
 import { openUrl } from "../lib/open";
-import { wrapIndex } from "../lib/session-nav";
+import { usePagedCursorList } from "../hooks/usePagedCursorList";
 import { channelColor, INDICATORS } from "../lib/theme";
+import { ScreenEmpty, ScreenError } from "./ScreenStates";
 import { Spinner } from "./Spinner";
 
 type ChannelsNavigateView = { kind: "channel"; slug: string };
@@ -21,8 +22,8 @@ export function ChannelsList({
   onBack: () => void;
 }) {
   const PER = 24;
-  const [page, setPage] = useState(1);
-  const [cursor, setCursor] = useState(0);
+  const { page, cursor, clampCursor, moveUp, moveDown, nextPage, prevPage } =
+    usePagedCursorList({});
 
   const {
     data,
@@ -44,10 +45,8 @@ export function ChannelsList({
   const meta = data?.meta;
 
   useEffect(() => {
-    if (cursor >= channels.length && channels.length > 0) {
-      setCursor(channels.length - 1);
-    }
-  }, [channels.length, cursor]);
+    clampCursor(channels.length);
+  }, [channels.length, clampCursor]);
 
   useInput((char, key) => {
     if (char === "q" || key.escape) return onBack();
@@ -55,10 +54,10 @@ export function ChannelsList({
 
     switch (true) {
       case key.upArrow || char === "k":
-        setCursor((c) => wrapIndex(c, channels.length, -1));
+        moveUp(channels.length);
         break;
       case key.downArrow || char === "j":
-        setCursor((c) => wrapIndex(c, channels.length, 1));
+        moveDown(channels.length);
         break;
       case key.return && !!channels[cursor]:
         if (channels[cursor]!.slug) {
@@ -68,12 +67,10 @@ export function ChannelsList({
       case (key.rightArrow || char === "n") &&
         !!meta &&
         page < meta.total_pages:
-        setPage((p) => p + 1);
-        setCursor(0);
+        nextPage();
         break;
       case (key.leftArrow || char === "p") && page > 1:
-        setPage((p) => p - 1);
-        setCursor(0);
+        prevPage();
         break;
       case char === "o" && !!channels[cursor]: {
         const ch = channels[cursor]!;
@@ -86,25 +83,11 @@ export function ChannelsList({
   if (loading) return <Spinner label="Loading channels" />;
 
   if (error) {
-    return (
-      <Box flexDirection="column">
-        <Text color="red">✕ {error.message}</Text>
-        <Box marginTop={1}>
-          <Text dimColor>q back</Text>
-        </Box>
-      </Box>
-    );
+    return <ScreenError message={error.message} />;
   }
 
   if (channels.length === 0) {
-    return (
-      <Box flexDirection="column">
-        <Text dimColor>No channels found</Text>
-        <Box marginTop={1}>
-          <Text dimColor>q back</Text>
-        </Box>
-      </Box>
-    );
+    return <ScreenEmpty message="No channels found" />;
   }
 
   return (

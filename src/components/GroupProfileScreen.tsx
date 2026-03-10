@@ -1,9 +1,7 @@
-import { Box, Text, useInput } from "ink";
 import useSWR from "swr";
 import { client, getData } from "../api/client";
 import { plural, timeAgo } from "../lib/format";
-import { openUrl } from "../lib/open";
-import { Spinner } from "./Spinner";
+import { EntityProfileScreen } from "./EntityProfileScreen";
 
 export function GroupProfileScreen({
   slug,
@@ -22,53 +20,28 @@ export function GroupProfileScreen({
     getData(client.GET("/v3/groups/{id}", { params: { path: { id: slug } } })),
   );
 
-  useInput((input, key) => {
-    if (input === "q" || key.escape) return onBack();
-    if (!group) return;
-
-    switch (input) {
-      case "c":
-        onOpenContents();
-        break;
-      case "o":
-        openUrl(`https://www.are.na/group/${group.slug}`);
-        break;
-    }
-  });
-
-  if (loading) return <Spinner label={`Loading group ${slug}`} />;
-
-  if (error) {
-    return (
-      <Box flexDirection="column">
-        <Text color="red">✕ {error.message}</Text>
-        <Text dimColor>q back</Text>
-      </Box>
-    );
-  }
-
-  if (!group) {
-    return (
-      <Box flexDirection="column">
-        <Text dimColor>Group unavailable</Text>
-        <Text dimColor>q back</Text>
-      </Box>
-    );
-  }
-
   return (
-    <Box flexDirection="column">
-      <Text bold>{group.name}</Text>
-      <Text dimColor>@{group.slug}</Text>
-      {group.bio?.plain ? <Text>{group.bio.plain}</Text> : null}
-      <Text dimColor>
-        {plural(group.counts.channels, "channel")} ·{" "}
-        {plural(group.counts.users, "member")}
-      </Text>
-      <Text dimColor>Created {timeAgo(group.created_at)}</Text>
-      <Box marginTop={1}>
-        <Text dimColor>c contents · o browser · q back</Text>
-      </Box>
-    </Box>
+    <EntityProfileScreen
+      name={group?.name}
+      slug={group?.slug}
+      bio={group?.bio?.plain}
+      statsLine={
+        group
+          ? `${plural(group.counts.channels, "channel")} · ${plural(group.counts.users, "member")}`
+          : ""
+      }
+      metaLine={
+        group?.created_at ? `Created ${timeAgo(group.created_at)}` : undefined
+      }
+      loading={loading}
+      loadingLabel={`Loading group ${slug}`}
+      errorMessage={error?.message}
+      unavailableLabel="Group unavailable"
+      browserUrl={
+        group?.slug ? `https://www.are.na/group/${group.slug}` : undefined
+      }
+      onBack={onBack}
+      onOpenContents={onOpenContents}
+    />
   );
 }
