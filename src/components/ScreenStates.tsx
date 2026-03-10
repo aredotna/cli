@@ -2,7 +2,7 @@ import { Box, Text } from "ink";
 
 export function ScreenError({
   message,
-  backHint = "q back",
+  backHint = "q/esc back",
 }: {
   message: string;
   backHint?: string;
@@ -17,7 +17,7 @@ export function ScreenError({
 
 export function ScreenEmpty({
   message,
-  backHint = "q back",
+  backHint = "q/esc back",
 }: {
   message: string;
   backHint?: string;
@@ -32,7 +32,7 @@ export function ScreenEmpty({
 
 export function ScreenUnavailable({
   message,
-  backHint = "q back",
+  backHint = "q/esc back",
 }: {
   message: string;
   backHint?: string;

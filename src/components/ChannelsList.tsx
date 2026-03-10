@@ -120,8 +120,8 @@ export function ChannelsList({
       {meta && (
         <Box marginTop={1}>
           <Text dimColor>
-            Page {page}/{meta.total_pages} · ↑↓ navigate · ↵ open · ←→ page · o
-            browser · q back
+            Page {page}/{meta.total_pages} · ↑↓/j/k wrap · ↵ open · ←→/n/p page
+            · o browser · q/esc back
           </Text>
         </Box>
       )}

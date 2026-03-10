@@ -177,8 +177,8 @@ export function SearchResults({
       {data && (
         <Box marginTop={1}>
           <Text dimColor>
-            Page {page}/{data.meta.total_pages} · ↑↓ navigate · ↵ open · ←→ page
-            · o browser · q back
+            Page {page}/{data.meta.total_pages} · ↑↓/j/k wrap · ↵ open · ←→/n/p
+            page · o browser · q/esc back
           </Text>
         </Box>
       )}

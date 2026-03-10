@@ -162,8 +162,8 @@ export function SessionContentsListScreen({
       <Box marginTop={1}>
         <Text dimColor>
           Page {pagedCursor.page}/{meta?.total_pages ?? 1} ·{" "}
-          {plural(meta?.total_count ?? items.length, "item")} · ↑↓ wrap · ↵ open
-          · ←→/n/p page · o browser · q/esc back
+          {plural(meta?.total_count ?? items.length, "item")} · ↑↓/j/k wrap · ↵
+          open · ←→/n/p page · o browser · q/esc back
         </Text>
       </Box>
     </Box>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import type { User } from "../api/types";
 import { parsePositiveInt } from "../lib/args";
+import { wrapIndex } from "../lib/session-nav";
 import {
   ARG_HINTS,
   COMMANDS,
@@ -129,9 +130,9 @@ export function HomeScreen({
       return;
     }
 
-    if (key.upArrow) return setCursor((c) => Math.max(0, c - 1));
+    if (key.upArrow) return setCursor((c) => wrapIndex(c, filtered.length, -1));
     if (key.downArrow)
-      return setCursor((c) => Math.min(filtered.length - 1, c + 1));
+      return setCursor((c) => wrapIndex(c, filtered.length, 1));
     if ((key.tab || key.return) && filtered[cursor])
       return selectCommand(filtered[cursor]!);
     if (key.backspace || key.delete) {

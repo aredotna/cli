@@ -196,7 +196,7 @@ export function ChannelBrowser({
     return (
       <Box flexDirection="column">
         <Text color="red">✕ {error.message}</Text>
-        <Text dimColor> Press q to go back</Text>
+        <Text dimColor>q/esc back</Text>
       </Box>
     );
   }
@@ -205,7 +205,7 @@ export function ChannelBrowser({
     return (
       <Box flexDirection="column">
         <Text dimColor>Channel unavailable</Text>
-        <Text dimColor>Press q to go back</Text>
+        <Text dimColor>q/esc back</Text>
       </Box>
     );
   }
@@ -264,7 +264,7 @@ export function ChannelBrowser({
         <Text dimColor>
           {addComposer.isOpen
             ? "type text · ↵ submit · esc cancel"
-            : "↑↓ navigate · ↵ open · ←→ page · a add · r refresh · o browser · q back"}
+            : "↑↓/j/k wrap · ↵ open · ←→/n/p page · a add · r refresh · o browser · q/esc back"}
         </Text>
       </Box>
     </Box>
