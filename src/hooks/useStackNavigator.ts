@@ -40,5 +40,17 @@ export function useStackNavigator<T>(
     [options.beforeTransition],
   );
 
-  return { stack, current, push, pop, replace };
+  const popTo = useCallback(
+    (next: T) => {
+      options.beforeTransition?.();
+      if (stackRef.current.length <= 1) {
+        setStack([next]);
+        return;
+      }
+      setStack((s) => [...s.slice(0, -2), next]);
+    },
+    [options.beforeTransition],
+  );
+
+  return { stack, current, push, pop, replace, popTo };
 }

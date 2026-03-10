@@ -12,7 +12,10 @@ type HomeNavigateView =
   | { kind: "channel"; slug: string }
   | { kind: "block"; blockIds: number[]; index: number }
   | { kind: "search"; query: string }
-  | { kind: "channels" };
+  | { kind: "channels" }
+  | { kind: "userProfile"; slug: string }
+  | { kind: "groupProfile"; slug: string }
+  | { kind: "whoami" };
 
 export function HomeScreen({
   me,
@@ -80,6 +83,14 @@ export function HomeScreen({
         }
       case "channels":
         return onNavigate({ kind: "channels" });
+      case "user":
+        if (!value) return setInputError("User slug is required");
+        return onNavigate({ kind: "userProfile", slug: value });
+      case "group":
+        if (!value) return setInputError("Group slug is required");
+        return onNavigate({ kind: "groupProfile", slug: value });
+      case "whoami":
+        return onNavigate({ kind: "whoami" });
       case "logout":
         return onLogout();
       case "exit":
@@ -156,14 +167,17 @@ export function HomeScreen({
       {!activeCommand && filtered.length > 0 && (
         <Box flexDirection="column" marginLeft={2}>
           {filtered.map((cmd, i) => {
+            const displayName = cmd.displayName ?? cmd.name;
             const argsLen = cmd.args ? cmd.args.length + 1 : 0;
-            const pad = " ".repeat(Math.max(2, 20 - cmd.name.length - argsLen));
+            const pad = " ".repeat(
+              Math.max(2, 20 - displayName.length - argsLen),
+            );
             return (
-              <Box key={cmd.name}>
+              <Box key={`${cmd.name}-${displayName}`}>
                 <Text color={i === cursor ? "cyan" : undefined}>
                   {i === cursor ? "▸ " : "  "}
                 </Text>
-                <Text bold={i === cursor}>{cmd.name}</Text>
+                <Text bold={i === cursor}>{displayName}</Text>
                 {cmd.args && <Text dimColor> {cmd.args}</Text>}
                 <Text dimColor>
                   {pad}

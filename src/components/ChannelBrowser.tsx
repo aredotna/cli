@@ -5,6 +5,7 @@ import { client, getData } from "../api/client";
 import type { ChannelRef } from "../api/types";
 import { plural } from "../lib/format";
 import { openUrl } from "../lib/open";
+import { orderedBlockIndexByCursor, wrapIndex } from "../lib/session-nav";
 import { visibilityLabel } from "../lib/theme";
 import { addComposerReducer, INITIAL_ADD_COMPOSER_STATE } from "./AddComposer";
 import { BlockItem } from "./BlockItem";
@@ -132,10 +133,10 @@ export function ChannelBrowser({
 
     switch (true) {
       case key.upArrow || input === "k":
-        setCursor((c) => Math.max(0, c - 1));
+        setCursor((c) => wrapIndex(c, items.length, -1));
         break;
       case key.downArrow || input === "j":
-        setCursor((c) => Math.min(items.length - 1, c + 1));
+        setCursor((c) => wrapIndex(c, items.length, 1));
         break;
       case key.return: {
         const item = items[cursor];
@@ -155,7 +156,7 @@ export function ChannelBrowser({
             kind: "block",
             slug,
             page,
-            index: blockIds.indexOf(item.id),
+            index: orderedBlockIndexByCursor(items, cursor),
           });
         }
         break;
@@ -200,7 +201,14 @@ export function ChannelBrowser({
     );
   }
 
-  if (!data) return null;
+  if (!data) {
+    return (
+      <Box flexDirection="column">
+        <Text dimColor>Channel unavailable</Text>
+        <Text dimColor>Press q to go back</Text>
+      </Box>
+    );
+  }
 
   const { channel } = data;
 

@@ -5,6 +5,7 @@ import { ArenaError, client, getData } from "../api/client";
 import type { Block, Channel } from "../api/types";
 import { truncate } from "../lib/format";
 import { openUrl } from "../lib/open";
+import { wrapIndex } from "../lib/session-nav";
 import { channelColor, INDICATORS } from "../lib/theme";
 import { BlockItem } from "./BlockItem";
 import { Spinner } from "./Spinner";
@@ -65,10 +66,10 @@ export function SearchResults({
 
     switch (true) {
       case key.upArrow || char === "k":
-        setCursor((c) => Math.max(0, c - 1));
+        setCursor((c) => wrapIndex(c, items.length, -1));
         break;
       case key.downArrow || char === "j":
-        setCursor((c) => Math.min(items.length - 1, c + 1));
+        setCursor((c) => wrapIndex(c, items.length, 1));
         break;
       case key.return && !!items[cursor]: {
         const item = items[cursor]!;
