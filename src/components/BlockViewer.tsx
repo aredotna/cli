@@ -17,7 +17,8 @@ export function BlockViewer({
   onBack: () => void;
   onNavigate: (index: number) => void;
 }) {
-  const id = blockIds[index]!;
+  const id = blockIds[index];
+  const hasValidSelection = typeof id === "number";
   const hasPrev = index > 0;
   const hasNext = index < blockIds.length - 1;
 
@@ -25,8 +26,12 @@ export function BlockViewer({
     data: block,
     error,
     isLoading: loading,
-  } = useSWR(`block/${id}`, () =>
-    getData(client.GET("/v3/blocks/{id}", { params: { path: { id } } })),
+  } = useSWR(
+    hasValidSelection ? `block/${id}` : null,
+    hasValidSelection && id !== undefined
+      ? () =>
+          getData(client.GET("/v3/blocks/{id}", { params: { path: { id } } }))
+      : null,
   );
 
   useInput((input, key) => {
@@ -49,6 +54,15 @@ export function BlockViewer({
     }
   });
 
+  if (!hasValidSelection) {
+    return (
+      <Box flexDirection="column">
+        <Text dimColor>Block is no longer available in this view</Text>
+        <Text dimColor>Press q to go back</Text>
+      </Box>
+    );
+  }
+
   if (loading) return <Spinner label={`Loading block ${id}`} />;
 
   if (error) {
@@ -60,7 +74,14 @@ export function BlockViewer({
     );
   }
 
-  if (!block) return null;
+  if (!block) {
+    return (
+      <Box flexDirection="column">
+        <Text dimColor>Block unavailable</Text>
+        <Text dimColor>Press q to go back</Text>
+      </Box>
+    );
+  }
 
   return (
     <Box flexDirection="column">

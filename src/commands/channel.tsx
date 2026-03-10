@@ -51,7 +51,7 @@ export function InteractiveChannel({
 }) {
   const { exit } = useApp();
   const onExit = onExitProp ?? exit;
-  const { current, push, pop, replace } = useStackNavigator<NavItem>(
+  const { current, push, pop, replace, popTo } = useStackNavigator<NavItem>(
     { kind: "channel", slug, page: initialPage ?? 1, cursor: 0 },
     { onPopRoot: onExit, beforeTransition: clearTerminalViewport },
   );
@@ -65,7 +65,7 @@ export function InteractiveChannel({
         per={per}
         index={current.index}
         onBack={({ page, cursor }) => {
-          replace({
+          popTo({
             kind: "channel",
             slug: current.slug,
             page,

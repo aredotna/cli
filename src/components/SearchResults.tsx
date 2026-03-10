@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Box, Text, useInput } from "ink";
 import useSWR from "swr";
 import { ArenaError, client, getData } from "../api/client";
 import type { Block, Channel } from "../api/types";
 import { truncate } from "../lib/format";
 import { openUrl } from "../lib/open";
+import { usePagedCursorList } from "../hooks/usePagedCursorList";
 import { channelColor, INDICATORS } from "../lib/theme";
 import { BlockItem } from "./BlockItem";
+import { ScreenEmpty, ScreenError } from "./ScreenStates";
 import { Spinner } from "./Spinner";
 
 type SearchNavigateView =
@@ -23,8 +25,8 @@ export function SearchResults({
   onBack: () => void;
 }) {
   const PER = 20;
-  const [page, setPage] = useState(1);
-  const [cursor, setCursor] = useState(0);
+  const { page, cursor, clampCursor, moveUp, moveDown, nextPage, prevPage } =
+    usePagedCursorList({});
 
   const {
     data,
@@ -54,10 +56,8 @@ export function SearchResults({
   const blocks = data?.blocks ?? [];
 
   useEffect(() => {
-    if (cursor >= items.length && items.length > 0) {
-      setCursor(items.length - 1);
-    }
-  }, [items.length, cursor]);
+    clampCursor(items.length);
+  }, [items.length, clampCursor]);
 
   useInput((char, key) => {
     if (char === "q" || key.escape) return onBack();
@@ -65,10 +65,10 @@ export function SearchResults({
 
     switch (true) {
       case key.upArrow || char === "k":
-        setCursor((c) => Math.max(0, c - 1));
+        moveUp(items.length);
         break;
       case key.downArrow || char === "j":
-        setCursor((c) => Math.min(items.length - 1, c + 1));
+        moveDown(items.length);
         break;
       case key.return && !!items[cursor]: {
         const item = items[cursor]!;
@@ -90,12 +90,10 @@ export function SearchResults({
       case (key.rightArrow || char === "n") &&
         !!data &&
         page < data.meta.total_pages:
-        setPage((p) => p + 1);
-        setCursor(0);
+        nextPage();
         break;
       case (key.leftArrow || char === "p") && page > 1:
-        setPage((p) => p - 1);
-        setCursor(0);
+        prevPage();
         break;
       case char === "o" && !!items[cursor]: {
         const item = items[cursor]!;
@@ -119,25 +117,11 @@ export function SearchResults({
     const message = isPermission
       ? "Search requires Are.na Premium"
       : error.message;
-    return (
-      <Box flexDirection="column">
-        <Text color="red">✕ {message}</Text>
-        <Box marginTop={1}>
-          <Text dimColor>q back</Text>
-        </Box>
-      </Box>
-    );
+    return <ScreenError message={message} />;
   }
 
   if (items.length === 0) {
-    return (
-      <Box flexDirection="column">
-        <Text dimColor>No results for "{query}"</Text>
-        <Box marginTop={1}>
-          <Text dimColor>q back</Text>
-        </Box>
-      </Box>
-    );
+    return <ScreenEmpty message={`No results for "${query}"`} />;
   }
 
   return (
@@ -193,8 +177,8 @@ export function SearchResults({
       {data && (
         <Box marginTop={1}>
           <Text dimColor>
-            Page {page}/{data.meta.total_pages} · ↑↓ navigate · ↵ open · ←→ page
-            · o browser · q back
+            Page {page}/{data.meta.total_pages} · ↑↓/j/k wrap · ↵ open · ←→/n/p
+            page · o browser · q/esc back
           </Text>
         </Box>
       )}

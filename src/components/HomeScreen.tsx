@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import type { User } from "../api/types";
 import { parsePositiveInt } from "../lib/args";
+import { wrapIndex } from "../lib/session-nav";
 import {
   ARG_HINTS,
   COMMANDS,
@@ -12,7 +13,10 @@ type HomeNavigateView =
   | { kind: "channel"; slug: string }
   | { kind: "block"; blockIds: number[]; index: number }
   | { kind: "search"; query: string }
-  | { kind: "channels" };
+  | { kind: "channels" }
+  | { kind: "userProfile"; slug: string }
+  | { kind: "groupProfile"; slug: string }
+  | { kind: "whoami" };
 
 export function HomeScreen({
   me,
@@ -80,6 +84,14 @@ export function HomeScreen({
         }
       case "channels":
         return onNavigate({ kind: "channels" });
+      case "user":
+        if (!value) return setInputError("User slug is required");
+        return onNavigate({ kind: "userProfile", slug: value });
+      case "group":
+        if (!value) return setInputError("Group slug is required");
+        return onNavigate({ kind: "groupProfile", slug: value });
+      case "whoami":
+        return onNavigate({ kind: "whoami" });
       case "logout":
         return onLogout();
       case "exit":
@@ -118,9 +130,9 @@ export function HomeScreen({
       return;
     }
 
-    if (key.upArrow) return setCursor((c) => Math.max(0, c - 1));
+    if (key.upArrow) return setCursor((c) => wrapIndex(c, filtered.length, -1));
     if (key.downArrow)
-      return setCursor((c) => Math.min(filtered.length - 1, c + 1));
+      return setCursor((c) => wrapIndex(c, filtered.length, 1));
     if ((key.tab || key.return) && filtered[cursor])
       return selectCommand(filtered[cursor]!);
     if (key.backspace || key.delete) {
@@ -156,14 +168,17 @@ export function HomeScreen({
       {!activeCommand && filtered.length > 0 && (
         <Box flexDirection="column" marginLeft={2}>
           {filtered.map((cmd, i) => {
+            const displayName = cmd.displayName ?? cmd.name;
             const argsLen = cmd.args ? cmd.args.length + 1 : 0;
-            const pad = " ".repeat(Math.max(2, 20 - cmd.name.length - argsLen));
+            const pad = " ".repeat(
+              Math.max(2, 20 - displayName.length - argsLen),
+            );
             return (
-              <Box key={cmd.name}>
+              <Box key={`${cmd.name}-${displayName}`}>
                 <Text color={i === cursor ? "cyan" : undefined}>
                   {i === cursor ? "▸ " : "  "}
                 </Text>
-                <Text bold={i === cursor}>{cmd.name}</Text>
+                <Text bold={i === cursor}>{displayName}</Text>
                 {cmd.args && <Text dimColor> {cmd.args}</Text>}
                 <Text dimColor>
                   {pad}

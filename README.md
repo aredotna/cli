@@ -54,6 +54,8 @@ arena block connections 12345                 # Where block appears
 arena add my-channel "Hello world"            # Add text
 arena add my-channel https://example.com      # Add a URL
 arena upload photo.jpg --channel my-channel
+arena batch my-channel "https://a.com" "https://b.com"
+arena batch status 1234
 echo "piped text" | arena add my-channel
 ```
 
@@ -81,6 +83,9 @@ arena user damon-zucconi                # View a user
 arena user contents damon-zucconi       # User's content
 arena user followers damon-zucconi
 arena user following damon-zucconi
+arena group are-na-team                 # View a group
+arena group contents are-na-team        # Group's content
+arena group followers are-na-team
 ```
 
 ### Search
@@ -88,6 +93,12 @@ arena user following damon-zucconi
 ```bash
 arena search "brutalist architecture"
 arena search "photography" --type Image
+```
+
+### Other
+
+```bash
+arena ping                              # API health check
 ```
 
 ## Options
@@ -105,6 +116,7 @@ arena search "photography" --type Image
 | `--title <t>`       | Title (for create/update)                        |
 | `--description <d>` | Description (for create/update)                  |
 | `--no-fullscreen`   | Disable session fullscreen mode                  |
+| `--help`            | Show help                                        |
 
 ## Aliases
 

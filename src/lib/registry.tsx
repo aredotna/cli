@@ -678,6 +678,7 @@ export const commands: CommandDefinition[] = [
       { usage: "user followers <slug>", description: "User's followers" },
       { usage: "user following <slug>", description: "Who user follows" },
     ],
+    session: { args: "<slug>", desc: "View a user profile" },
     render(args, flags) {
       const sub = args[0];
       switch (sub) {
@@ -774,6 +775,7 @@ export const commands: CommandDefinition[] = [
       { usage: "group contents <slug>", description: "Group's content" },
       { usage: "group followers <slug>", description: "Group's followers" },
     ],
+    session: { args: "<slug>", desc: "View a group profile" },
     render(args, flags) {
       const sub = args[0];
       switch (sub) {
@@ -843,6 +845,7 @@ export const commands: CommandDefinition[] = [
     aliases: ["me"],
     group: "Other",
     help: [{ usage: "whoami", description: "Show current user" }],
+    session: { args: null, desc: "View your profile" },
     render() {
       return <WhoamiCommand />;
     },

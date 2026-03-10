@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { client, getData } from "../api/client";
 import type { Block } from "../api/types";
 import { openUrl } from "../lib/open";
+import { clampBlockIndex } from "../lib/session-nav";
 import { clearTerminalViewport } from "../lib/terminalViewport";
 import { BlockContent } from "./BlockContent";
 import { Spinner } from "./Spinner";
@@ -57,6 +58,13 @@ export function ChannelBlockViewer({
     onNavigate({ page, index: nextIndex });
     setPendingBoundary(null);
   }, [pendingBoundary, blocks.length, page, onNavigate]);
+
+  useEffect(() => {
+    const normalized = clampBlockIndex(index, blocks.length);
+    if (normalized === null || normalized === index) return;
+    setIndex(normalized);
+    onNavigate({ page, index: normalized });
+  }, [index, blocks.length, onNavigate, page]);
 
   const {
     data: block,
@@ -144,7 +152,32 @@ export function ChannelBlockViewer({
     );
   }
 
-  if (!block || !contents) return null;
+  if (!contents || blocks.length === 0) {
+    return (
+      <Box flexDirection="column">
+        <Text dimColor>No blocks available on this page</Text>
+        <Text dimColor>Press q to go back</Text>
+      </Box>
+    );
+  }
+
+  if (!currentBlock) {
+    return (
+      <Box flexDirection="column">
+        <Text dimColor>Recovering block selection...</Text>
+        <Text dimColor>Press q to go back</Text>
+      </Box>
+    );
+  }
+
+  if (!block) {
+    return (
+      <Box flexDirection="column">
+        <Text dimColor>Block unavailable</Text>
+        <Text dimColor>Press q to go back</Text>
+      </Box>
+    );
+  }
 
   return (
     <Box flexDirection="column">
