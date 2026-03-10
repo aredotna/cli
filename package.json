@@ -1,6 +1,6 @@
 {
-  "name": "arena-cli",
-  "version": "0.1.0",
+  "name": "@aredotna/cli",
+  "version": "0.1.1",
   "description": "Are.na from the terminal",
   "type": "module",
   "bin": {
@@ -9,6 +9,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20"
   },
