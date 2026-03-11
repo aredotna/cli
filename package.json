@@ -25,6 +25,7 @@
     "check": "npm run lint && npm run test && npm run build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "prepack": "npm run build",
     "prepare": "husky"
   },
   "lint-staged": {
