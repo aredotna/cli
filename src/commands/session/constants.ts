@@ -1,4 +1,4 @@
-import { commands as registry } from "../../lib/registry";
+import { SESSION_ARG_HINTS, SESSION_COMMAND_SPECS } from "./command-specs";
 
 export interface SessionCommand {
   name: string;
@@ -7,54 +7,36 @@ export interface SessionCommand {
   displayName?: string;
 }
 
-const SESSION_COMMANDS: SessionCommand[] = registry
-  .filter((cmd) => cmd.session)
-  .map((cmd) => ({
-    name: cmd.name,
-    args: cmd.session!.args,
-    desc: cmd.session!.desc,
-  }));
-
 const SESSION_ORDER = [
   "search",
-  "channels",
   "channel",
+  "channels",
   "block",
   "user",
   "group",
   "whoami",
+  "home",
+  "back",
+  "browser",
   "logout",
+  "exit",
 ] as const;
 
 const ORDER_INDEX = new Map<string, number>(
   SESSION_ORDER.map((name, idx) => [name, idx]),
 );
-const SESSION_ORDER_SET = new Set<string>(SESSION_ORDER);
 
-const ORDERED_SESSION_COMMANDS = SESSION_COMMANDS.filter((cmd) =>
-  SESSION_ORDER_SET.has(cmd.name),
-).sort((a, b) => {
-  const aIndex = ORDER_INDEX.get(a.name) ?? Number.MAX_SAFE_INTEGER;
-  const bIndex = ORDER_INDEX.get(b.name) ?? Number.MAX_SAFE_INTEGER;
-  return aIndex - bIndex || a.name.localeCompare(b.name);
-});
+export const COMMANDS: SessionCommand[] = [...SESSION_COMMAND_SPECS]
+  .sort((a, b) => {
+    const aIndex = ORDER_INDEX.get(a.name) ?? Number.MAX_SAFE_INTEGER;
+    const bIndex = ORDER_INDEX.get(b.name) ?? Number.MAX_SAFE_INTEGER;
+    return aIndex - bIndex || a.name.localeCompare(b.name);
+  })
+  .map((command) => ({
+    name: command.name,
+    args: command.args,
+    desc: command.desc,
+    displayName: command.displayName,
+  }));
 
-export const COMMANDS: SessionCommand[] = [
-  ...ORDERED_SESSION_COMMANDS,
-  {
-    name: "channels",
-    args: null,
-    desc: "Browse your channels",
-    displayName: "your channels",
-  },
-  { name: "exit", args: null, desc: "Exit session" },
-].filter(
-  (cmd, index, list) =>
-    list.findIndex((entry) => entry.name === cmd.name) === index,
-);
-
-export const ARG_HINTS: Record<string, string> = {
-  "<slug>": "enter slug",
-  "<query>": "enter search query",
-  "<id>": "enter block ID",
-};
+export const ARG_HINTS = SESSION_ARG_HINTS;

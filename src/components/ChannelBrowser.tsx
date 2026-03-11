@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import useSWR from "swr";
 import { client, getData } from "../api/client";
@@ -9,7 +9,10 @@ import { orderedBlockIndexByCursor, wrapIndex } from "../lib/session-nav";
 import { visibilityLabel } from "../lib/theme";
 import { addComposerReducer, INITIAL_ADD_COMPOSER_STATE } from "./AddComposer";
 import { BlockItem } from "./BlockItem";
-import { Spinner } from "./Spinner";
+import { useSessionFooter } from "./SessionFooterContext";
+import { useSessionPaletteActive } from "./SessionPaletteContext";
+import { Panel, ScreenFrame } from "./ScreenChrome";
+import { ScreenError, ScreenLoading, ScreenUnavailable } from "./ScreenStates";
 
 export type ChannelNavItem =
   | { kind: "channel"; slug: string; page: number; cursor: number }
@@ -30,22 +33,38 @@ export function ChannelBrowser({
   onNavigate: (item: ChannelNavItem) => void;
   onBack: () => void;
 }) {
-  const [page, setPage] = useState(initialPage);
-  const [cursor, setCursor] = useState(initialCursor);
-  const [showComposerCursor, setShowComposerCursor] = useState(true);
+  const initialStateRef = useRef({ page: initialPage, cursor: initialCursor });
+  const [page, setPage] = useState(initialStateRef.current.page);
+  const [cursor, setCursor] = useState(initialStateRef.current.cursor);
+  const [showComposerCursor, dispatchComposerCursor] = useReducer(
+    (value: boolean, action: "reset" | "toggle") =>
+      action === "reset" ? true : !value,
+    true,
+  );
   const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
   const [addComposer, dispatchAddComposer] = useReducer(
     addComposerReducer,
     INITIAL_ADD_COMPOSER_STATE,
   );
+  const paletteActive = useSessionPaletteActive();
+
+  useSessionFooter(
+    addComposer.isOpen
+      ? [
+          { key: "type", label: "compose" },
+          { key: "↵", label: "submit" },
+          { key: "esc", label: "cancel" },
+        ]
+      : [],
+  );
 
   useEffect(() => {
     if (!addComposer.isOpen) {
-      setShowComposerCursor(true);
+      dispatchComposerCursor("reset");
       return;
     }
     const intervalId = setInterval(() => {
-      setShowComposerCursor((value) => !value);
+      dispatchComposerCursor("toggle");
     }, 500);
     return () => clearInterval(intervalId);
   }, [addComposer.isOpen]);
@@ -81,6 +100,7 @@ export function ChannelBrowser({
   const meta = data?.contents.meta;
 
   useInput((input, key) => {
+    if (paletteActive) return;
     if (addComposer.isOpen) {
       if (key.escape) {
         dispatchAddComposer({ type: "cancel" });
@@ -190,83 +210,56 @@ export function ChannelBrowser({
     }
   });
 
-  if (loading) return <Spinner label={`Loading ${slug}`} />;
+  if (loading) return <ScreenLoading label={`Loading ${slug}`} />;
 
-  if (error) {
-    return (
-      <Box flexDirection="column">
-        <Text color="red">✕ {error.message}</Text>
-        <Text dimColor>q/esc back</Text>
-      </Box>
-    );
-  }
+  if (error) return <ScreenError message={error.message} />;
 
-  if (!data) {
-    return (
-      <Box flexDirection="column">
-        <Text dimColor>Channel unavailable</Text>
-        <Text dimColor>q/esc back</Text>
-      </Box>
-    );
-  }
+  if (!data) return <ScreenUnavailable message="Channel unavailable" />;
 
   const { channel } = data;
 
   return (
-    <Box flexDirection="column">
-      <Box flexDirection="column" marginBottom={1}>
-        <Text bold>{channel.title}</Text>
-        <Text dimColor>
-          {channel.owner.name} · {visibilityLabel(channel.visibility)} ·{" "}
-          {plural(channel.counts.contents, "block")}
-        </Text>
-      </Box>
+    <ScreenFrame title={channel.title}>
+      <Box flexDirection="column" gap={1}>
+        {addComposer.isOpen ? (
+          <Panel title="Add block">
+            <Box flexDirection="column">
+              <Text>
+                +{" "}
+                <Text color="cyan">
+                  {addComposer.value}
+                  {showComposerCursor ? "█" : " "}
+                </Text>
+              </Text>
+              {addComposer.isSubmitting && <Text dimColor>submitting...</Text>}
+              {addComposer.error && (
+                <Text color="red">✕ {addComposer.error}</Text>
+              )}
+            </Box>
+          </Panel>
+        ) : null}
 
-      {addComposer.isOpen && (
-        <Box flexDirection="column" marginBottom={1}>
-          <Text>
-            +{" "}
-            <Text color="cyan">
-              {addComposer.value}
-              {showComposerCursor ? "█" : " "}
-            </Text>
-          </Text>
-          {addComposer.isSubmitting && <Text dimColor>submitting...</Text>}
-          {addComposer.error && <Text color="red">✕ {addComposer.error}</Text>}
-        </Box>
-      )}
+        <Panel>
+          {items.length === 0 ? (
+            <Text dimColor>This channel is empty</Text>
+          ) : (
+            <Box flexDirection="column">
+              {items.map((item, i) => (
+                <BlockItem
+                  key={`${item.type}-${item.id}`}
+                  item={item}
+                  selected={i === cursor}
+                />
+              ))}
+            </Box>
+          )}
+        </Panel>
 
-      {items.length === 0 ? (
-        <Text dimColor>This channel is empty</Text>
-      ) : (
-        <Box flexDirection="column">
-          {items.map((item, i) => (
-            <BlockItem
-              key={`${item.type}-${item.id}`}
-              item={item}
-              selected={i === cursor}
-            />
-          ))}
-        </Box>
-      )}
-
-      <Box marginTop={1} flexDirection="column">
         {addComposer.message && (
           <Text color="green">✓ {addComposer.message}</Text>
         )}
         {refreshMessage && <Text color="green">✓ {refreshMessage}</Text>}
-        {meta && meta.total_pages > 1 && (
-          <Text dimColor>
-            Page {meta.current_page}/{meta.total_pages} ·{" "}
-            {plural(meta.total_count, "block")}
-          </Text>
-        )}
-        <Text dimColor>
-          {addComposer.isOpen
-            ? "type text · ↵ submit · esc cancel"
-            : "↑↓/j/k wrap · ↵ open · ←→/n/p page · a add · r refresh · o browser · q/esc back"}
-        </Text>
       </Box>
-    </Box>
+    </ScreenFrame>
   );
 }

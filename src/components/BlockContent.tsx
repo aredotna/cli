@@ -5,7 +5,13 @@ import { formatFileSize, timeAgo } from "../lib/format";
 import { blockTextColor } from "../lib/theme";
 import { TerminalImage } from "./TerminalImage";
 
-export function BlockContent({ block }: { block: Block }) {
+export function BlockContent({
+  block,
+  showTitle = true,
+}: {
+  block: Block;
+  showTitle?: boolean;
+}) {
   const color = blockTextColor();
   const previewImage = "image" in block ? block.image : null;
   const previewSrc = previewImage?.small?.src ?? previewImage?.src;
@@ -112,13 +118,13 @@ export function BlockContent({ block }: { block: Block }) {
 
   return (
     <Box flexDirection="column">
-      {block.title && (
+      {showTitle && block.title && (
         <Text bold color={color}>
           {block.title}
         </Text>
       )}
 
-      <Box marginTop={block.title ? 1 : 0} marginBottom={1}>
+      <Box marginTop={showTitle && block.title ? 1 : 0} marginBottom={1}>
         {body}
       </Box>
 
@@ -130,8 +136,8 @@ export function BlockContent({ block }: { block: Block }) {
 
       <Box marginTop={1}>
         <Box flexDirection="column">
-          {rows.map((row, index) => (
-            <Text key={`${row.label}-${index}`}>
+          {rows.map((row) => (
+            <Text key={`${row.label}:${row.value}`}>
               <Text dimColor>{`${row.label.padEnd(labelWidth)}  `}</Text>
               {row.value}
             </Text>
