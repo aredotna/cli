@@ -7,6 +7,7 @@ import { SWRConfig } from "swr";
 import { parseArgs, type Flags } from "./lib/args";
 import { commandMap, groupedCommands } from "./lib/registry";
 import { exitCodeFromError, formatJsonError } from "./lib/exit-codes";
+import { CLI_PACKAGE_NAME, getCliVersion } from "./lib/version";
 import { SessionMode } from "./commands/session";
 
 // ── Help ──
@@ -24,6 +25,7 @@ function Help() {
           **
         </Text>
         <Text bold> Are.na</Text>
+        <Text dimColor> v{getCliVersion()}</Text>
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
@@ -61,7 +63,9 @@ function Help() {
         <Text> --visibility &lt;v&gt; public, closed, or private</Text>
         <Text> --title &lt;t&gt; Title (for create/update)</Text>
         <Text> --description &lt;d&gt; Description (for create/update)</Text>
+        <Text> --yes Apply action (used by `update`)</Text>
         <Text> --no-fullscreen Disable session fullscreen mode</Text>
+        <Text> --version Show CLI version</Text>
         <Text> --help Show help</Text>
       </Box>
 
@@ -197,6 +201,8 @@ async function runInk(
 
 if (flags.json && command) {
   await handleJson(command, rest, flags);
+} else if (!command && (flags.version || flags.v)) {
+  process.stdout.write(`${CLI_PACKAGE_NAME} v${getCliVersion()}\n`);
 } else if (flags.help || flags.h) {
   await runInk(<Help />, { fullscreen: false });
 } else if (!command) {

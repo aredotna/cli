@@ -61,6 +61,7 @@ import { LoginCommand } from "../commands/login";
 import { LogoutCommand } from "../commands/logout";
 import { PingCommand } from "../commands/ping";
 import { SearchCommand } from "../commands/search";
+import { UpdateCommand, checkForCliUpdate } from "../commands/update";
 import { UploadCommand } from "../commands/upload";
 import {
   UserContentsCommand,
@@ -68,9 +69,11 @@ import {
   UserFollowingCommand,
   UserViewCommand,
 } from "../commands/user";
+import { VersionCommand } from "../commands/version";
 import { WhoamiCommand } from "../commands/whoami";
 import { config } from "./config";
 import { uploadLocalFile } from "./upload";
+import { CLI_PACKAGE_NAME, getCliVersion } from "./version";
 
 interface HelpLine {
   usage: string;
@@ -837,6 +840,40 @@ export const commands: CommandDefinition[] = [
             }),
           );
       }
+    },
+  },
+
+  {
+    name: "version",
+    aliases: ["v"],
+    group: "Other",
+    help: [{ usage: "version", description: "Show CLI version" }],
+    render() {
+      return <VersionCommand />;
+    },
+    async json() {
+      return { name: CLI_PACKAGE_NAME, version: getCliVersion() };
+    },
+  },
+
+  {
+    name: "update",
+    aliases: ["upgrade"],
+    group: "Other",
+    help: [
+      { usage: "update", description: "Check for a newer CLI version" },
+      { usage: "update --yes", description: "Install latest CLI globally" },
+    ],
+    render(_args, flags) {
+      const apply = flags["yes"] !== undefined || flags["y"] !== undefined;
+      return <UpdateCommand apply={apply} />;
+    },
+    async json() {
+      const info = await checkForCliUpdate();
+      return {
+        ...info,
+        update_command: `npm install -g ${CLI_PACKAGE_NAME}@latest`,
+      };
     },
   },
 
