@@ -11,6 +11,13 @@ type Tone = "light" | "dark" | "unknown";
 
 type ThemeColors = {
   neutral: string | undefined;
+  muted: string;
+  brand: string;
+  accent: string;
+  panel: string;
+  dockBg: string;
+  dockPromptBg: string;
+  dockText: string | undefined;
   channel: Record<"public" | "closed" | "private", string>;
   blockIcon: Record<string, string>;
 };
@@ -41,6 +48,13 @@ const THEMES: Record<Tone, ThemeColors> = {
   // - channelClosed3 -> gray
   dark: {
     neutral: "white",
+    muted: "gray",
+    brand: "greenBright",
+    accent: "yellowBright",
+    panel: "gray",
+    dockBg: "#131416",
+    dockPromptBg: "#232529",
+    dockText: "white",
     channel: {
       public: "greenBright",
       closed: "gray",
@@ -56,6 +70,13 @@ const THEMES: Record<Tone, ThemeColors> = {
   },
   light: {
     neutral: "black",
+    muted: "gray",
+    brand: "green",
+    accent: "yellow",
+    panel: "gray",
+    dockBg: "#ece7df",
+    dockPromptBg: "#ddd6cb",
+    dockText: "black",
     channel: {
       public: "green",
       closed: "gray",
@@ -72,6 +93,13 @@ const THEMES: Record<Tone, ThemeColors> = {
   unknown: {
     // Let terminal default text color win if we can't confidently detect.
     neutral: undefined,
+    muted: "gray",
+    brand: "green",
+    accent: "yellow",
+    panel: "gray",
+    dockBg: "#131416",
+    dockPromptBg: "#232529",
+    dockText: "white",
     channel: {
       public: "green",
       closed: "gray",
@@ -91,6 +119,34 @@ const ACTIVE_THEME = THEMES[detectTerminalTone()];
 
 export function blockTextColor(): string | undefined {
   return ACTIVE_THEME.neutral;
+}
+
+export function mutedColor(): string {
+  return ACTIVE_THEME.muted;
+}
+
+export function brandColor(): string {
+  return ACTIVE_THEME.brand;
+}
+
+export function accentColor(): string {
+  return ACTIVE_THEME.accent;
+}
+
+export function panelBorderColor(): string {
+  return ACTIVE_THEME.panel;
+}
+
+export function dockBackgroundColor(): string {
+  return ACTIVE_THEME.dockBg;
+}
+
+export function dockPromptBackgroundColor(): string {
+  return ACTIVE_THEME.dockPromptBg;
+}
+
+export function dockTextColor(): string | undefined {
+  return ACTIVE_THEME.dockText;
 }
 
 export function blockIconColor(blockType: string): string {

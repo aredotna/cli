@@ -37,9 +37,7 @@ export function GroupProfileScreen({
       loadingLabel={`Loading group ${slug}`}
       errorMessage={error?.message}
       unavailableLabel="Group unavailable"
-      browserUrl={
-        group?.slug ? `https://www.are.na/group/${group.slug}` : undefined
-      }
+      browserUrl={`https://www.are.na/group/${slug}`}
       onBack={onBack}
       onOpenContents={onOpenContents}
     />

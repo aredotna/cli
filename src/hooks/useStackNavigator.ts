@@ -52,5 +52,13 @@ export function useStackNavigator<T>(
     [options.beforeTransition],
   );
 
-  return { stack, current, push, pop, replace, popTo };
+  const reset = useCallback(
+    (next: T) => {
+      options.beforeTransition?.();
+      setStack([next]);
+    },
+    [options.beforeTransition],
+  );
+
+  return { stack, current, push, pop, replace, popTo, reset };
 }

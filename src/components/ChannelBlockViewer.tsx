@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import useSWR from "swr";
 import { client, getData } from "../api/client";
@@ -6,8 +6,11 @@ import type { Block } from "../api/types";
 import { openUrl } from "../lib/open";
 import { clampBlockIndex } from "../lib/session-nav";
 import { clearTerminalViewport } from "../lib/terminalViewport";
+import { ScreenFrame } from "./ScreenChrome";
+import { ScreenError, ScreenLoading, ScreenUnavailable } from "./ScreenStates";
+import { useSessionFooter } from "./SessionFooterContext";
+import { useSessionPaletteActive } from "./SessionPaletteContext";
 import { BlockContent } from "./BlockContent";
-import { Spinner } from "./Spinner";
 
 export function ChannelBlockViewer({
   slug,
@@ -24,11 +27,13 @@ export function ChannelBlockViewer({
   onBack: (state: { page: number; cursor: number }) => void;
   onNavigate: (state: { page: number; index: number }) => void;
 }) {
-  const [page, setPage] = useState(initialPage);
-  const [index, setIndex] = useState(initialIndex);
+  const initialStateRef = useRef({ page: initialPage, index: initialIndex });
+  const [page, setPage] = useState(initialStateRef.current.page);
+  const [index, setIndex] = useState(initialStateRef.current.index);
   const [pendingBoundary, setPendingBoundary] = useState<
     "prev" | "next" | null
   >(null);
+  const paletteActive = useSessionPaletteActive();
 
   const {
     data: contents,
@@ -94,7 +99,15 @@ export function ChannelBlockViewer({
         1
       : null;
 
+  useSessionFooter([
+    ...(hasPrev ? [{ key: "←", label: "prev" }] : []),
+    ...(hasNext ? [{ key: "→", label: "next" }] : []),
+    { key: "o", label: "browser" },
+    { key: "q/esc", label: "back" },
+  ]);
+
   useInput((input, key) => {
+    if (paletteActive) return;
     switch (true) {
       case input === "q" || key.escape:
         clearTerminalViewport();
@@ -137,61 +150,36 @@ export function ChannelBlockViewer({
     }
   });
 
-  if (contentsLoading || blockLoading) {
-    return <Spinner label={`Loading block ${currentId ?? ""}`.trim()} />;
-  }
+  if (contentsLoading || blockLoading)
+    return <ScreenLoading label={`Loading block ${currentId ?? ""}`.trim()} />;
 
   if (contentsError || blockError) {
     const message =
       contentsError?.message ?? blockError?.message ?? "Failed to load block";
-    return (
-      <Box flexDirection="column">
-        <Text color="red">✕ {message}</Text>
-        <Text dimColor> Press q to go back</Text>
-      </Box>
-    );
+    return <ScreenError message={message} />;
   }
 
   if (!contents || blocks.length === 0) {
-    return (
-      <Box flexDirection="column">
-        <Text dimColor>No blocks available on this page</Text>
-        <Text dimColor>Press q to go back</Text>
-      </Box>
-    );
+    return <ScreenUnavailable message="No blocks available on this page" />;
   }
 
   if (!currentBlock) {
     return (
-      <Box flexDirection="column">
-        <Text dimColor>Recovering block selection...</Text>
-        <Text dimColor>Press q to go back</Text>
-      </Box>
+      <ScreenFrame title="Recovering block selection">
+        <Box paddingX={1}>
+          <Text dimColor>Recovering block selection...</Text>
+        </Box>
+      </ScreenFrame>
     );
   }
 
-  if (!block) {
-    return (
-      <Box flexDirection="column">
-        <Text dimColor>Block unavailable</Text>
-        <Text dimColor>Press q to go back</Text>
-      </Box>
-    );
-  }
+  if (!block) return <ScreenUnavailable message="Block unavailable" />;
 
   return (
-    <Box flexDirection="column">
-      <BlockContent block={block} />
-      <Box marginTop={1}>
-        <Text dimColor>
-          {globalIndex ?? index + 1}/{contents.meta.total_count}
-          {" · "}
-          {hasPrev ? "← prev" : ""}
-          {hasPrev && hasNext ? " · " : ""}
-          {hasNext ? "→ next" : ""}
-          {" · "}o browser · esc back
-        </Text>
+    <ScreenFrame title={block.title || `Block ${block.id}`}>
+      <Box paddingX={1}>
+        <BlockContent block={block} showTitle={false} />
       </Box>
-    </Box>
+    </ScreenFrame>
   );
 }

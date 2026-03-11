@@ -1,10 +1,12 @@
-import { Box, Text, useInput } from "ink";
+import { Box, useInput } from "ink";
 import useSWR from "swr";
 import { client, getData } from "../api/client";
 import { clearTerminalViewport } from "../lib/terminalViewport";
 import { openUrl } from "../lib/open";
+import { ScreenFrame } from "./ScreenChrome";
+import { useSessionPaletteActive } from "./SessionPaletteContext";
 import { BlockContent } from "./BlockContent";
-import { Spinner } from "./Spinner";
+import { ScreenError, ScreenLoading, ScreenUnavailable } from "./ScreenStates";
 
 export function BlockViewer({
   blockIds,
@@ -21,6 +23,7 @@ export function BlockViewer({
   const hasValidSelection = typeof id === "number";
   const hasPrev = index > 0;
   const hasNext = index < blockIds.length - 1;
+  const paletteActive = useSessionPaletteActive();
 
   const {
     data: block,
@@ -35,6 +38,7 @@ export function BlockViewer({
   );
 
   useInput((input, key) => {
+    if (paletteActive) return;
     switch (true) {
       case input === "q" || key.escape:
         clearTerminalViewport();
@@ -56,46 +60,21 @@ export function BlockViewer({
 
   if (!hasValidSelection) {
     return (
-      <Box flexDirection="column">
-        <Text dimColor>Block is no longer available in this view</Text>
-        <Text dimColor>Press q to go back</Text>
-      </Box>
+      <ScreenUnavailable message="Block is no longer available in this view" />
     );
   }
 
-  if (loading) return <Spinner label={`Loading block ${id}`} />;
+  if (loading) return <ScreenLoading label={`Loading block ${id}`} />;
 
-  if (error) {
-    return (
-      <Box flexDirection="column">
-        <Text color="red">✕ {error.message}</Text>
-        <Text dimColor> Press q to go back</Text>
-      </Box>
-    );
-  }
+  if (error) return <ScreenError message={error.message} />;
 
-  if (!block) {
-    return (
-      <Box flexDirection="column">
-        <Text dimColor>Block unavailable</Text>
-        <Text dimColor>Press q to go back</Text>
-      </Box>
-    );
-  }
+  if (!block) return <ScreenUnavailable message="Block unavailable" />;
 
   return (
-    <Box flexDirection="column">
-      <BlockContent block={block} />
-      <Box marginTop={1}>
-        <Text dimColor>
-          {index + 1}/{blockIds.length}
-          {" · "}
-          {hasPrev ? "← prev" : ""}
-          {hasPrev && hasNext ? " · " : ""}
-          {hasNext ? "→ next" : ""}
-          {" · "}o browser · esc back
-        </Text>
+    <ScreenFrame title={block.title || `Block ${block.id}`}>
+      <Box paddingX={1}>
+        <BlockContent block={block} showTitle={false} />
       </Box>
-    </Box>
+    </ScreenFrame>
   );
 }

@@ -37,7 +37,7 @@ export function UserProfileScreen({
       loadingLabel={`Loading user ${slug}`}
       errorMessage={error?.message}
       unavailableLabel="User unavailable"
-      browserUrl={user?.slug ? `https://www.are.na/${user.slug}` : undefined}
+      browserUrl={`https://www.are.na/${slug}`}
       onBack={onBack}
       onOpenContents={onOpenContents}
     />

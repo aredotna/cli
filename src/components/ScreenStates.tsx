@@ -1,46 +1,59 @@
 import { Box, Text } from "ink";
+import { useMemo, type ReactNode } from "react";
+import { ScreenFrame, useSessionShellHeaderOverride } from "./ScreenChrome";
+import { Spinner } from "./Spinner";
 
 export function ScreenError({
+  title = "Error",
   message,
-  backHint = "q/esc back",
 }: {
+  title?: ReactNode;
   message: string;
-  backHint?: string;
 }) {
+  const inSessionShell = useSessionShellHeaderOverride(title);
+
+  if (inSessionShell) {
+    return (
+      <Box paddingX={1}>
+        <Text color="red">✕ {message}</Text>
+      </Box>
+    );
+  }
+
   return (
-    <Box flexDirection="column">
-      <Text color="red">✕ {message}</Text>
-      <Text dimColor>{backHint}</Text>
+    <ScreenFrame title={title}>
+      <Box paddingX={1}>
+        <Text color="red">✕ {message}</Text>
+      </Box>
+    </ScreenFrame>
+  );
+}
+
+export function ScreenLoading({ label }: { label: string }) {
+  const loadingTitle = useMemo(() => <Spinner label={label} />, [label]);
+  const inSessionShell = useSessionShellHeaderOverride(loadingTitle);
+
+  if (inSessionShell) return <Box />;
+
+  return (
+    <ScreenFrame title={<Spinner label={label} />}>
+      <Box />
+    </ScreenFrame>
+  );
+}
+
+export function ScreenEmpty({ message }: { message: string }) {
+  return (
+    <Box flexDirection="column" paddingX={1}>
+      <Text dimColor>{message}</Text>
     </Box>
   );
 }
 
-export function ScreenEmpty({
-  message,
-  backHint = "q/esc back",
-}: {
-  message: string;
-  backHint?: string;
-}) {
+export function ScreenUnavailable({ message }: { message: string }) {
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" paddingX={1}>
       <Text dimColor>{message}</Text>
-      <Text dimColor>{backHint}</Text>
-    </Box>
-  );
-}
-
-export function ScreenUnavailable({
-  message,
-  backHint = "q/esc back",
-}: {
-  message: string;
-  backHint?: string;
-}) {
-  return (
-    <Box flexDirection="column">
-      <Text dimColor>{message}</Text>
-      <Text dimColor>{backHint}</Text>
     </Box>
   );
 }
