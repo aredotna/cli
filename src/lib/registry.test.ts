@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { loadEnv } from "./env";
 import { parseArgs } from "./args";
 import { exitCodeFromError, formatJsonError } from "./exit-codes";
+import { CLI_PACKAGE_NAME, getCliVersion } from "./version";
 
 loadEnv();
 
@@ -102,6 +103,14 @@ describe("whoami", () => {
     assert.ok(data.id > 0);
     assert.ok(data.slug.length > 0);
     assert.ok(data.name.length > 0);
+  });
+});
+
+describe("version", () => {
+  test("returns current CLI version", async () => {
+    const data = (await json("version")) as { name: string; version: string };
+    assert.equal(data.name, CLI_PACKAGE_NAME);
+    assert.equal(data.version, getCliVersion());
   });
 });
 
@@ -644,6 +653,12 @@ describe("aliases", () => {
     const aliasCode = await exitCode("s", "test");
     const canonicalCode = await exitCode("search", "test");
     assert.equal(aliasCode, canonicalCode);
+  });
+
+  test("v is alias for version", async () => {
+    const data = (await json("v")) as { name: string; version: string };
+    assert.equal(data.name, CLI_PACKAGE_NAME);
+    assert.equal(data.version, getCliVersion());
   });
 });
 

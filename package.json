@@ -1,6 +1,6 @@
 {
   "name": "@aredotna/cli",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Are.na from the terminal",
   "type": "module",
   "bin": {
@@ -25,6 +25,7 @@
     "check": "npm run lint && npm run test && npm run build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "prepack": "npm run build",
     "prepare": "husky"
   },
   "lint-staged": {
