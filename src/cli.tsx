@@ -8,6 +8,7 @@ import { parseArgs, type Flags } from "./lib/args";
 import { commandMap, groupedCommands } from "./lib/registry";
 import { exitCodeFromError, formatJsonError } from "./lib/exit-codes";
 import { CLI_PACKAGE_NAME, getCliVersion } from "./lib/version";
+import { confirmDestructiveIfNeeded } from "./lib/destructive-confirmation";
 import { SessionMode } from "./commands/session";
 
 // ── Help ──
@@ -63,7 +64,7 @@ function Help() {
         <Text> --visibility &lt;v&gt; public, closed, or private</Text>
         <Text> --title &lt;t&gt; Title (for create/update)</Text>
         <Text> --description &lt;d&gt; Description (for create/update)</Text>
-        <Text> --yes Apply action (used by `update`)</Text>
+        <Text> --yes Bypass destructive confirmation prompts</Text>
         <Text> --no-fullscreen Disable session fullscreen mode</Text>
         <Text> --version Show CLI version</Text>
         <Text> --help Show help</Text>
@@ -120,6 +121,7 @@ async function handleJson(command: string, args: string[], flags: Flags) {
   }
 
   try {
+    await confirmDestructiveIfNeeded(def.name, args, flags, def.destructive);
     const result = await def.json(args, flags);
     const output = flags.quiet ? quietResult(result) : result;
     const indent = flags.quiet ? undefined : 2;
@@ -211,7 +213,19 @@ if (flags.json && command) {
     fullscreen: shouldUseSessionFullscreen(flags),
   });
 } else {
-  await runInk(<App>{routeCommand(command, rest, flags)}</App>, {
+  const def = commandMap.get(command);
+  let element: React.JSX.Element;
+  try {
+    if (def) {
+      await confirmDestructiveIfNeeded(def.name, rest, flags, def.destructive);
+    }
+    element = routeCommand(command, rest, flags);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    element = <RenderError message={message} />;
+  }
+
+  await runInk(<App>{element}</App>, {
     fullscreen: false,
   });
 }

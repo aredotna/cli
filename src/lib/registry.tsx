@@ -72,6 +72,7 @@ import {
 import { VersionCommand } from "../commands/version";
 import { WhoamiCommand } from "../commands/whoami";
 import { config } from "./config";
+import type { DestructiveCommandConfig } from "./destructive-confirmation";
 import { uploadLocalFile } from "./upload";
 import { CLI_PACKAGE_NAME, getCliVersion } from "./version";
 
@@ -85,6 +86,7 @@ export interface CommandDefinition {
   aliases?: string[];
   group: string;
   help: HelpLine[];
+  destructive?: DestructiveCommandConfig;
   render: (args: string[], flags: Flags) => React.JSX.Element;
   json?: (args: string[], flags: Flags) => Promise<unknown>;
   /** Whether this command appears in session mode autocomplete */
@@ -116,6 +118,11 @@ export const commands: CommandDefinition[] = [
       },
       { usage: "channel followers <slug>", description: "Channel followers" },
     ],
+    destructive: {
+      subcommands: {
+        delete: { resourceLabel: "channel slug" },
+      },
+    },
     session: { args: "<slug>", desc: "Browse a channel" },
     render(args, flags) {
       const sub = args[0];
@@ -582,6 +589,11 @@ export const commands: CommandDefinition[] = [
         description: "Reposition a connection",
       },
     ],
+    destructive: {
+      subcommands: {
+        delete: { resourceLabel: "connection id" },
+      },
+    },
     render(args, flags) {
       const sub = args[0];
       switch (sub) {
@@ -640,6 +652,11 @@ export const commands: CommandDefinition[] = [
       },
       { usage: "comment delete <id>", description: "Delete a comment" },
     ],
+    destructive: {
+      subcommands: {
+        delete: { resourceLabel: "comment id" },
+      },
+    },
     render(args) {
       const sub = args[0];
       if (sub === "delete") {
