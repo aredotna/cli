@@ -59,6 +59,11 @@ import {
 } from "../commands/group";
 import { LoginCommand } from "../commands/login";
 import { LogoutCommand } from "../commands/logout";
+import {
+  ImportCommand,
+  parseImportOptions,
+  runImportJsonStream,
+} from "../commands/import";
 import { PingCommand } from "../commands/ping";
 import { SearchCommand } from "../commands/search";
 import { UpdateCommand, checkForCliUpdate } from "../commands/update";
@@ -89,6 +94,11 @@ export interface CommandDefinition {
   destructive?: DestructiveCommandConfig;
   render: (args: string[], flags: Flags) => React.JSX.Element;
   json?: (args: string[], flags: Flags) => Promise<unknown>;
+  jsonStream?: (
+    args: string[],
+    flags: Flags,
+    write: (event: unknown) => void,
+  ) => Promise<number | void>;
   /** Whether this command appears in session mode autocomplete */
   session?: {
     args: string | null;
@@ -541,6 +551,30 @@ export const commands: CommandDefinition[] = [
             })),
           },
         }),
+      );
+    },
+  },
+
+  {
+    name: "import",
+    aliases: [],
+    group: "Blocks",
+    help: [
+      {
+        usage: "import <channel>",
+        description: "Import files from a directory (defaults to .)",
+      },
+      {
+        usage: "import <channel> --interactive",
+        description: "Open interactive file picker before importing",
+      },
+    ],
+    render(args, flags) {
+      return <ImportCommand {...parseImportOptions(args, flags)} />;
+    },
+    async jsonStream(args, flags, write) {
+      return runImportJsonStream(parseImportOptions(args, flags), (event) =>
+        write(event),
       );
     },
   },

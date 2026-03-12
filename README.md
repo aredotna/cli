@@ -56,6 +56,9 @@ arena add my-channel https://example.com      # Add a URL
 arena upload photo.jpg --channel my-channel
 arena batch my-channel "https://a.com" "https://b.com"
 arena batch status 1234
+arena import my-channel --dir ./assets
+arena import my-channel --dir ./assets --recursive
+arena import my-channel --interactive
 echo "piped text" | arena add my-channel
 ```
 
@@ -101,22 +104,39 @@ arena search "photography" --type Image
 arena ping                              # API health check
 ```
 
-## Options
+## Flags
 
-| Flag                | Description                                          |
-| ------------------- | ---------------------------------------------------- |
-| `--json`            | Output as JSON                                       |
-| `--quiet`           | JSON mode: compact output (`id`/`slug` when present) |
-| `--page <n>`        | Page number                                          |
-| `--per <n>`         | Items per page                                       |
-| `--sort <s>`        | Sort order                                           |
-| `--type <t>`        | Filter by type                                       |
-| `--filter <f>`      | Filter connections (`ALL`, `OWN`, `EXCLUDE_OWN`)     |
-| `--visibility <v>`  | `public`, `closed`, or `private`                     |
-| `--title <t>`       | Title (for create/update)                            |
-| `--description <d>` | Description (for create/update)                      |
-| `--yes`             | Bypass destructive confirmation prompts              |
-| `--help`            | Show help                                            |
+### Global flags
+
+| Flag      | Description                                     |
+| --------- | ----------------------------------------------- |
+| `--json`  | Output as JSON (`import --json` streams NDJSON) |
+| `--quiet` | Compact JSON output when supported              |
+| `--yes`   | Bypass destructive confirmation prompts         |
+| `--help`  | Show help                                       |
+
+### Common query flags
+
+| Flag           | Description                                     |
+| -------------- | ----------------------------------------------- |
+| `--page <n>`   | Page number                                     |
+| `--per <n>`    | Items per page                                  |
+| `--sort <s>`   | Sort order                                      |
+| `--type <t>`   | Type filter                                     |
+| `--filter <f>` | Connection filter (`ALL`, `OWN`, `EXCLUDE_OWN`) |
+
+### Command-specific flags
+
+| Command                            | Flags                                                                                              |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `channel create`, `channel update` | `--title`, `--description`, `--visibility`                                                         |
+| `block update`                     | `--title`, `--description`, `--content`, `--alt-text`                                              |
+| `add`, `batch`                     | `--title`, `--description`                                                                         |
+| `upload`                           | `--channel`, `--title`, `--description`                                                            |
+| `connect`                          | `--type`, `--position`                                                                             |
+| `connection move`                  | `--movement`, `--position`                                                                         |
+| `search`                           | `--scope`, `--ext`, `--after`, `--seed`, `--user-id`, `--group-id`, `--channel-id`                 |
+| `import`                           | `--dir`, `--recursive`, `--interactive`, `--batch-size`, `--upload-concurrency`, `--poll-interval` |
 
 ## Aliases
 
