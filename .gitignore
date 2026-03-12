@@ -1,4 +1,5 @@
-node_modules/
-dist/
-*.tsbuildinfo
+.DS_Store
 .env
+*.tsbuildinfo
+dist/
+node_modules/

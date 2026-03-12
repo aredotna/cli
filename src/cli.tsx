@@ -50,23 +50,38 @@ function Help() {
       ))}
 
       <Box flexDirection="column" marginBottom={1}>
-        <Text dimColor>Options</Text>
-        <Text> --json Output as JSON</Text>
-        <Text> --quiet JSON mode: compact output (id/slug when present)</Text>
-        <Text> --page &lt;n&gt; Page number</Text>
-        <Text> --per &lt;n&gt; Items per page</Text>
-        <Text> --sort &lt;s&gt; Sort order</Text>
-        <Text> --type &lt;t&gt; Filter by type</Text>
-        <Text>
-          {" "}
-          --filter &lt;f&gt; Filter connections (ALL, OWN, EXCLUDE_OWN)
-        </Text>
-        <Text> --visibility &lt;v&gt; public, closed, or private</Text>
-        <Text> --title &lt;t&gt; Title (for create/update)</Text>
-        <Text> --description &lt;d&gt; Description (for create/update)</Text>
+        <Text dimColor>Global Options</Text>
+        <Text> --json Output as JSON (import streams NDJSON events)</Text>
+        <Text> --quiet Compact JSON output when supported</Text>
         <Text> --yes Bypass destructive confirmation prompts</Text>
         <Text> --version Show CLI version</Text>
         <Text> --help Show help</Text>
+      </Box>
+
+      <Box flexDirection="column" marginBottom={1}>
+        <Text dimColor>Common Query Flags</Text>
+        <Text> --page &lt;n&gt;, --per &lt;n&gt; Pagination</Text>
+        <Text> --sort &lt;s&gt; Sort order</Text>
+        <Text> --type &lt;t&gt; Type filter</Text>
+        <Text>
+          {" "}
+          --filter &lt;f&gt; Connection filter (ALL, OWN, EXCLUDE_OWN)
+        </Text>
+      </Box>
+
+      <Box flexDirection="column" marginBottom={1}>
+        <Text dimColor>Command-Specific Flags</Text>
+        <Text> channel create/update: --title --description --visibility</Text>
+        <Text> block update: --title --description --content --alt-text</Text>
+        <Text> add/batch: --title --description</Text>
+        <Text> upload: --channel --title --description</Text>
+        <Text> connect: --type --position</Text>
+        <Text> connection move: --movement --position</Text>
+        <Text> import: --dir --recursive --interactive --batch-size</Text>
+        <Text> import: --upload-concurrency --poll-interval</Text>
+        <Text>
+          search: --scope --ext --after --seed --user-id --group-id --channel-id
+        </Text>
       </Box>
 
       <Box flexDirection="column">
@@ -79,6 +94,7 @@ function Help() {
         <Text> $ arena channel create "My Research" --visibility private</Text>
         <Text> $ arena user damon-zucconi</Text>
         <Text> $ arena upload photo.jpg --channel my-channel</Text>
+        <Text> $ arena import my-channel --dir ./assets --recursive</Text>
       </Box>
     </Box>
   );
@@ -108,7 +124,7 @@ function quietResult(result: unknown): unknown {
 async function handleJson(command: string, args: string[], flags: Flags) {
   const def = commandMap.get(command);
 
-  if (!def || !def.json) {
+  if (!def || (!def.json && !def.jsonStream)) {
     process.stderr.write(
       JSON.stringify({
         error: `Unknown command: ${command}`,
@@ -121,6 +137,20 @@ async function handleJson(command: string, args: string[], flags: Flags) {
 
   try {
     await confirmDestructiveIfNeeded(def.name, args, flags, def.destructive);
+    if (def.jsonStream) {
+      const exitCode = await def.jsonStream(args, flags, (event) => {
+        process.stdout.write(JSON.stringify(event) + "\n");
+      });
+      if (typeof exitCode === "number" && exitCode !== 0) {
+        process.exit(exitCode);
+      }
+      return;
+    }
+
+    if (!def.json) {
+      throw new Error(`Unknown command: ${command}`);
+    }
+
     const result = await def.json(args, flags);
     const output = flags.quiet ? quietResult(result) : result;
     const indent = flags.quiet ? undefined : 2;
