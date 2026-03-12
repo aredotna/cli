@@ -3,7 +3,7 @@ import { Box, Text, useInput } from "ink";
 import type { User } from "../api/types";
 import {
   SESSION_ARG_HINTS,
-  SESSION_COMMAND_SPECS,
+  getAvailableSessionCommands,
   type CommandSpec,
   type CommandSpecContext,
 } from "../commands/session/command-specs";
@@ -11,7 +11,6 @@ import type { SessionView } from "../commands/session/session-view";
 import {
   accentColor,
   brandColor,
-  dockPromptBackgroundColor,
   dockTextColor,
   mutedColor,
 } from "../lib/theme";
@@ -100,6 +99,7 @@ export function SessionPalette({
   onExit,
   onOpenBrowser,
   onActiveChange,
+  openRequest,
 }: {
   me: User;
   view: SessionView;
@@ -109,8 +109,9 @@ export function SessionPalette({
   onExit: () => void;
   onOpenBrowser: () => void;
   onActiveChange: (active: boolean) => void;
+  openRequest: { id: number; seed: string } | null;
 }) {
-  const [active, setActive] = useState(view.kind === "home");
+  const [active, setActive] = useState(false);
   const [input, setInput] = useState("");
   const [cursor, setCursor] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -129,8 +130,7 @@ export function SessionPalette({
   );
 
   const availableCommands = useMemo(
-    () =>
-      SESSION_COMMAND_SPECS.filter((command) => command.when?.(view) ?? true),
+    () => getAvailableSessionCommands(view),
     [view],
   );
 
@@ -152,15 +152,9 @@ export function SessionPalette({
 
   const selected = filtered[cursor] ?? filtered[0] ?? null;
   const startHex = normalizeHex(dockTextColor() ?? "white") ?? "#ffffff";
-  const endHex = normalizeHex(dockPromptBackgroundColor()) ?? startHex;
+  const endHex = normalizeHex(mutedColor()) ?? startHex;
+  const divider = "─".repeat(Math.max(1, process.stdout.columns ?? 80));
 
-  const inactivePreviewCommands = useMemo(() => {
-    const names = availableCommands.map((command) => command.name);
-    const columns = process.stdout.columns ?? 80;
-    // Account for prompt caret, left/right padding, and breathing room.
-    const maxWidth = Math.max(0, columns - 8);
-    return fitCommandNamesToWidth(names, maxWidth);
-  }, [availableCommands]);
   const activePreviewCommands = useMemo(() => {
     const names = filtered.map((command) => command.name);
     const columns = process.stdout.columns ?? 80;
@@ -174,12 +168,13 @@ export function SessionPalette({
   }, [active, onActiveChange]);
 
   useEffect(() => {
-    if (view.kind === "home") {
-      setActive(true);
-      return;
-    }
     closePalette();
   }, [view.kind]);
+
+  useEffect(() => {
+    if (!openRequest) return;
+    openPalette(openRequest.seed);
+  }, [openRequest]);
 
   useEffect(() => {
     setCursor((value) => {
@@ -274,32 +269,16 @@ export function SessionPalette({
 
   return (
     <Box flexDirection="column">
-      <Box backgroundColor={dockPromptBackgroundColor()}>
-        <Box paddingX={1} paddingY={1}>
-          <Text color={brandColor()}>{active ? "›" : "/"}</Text>
-          <Text color={dockTextColor()}> </Text>
-          {active ? (
-            <Text color={accentColor()}>{input || " "}</Text>
-          ) : (
-            <Text color={dockTextColor()}>
-              {inactivePreviewCommands.map((name, index) => {
-                const ratio =
-                  inactivePreviewCommands.length <= 1
-                    ? 0
-                    : (index / (inactivePreviewCommands.length - 1)) * 0.95;
-
-                return (
-                  <Text key={name} color={blendHex(startHex, endHex, ratio)}>
-                    {index > 0 ? " · " : ""}
-                    {name}
-                  </Text>
-                );
-              })}
-            </Text>
-          )}
-          {active ? <Text color={mutedColor()}>█</Text> : null}
-        </Box>
+      <Text color={mutedColor()}>{divider}</Text>
+      <Box>
+        <Text color={brandColor()}>❯</Text>
+        <Text color={dockTextColor()}> </Text>
+        <Text color={active ? accentColor() : dockTextColor()}>
+          {active ? input || " " : "/"}
+        </Text>
+        {active ? <Text color={mutedColor()}>█</Text> : null}
       </Box>
+      <Text color={mutedColor()}>{divider}</Text>
 
       {active && selected ? (
         <Box>

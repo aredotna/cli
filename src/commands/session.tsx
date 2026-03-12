@@ -35,6 +35,10 @@ export function SessionMode() {
   const { exit } = useApp();
   const auth = useSessionAuth();
   const [paletteActive, setPaletteActive] = useState(false);
+  const [paletteOpenRequest, setPaletteOpenRequest] = useState<{
+    id: number;
+    seed: string;
+  } | null>(null);
   const [headerOverride, setHeaderOverride] = useState<ReactNode | null>(null);
   const [runtimeFooterActions, setRuntimeFooterActions] = useState<
     SessionFooterAction[]
@@ -86,6 +90,16 @@ export function SessionMode() {
   }, [auth.status]);
 
   const normalizedCurrent = normalizeView(current);
+  const openPalette = useCallback((seed = "") => {
+    setPaletteOpenRequest((current) => ({
+      id: (current?.id ?? 0) + 1,
+      seed,
+    }));
+  }, []);
+  const logout = useCallback(() => {
+    config.clearToken();
+    exit();
+  }, [exit]);
 
   useEffect(() => {
     if (!isSameView(current, normalizedCurrent)) {
@@ -119,6 +133,9 @@ export function SessionMode() {
     pop,
     replace,
     reset,
+    logout,
+    exit,
+    openPalette,
   };
 
   const defaultFooterActions = getSessionFooterActions(view, me);
@@ -167,12 +184,12 @@ export function SessionMode() {
               }}
               onBack={pop}
               onLogout={() => {
-                config.clearToken();
-                exit();
+                logout();
               }}
               onExit={exit}
               onOpenBrowser={() => openBrowserForView(view)}
               onActiveChange={setPaletteActive}
+              openRequest={paletteOpenRequest}
             />
           </Box>
         </SessionShellHeaderProvider>

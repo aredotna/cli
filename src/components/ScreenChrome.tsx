@@ -49,7 +49,7 @@ export function useSessionShellHeaderOverride(title?: ReactNode): boolean {
 
 export function SessionHeader({ title }: { title?: ReactNode }) {
   return (
-    <Box paddingTop={1} marginBottom={1} paddingX={1}>
+    <Box marginBottom={1} paddingX={1}>
       <Text bold color="green">
         **
       </Text>

@@ -6,7 +6,7 @@ export function SessionFooter({ actions }: { actions: SessionFooterAction[] }) {
   if (actions.length === 0) return null;
 
   return (
-    <Box paddingX={1} paddingBottom={1}>
+    <Box paddingX={1}>
       <Text color={dockTextColor() ?? mutedColor()}>
         {actions.map((action, index) => (
           <Text key={`${action.key}-${action.label}`}>

@@ -1,12 +1,18 @@
 import { Box, Text } from "ink";
 import useSWR from "swr";
 import { ArenaError, client, getData } from "../api/client";
-import type { Block, Channel } from "../api/types";
-import { truncate } from "../lib/format";
+import type {
+  Block,
+  Channel,
+  Connectable,
+  Group,
+  SearchResult,
+  User,
+} from "../api/types";
 import { openUrl } from "../lib/open";
 import { usePagedCursorList } from "../hooks/usePagedCursorList";
 import { useSessionListNavigation } from "../hooks/useSessionListNavigation";
-import { channelColor, INDICATORS } from "../lib/theme";
+import { accentColor, mutedColor } from "../lib/theme";
 import { BlockItem } from "./BlockItem";
 import { useSessionPaletteActive } from "./SessionPaletteContext";
 import { Panel, ScreenFrame } from "./ScreenChrome";
@@ -14,7 +20,29 @@ import { ScreenEmpty, ScreenError, ScreenLoading } from "./ScreenStates";
 
 type SearchNavigateView =
   | { kind: "channel"; slug: string }
-  | { kind: "block"; blockIds: number[]; index: number };
+  | { kind: "block"; blockIds: number[]; index: number }
+  | { kind: "userProfile"; slug: string }
+  | { kind: "groupProfile"; slug: string };
+
+function isChannel(item: SearchResult): item is Channel {
+  return item.type === "Channel";
+}
+
+function isUser(item: SearchResult): item is User {
+  return item.type === "User";
+}
+
+function isGroup(item: SearchResult): item is Group {
+  return item.type === "Group";
+}
+
+function isBlock(item: SearchResult): item is Block {
+  return !isChannel(item) && !isUser(item) && !isGroup(item);
+}
+
+function isConnectable(item: SearchResult): item is Connectable {
+  return isChannel(item) || isBlock(item);
+}
 
 export function SearchResults({
   query,
@@ -38,23 +66,10 @@ export function SearchResults({
       client.GET("/v3/search", {
         params: { query: { query, page: pagedCursor.page, per: PER } },
       }),
-    ).then((r) => {
-      const channels = r.data.filter((i) => i.type === "Channel") as Channel[];
-      const blocks = r.data.filter(
-        (i) => i.type !== "Channel" && i.type !== "User",
-      ) as Block[];
-      return {
-        channels,
-        blocks,
-        items: [...channels, ...blocks],
-        meta: r.meta,
-      };
-    }),
+    ),
   );
 
-  const items = data?.items ?? [];
-  const channels = data?.channels ?? [];
-  const blocks = data?.blocks ?? [];
+  const items = (data?.data ?? []) as SearchResult[];
 
   const list = useSessionListNavigation({
     state: {
@@ -69,14 +84,20 @@ export function SearchResults({
     onOpen: (selectedIndex) => {
       const item = items[selectedIndex];
       if (!item) return;
-      if (item.type === "Channel") {
-        const channel = item as Channel;
-        if (channel.slug) {
-          onNavigate({ kind: "channel", slug: channel.slug });
-        }
+      if (isChannel(item)) {
+        if (item.slug) onNavigate({ kind: "channel", slug: item.slug });
         return;
       }
-      const blockIds = blocks.map((block) => block.id);
+      if (isUser(item)) {
+        if (item.slug) onNavigate({ kind: "userProfile", slug: item.slug });
+        return;
+      }
+      if (isGroup(item)) {
+        if (item.slug) onNavigate({ kind: "groupProfile", slug: item.slug });
+        return;
+      }
+
+      const blockIds = items.filter(isBlock).map((block) => block.id);
       const index = blockIds.indexOf(item.id);
       if (index >= 0) {
         onNavigate({
@@ -90,11 +111,18 @@ export function SearchResults({
     onOpenBrowser: (selectedIndex) => {
       const item = items[selectedIndex];
       if (!item) return;
-      if (item.type === "Channel") {
-        const channel = item as Channel;
+      if (isChannel(item)) {
         openUrl(
-          `https://www.are.na/${channel.owner?.slug || ""}/${channel.slug || ""}`,
+          `https://www.are.na/${item.owner?.slug || ""}/${item.slug || ""}`,
         );
+        return;
+      }
+      if (isUser(item)) {
+        openUrl(`https://www.are.na/${item.slug || ""}`);
+        return;
+      }
+      if (isGroup(item)) {
+        openUrl(`https://www.are.na/group/${item.slug || ""}`);
         return;
       }
       openUrl(`https://www.are.na/block/${item.id}`);
@@ -119,45 +147,43 @@ export function SearchResults({
     <ScreenFrame title={`Search / ${query}`}>
       <Panel>
         <Box flexDirection="column">
-          {channels.length > 0 && (
-            <>
-              <Text dimColor>Channels</Text>
-              {channels.map((ch, i) => (
-                <Box key={ch.slug || String(ch.id)}>
+          {items.map((item, i) => {
+            if (isConnectable(item)) {
+              return (
+                <BlockItem
+                  key={`${item.type}-${item.id}`}
+                  item={item}
+                  selected={i === list.state.cursor}
+                />
+              );
+            }
+
+            if (isUser(item)) {
+              return (
+                <Box key={`user-${item.id}`}>
                   <Text color={i === list.state.cursor ? "cyan" : undefined}>
                     {i === list.state.cursor ? "▸ " : "  "}
                   </Text>
-                  <Text
-                    color={channelColor(ch.visibility)}
-                    bold={i === list.state.cursor}
-                  >
-                    {INDICATORS.Channel} {truncate(ch.title ?? "Untitled", 50)}
+                  <Text color={accentColor()} bold={i === list.state.cursor}>
+                    @{item.slug}
                   </Text>
-                  <Text dimColor>
-                    {" "}
-                    · {ch.visibility} · {ch.counts.contents}
-                  </Text>
+                  <Text color={mutedColor()}> · {item.name}</Text>
                 </Box>
-              ))}
-            </>
-          )}
+              );
+            }
 
-          {blocks.length > 0 && (
-            <>
-              {channels.length > 0 && <Text> </Text>}
-              <Text dimColor>Blocks</Text>
-              {blocks.map((block, i) => {
-                const idx = channels.length + i;
-                return (
-                  <BlockItem
-                    key={block.id}
-                    item={block}
-                    selected={idx === list.state.cursor}
-                  />
-                );
-              })}
-            </>
-          )}
+            return (
+              <Box key={`group-${item.id}`}>
+                <Text color={i === list.state.cursor ? "cyan" : undefined}>
+                  {i === list.state.cursor ? "▸ " : "  "}
+                </Text>
+                <Text color={accentColor()} bold={i === list.state.cursor}>
+                  {item.name}
+                </Text>
+                <Text color={mutedColor()}> · group/{item.slug}</Text>
+              </Box>
+            );
+          })}
         </Box>
       </Panel>
     </ScreenFrame>
