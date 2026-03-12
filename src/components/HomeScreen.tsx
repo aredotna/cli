@@ -73,7 +73,7 @@ export function HomeScreen({
 
   return (
     <ScreenFrame title="Home">
-      <Panel title="Action items">
+      <Panel>
         <Box flexDirection="column">
           {actions.map((action, index) => (
             <Box key={action.name}>

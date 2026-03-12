@@ -274,7 +274,7 @@ export function SessionPalette({
         <Text color={brandColor()}>❯</Text>
         <Text color={dockTextColor()}> </Text>
         <Text color={active ? accentColor() : dockTextColor()}>
-          {active ? input || " " : " "}
+          {active ? input || " " : "/"}
         </Text>
         {active ? <Text color={mutedColor()}>█</Text> : null}
       </Box>

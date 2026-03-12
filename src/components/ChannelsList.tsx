@@ -85,7 +85,7 @@ export function ChannelsList({
 
   return (
     <ScreenFrame title="Your channels">
-      <Panel title="Channels">
+      <Panel>
         <Box flexDirection="column">
           {channels.map((ch, i) => (
             <Box key={ch.slug || String(ch.id)}>

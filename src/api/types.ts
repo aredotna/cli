@@ -14,7 +14,8 @@ export type Connectable = Schemas["Block"] | Schemas["Channel"];
 export type SearchResult =
   | Schemas["Block"]
   | Schemas["Channel"]
-  | Schemas["User"];
+  | Schemas["User"]
+  | Schemas["Group"];
 export type Followable =
   | Schemas["User"]
   | Schemas["Channel"]
