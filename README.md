@@ -103,20 +103,20 @@ arena ping                              # API health check
 
 ## Options
 
-| Flag                | Description                                      |
-| ------------------- | ------------------------------------------------ |
-| `--json`            | Output as JSON                                   |
-| `--quiet`           | Minimal output (just IDs)                        |
-| `--page <n>`        | Page number                                      |
-| `--per <n>`         | Items per page                                   |
-| `--sort <s>`        | Sort order                                       |
-| `--type <t>`        | Filter by type                                   |
-| `--filter <f>`      | Filter connections (`ALL`, `OWN`, `EXCLUDE_OWN`) |
-| `--visibility <v>`  | `public`, `closed`, or `private`                 |
-| `--title <t>`       | Title (for create/update)                        |
-| `--description <d>` | Description (for create/update)                  |
-| `--no-fullscreen`   | Disable session fullscreen mode                  |
-| `--help`            | Show help                                        |
+| Flag                | Description                                          |
+| ------------------- | ---------------------------------------------------- |
+| `--json`            | Output as JSON                                       |
+| `--quiet`           | JSON mode: compact output (`id`/`slug` when present) |
+| `--page <n>`        | Page number                                          |
+| `--per <n>`         | Items per page                                       |
+| `--sort <s>`        | Sort order                                           |
+| `--type <t>`        | Filter by type                                       |
+| `--filter <f>`      | Filter connections (`ALL`, `OWN`, `EXCLUDE_OWN`)     |
+| `--visibility <v>`  | `public`, `closed`, or `private`                     |
+| `--title <t>`       | Title (for create/update)                            |
+| `--description <d>` | Description (for create/update)                      |
+| `--yes`             | Bypass destructive confirmation prompts              |
+| `--help`            | Show help                                            |
 
 ## Aliases
 

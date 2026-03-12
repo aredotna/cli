@@ -52,7 +52,7 @@ function Help() {
       <Box flexDirection="column" marginBottom={1}>
         <Text dimColor>Options</Text>
         <Text> --json Output as JSON</Text>
-        <Text> --quiet Minimal output (just IDs)</Text>
+        <Text> --quiet JSON mode: compact output (id/slug when present)</Text>
         <Text> --page &lt;n&gt; Page number</Text>
         <Text> --per &lt;n&gt; Items per page</Text>
         <Text> --sort &lt;s&gt; Sort order</Text>
@@ -65,7 +65,6 @@ function Help() {
         <Text> --title &lt;t&gt; Title (for create/update)</Text>
         <Text> --description &lt;d&gt; Description (for create/update)</Text>
         <Text> --yes Bypass destructive confirmation prompts</Text>
-        <Text> --no-fullscreen Disable session fullscreen mode</Text>
         <Text> --version Show CLI version</Text>
         <Text> --help Show help</Text>
       </Box>
@@ -168,11 +167,6 @@ function App({ children }: { children: React.ReactNode }) {
   return <SWRConfig value={SWR_OPTIONS}>{children}</SWRConfig>;
 }
 
-function shouldUseSessionFullscreen(flags: Flags): boolean {
-  if (flags["no-fullscreen"]) return false;
-  return Boolean(process.stdin.isTTY && process.stdout.isTTY);
-}
-
 async function runInk(
   element: React.JSX.Element,
   options?: { fullscreen?: boolean },
@@ -210,7 +204,7 @@ if (flags.json && command) {
 } else if (!command) {
   const element = process.stdin.isTTY ? <SessionMode /> : <Help />;
   await runInk(<App>{element}</App>, {
-    fullscreen: shouldUseSessionFullscreen(flags),
+    fullscreen: Boolean(process.stdin.isTTY && process.stdout.isTTY),
   });
 } else {
   const def = commandMap.get(command);
