@@ -22,6 +22,9 @@ export interface SessionViewContext {
   pop: () => void;
   replace: (view: SessionView) => void;
   reset: (view: SessionView) => void;
+  logout: () => void;
+  exit: () => void;
+  openPalette: (seed?: string) => void;
 }
 
 export interface SessionViewConfig<
@@ -52,13 +55,21 @@ const LIST_FOOTER: SessionFooterAction[] = [
 
 export const SESSION_VIEW_REGISTRY: SessionViewRegistry = {
   home: {
-    render: ({ context }) => <HomeScreen me={context.me} />,
+    render: ({ context }) => (
+      <HomeScreen
+        me={context.me}
+        onNavigate={context.push}
+        onLogout={context.logout}
+        onExit={context.exit}
+        onOpenPalette={context.openPalette}
+      />
+    ),
     buildBreadcrumbTitle: ({ me }) => me.name,
     footerActions: [
-      { key: "↑↓", label: "select" },
-      { key: "↵", label: "run" },
-      { key: "tab", label: "complete" },
-      { key: "esc", label: "clear" },
+      { key: "j/k", label: "move" },
+      { key: "↵", label: "run/edit" },
+      { key: "/", label: "open commands" },
+      { key: "ctrl+c", label: "exit" },
     ],
   },
   channel: {

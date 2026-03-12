@@ -3,7 +3,7 @@ import { Box, Text, useInput } from "ink";
 import type { User } from "../api/types";
 import {
   SESSION_ARG_HINTS,
-  SESSION_COMMAND_SPECS,
+  getAvailableSessionCommands,
   type CommandSpec,
   type CommandSpecContext,
 } from "../commands/session/command-specs";
@@ -99,6 +99,7 @@ export function SessionPalette({
   onExit,
   onOpenBrowser,
   onActiveChange,
+  openRequest,
 }: {
   me: User;
   view: SessionView;
@@ -108,8 +109,9 @@ export function SessionPalette({
   onExit: () => void;
   onOpenBrowser: () => void;
   onActiveChange: (active: boolean) => void;
+  openRequest: { id: number; seed: string } | null;
 }) {
-  const [active, setActive] = useState(view.kind === "home");
+  const [active, setActive] = useState(false);
   const [input, setInput] = useState("");
   const [cursor, setCursor] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -128,8 +130,7 @@ export function SessionPalette({
   );
 
   const availableCommands = useMemo(
-    () =>
-      SESSION_COMMAND_SPECS.filter((command) => command.when?.(view) ?? true),
+    () => getAvailableSessionCommands(view),
     [view],
   );
 
@@ -167,12 +168,13 @@ export function SessionPalette({
   }, [active, onActiveChange]);
 
   useEffect(() => {
-    if (view.kind === "home") {
-      setActive(true);
-      return;
-    }
     closePalette();
   }, [view.kind]);
+
+  useEffect(() => {
+    if (!openRequest) return;
+    openPalette(openRequest.seed);
+  }, [openRequest]);
 
   useEffect(() => {
     setCursor((value) => {
@@ -269,7 +271,7 @@ export function SessionPalette({
     <Box flexDirection="column">
       <Text color={mutedColor()}>{divider}</Text>
       <Box>
-        <Text color={brandColor()}>{active ? "❯" : "/"}</Text>
+        <Text color={brandColor()}>❯</Text>
         <Text color={dockTextColor()}> </Text>
         <Text color={active ? accentColor() : dockTextColor()}>
           {active ? input || " " : " "}

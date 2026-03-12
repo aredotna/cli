@@ -168,6 +168,12 @@ export const SESSION_COMMAND_SPECS: CommandSpec[] = [
   },
 ];
 
+export function getAvailableSessionCommands(view: SessionView): CommandSpec[] {
+  return SESSION_COMMAND_SPECS.filter(
+    (command) => command.when?.(view) ?? true,
+  );
+}
+
 export const SESSION_ARG_HINTS: Record<string, string> = {
   "<slug>": "enter slug",
   "<query>": "enter search query",
