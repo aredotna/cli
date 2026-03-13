@@ -1,0 +1,111 @@
+name: Release
+
+on:
+  pull_request_target:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump type
+        required: true
+        type: choice
+        options: [patch, minor, major]
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       github.event.pull_request.base.ref == 'main')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Determine release bump from labels or input
+        id: release_meta
+        uses: actions/github-script@v7
+        with:
+          script: |
+            if (context.eventName === "workflow_dispatch") {
+              const bump = context.payload.inputs.bump;
+              core.info(`Manual dispatch: releasing with bump=${bump}`);
+              core.setOutput("should_release", "true");
+              core.setOutput("bump", bump);
+              return;
+            }
+
+            const labels = (context.payload.pull_request.labels || []).map((label) => label.name);
+            const candidates = ["major", "minor", "patch"];
+            const matched = candidates.filter((candidate) => labels.includes(candidate));
+
+            if (matched.length === 0) {
+              core.notice("No release label found (major|minor|patch). Skipping release.");
+              core.setOutput("should_release", "false");
+              return;
+            }
+
+            if (matched.length > 1) {
+              core.setFailed(`Multiple release labels found: ${matched.join(", ")}. Keep exactly one of major|minor|patch.`);
+              return;
+            }
+
+            core.info(`Selected release bump: ${matched[0]}`);
+            core.setOutput("should_release", "true");
+            core.setOutput("bump", matched[0]);
+
+      - uses: actions/checkout@v4
+        if: steps.release_meta.outputs.should_release == 'true'
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN != '' && secrets.RELEASE_TOKEN || github.token }}
+
+      - name: Ensure main has not advanced past merged PR
+        if: >-
+          steps.release_meta.outputs.should_release == 'true' &&
+          github.event_name == 'pull_request_target'
+        run: |
+          CURRENT_HEAD="$(git rev-parse HEAD)"
+          EXPECTED_HEAD="${{ github.event.pull_request.merge_commit_sha }}"
+          if [ "$CURRENT_HEAD" != "$EXPECTED_HEAD" ]; then
+            echo "main advanced after this PR merged."
+            echo "Expected: $EXPECTED_HEAD"
+            echo "Current:  $CURRENT_HEAD"
+            echo "Re-run the Release workflow manually after reviewing current main."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.release_meta.outputs.should_release == 'true'
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+        if: steps.release_meta.outputs.should_release == 'true'
+
+      - run: npm run check
+        if: steps.release_meta.outputs.should_release == 'true'
+        env:
+          ARENA_VCR_MODE: replay
+          ARENA_API_URL: https://staging-api.are.na
+
+      - name: Configure git author
+        if: steps.release_meta.outputs.should_release == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version and create tag
+        if: steps.release_meta.outputs.should_release == 'true'
+        run: |
+          npm version "${{ steps.release_meta.outputs.bump }}" -m "release: %s"
+
+      - name: Push release commit and tags
+        if: steps.release_meta.outputs.should_release == 'true'
+        run: git push origin HEAD:main --follow-tags
