@@ -6,10 +6,24 @@ import { useCommand } from "../hooks/use-command";
 interface Props {
   channel: string;
   value: string;
+  title?: string;
   description?: string;
+  altText?: string;
+  originalSourceUrl?: string;
+  originalSourceTitle?: string;
+  insertAt?: number;
 }
 
-export function AddCommand({ channel, value, description }: Props) {
+export function AddCommand({
+  channel,
+  value,
+  title,
+  description,
+  altText,
+  originalSourceUrl,
+  originalSourceTitle,
+  insertAt,
+}: Props) {
   const { data, error, loading } = useCommand(async () => {
     const ch = await getData(
       client.GET("/v3/channels/{id}", {
@@ -18,7 +32,16 @@ export function AddCommand({ channel, value, description }: Props) {
     );
     const block = await getData(
       client.POST("/v3/blocks", {
-        body: { value, channel_ids: [ch.id], description },
+        body: {
+          value,
+          channel_ids: [ch.id],
+          title,
+          description,
+          alt_text: altText,
+          original_source_url: originalSourceUrl,
+          original_source_title: originalSourceTitle,
+          insert_at: insertAt,
+        },
       }),
     );
     return { block, channel: ch };

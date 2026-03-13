@@ -119,14 +119,28 @@ export const commands: CommandDefinition[] = [
         usage: "channel contents <slug>",
         description: "Channel contents (paginated)",
       },
-      { usage: "channel create <title>", description: "Create a channel" },
-      { usage: "channel update <slug>", description: "Update a channel" },
+      {
+        usage: "channel contents <slug> --sort updated_at_desc --user-id 123",
+        description: "Sort/filter channel contents",
+      },
+      {
+        usage: "channel create <title> --visibility private --group-id 123",
+        description: "Create a channel (optionally in a group)",
+      },
+      {
+        usage:
+          'channel update <slug> --title "New title" --description "Updated"',
+        description: "Update channel metadata",
+      },
       { usage: "channel delete <slug>", description: "Delete a channel" },
       {
-        usage: "channel connections <slug>",
-        description: "Where channel appears",
+        usage: "channel connections <slug> --sort connected_at_desc",
+        description: "Where channel appears (sortable)",
       },
-      { usage: "channel followers <slug>", description: "Channel followers" },
+      {
+        usage: "channel followers <slug> --sort connected_at_desc",
+        description: "Channel followers (sortable)",
+      },
     ],
     destructive: {
       subcommands: {
@@ -144,6 +158,7 @@ export const commands: CommandDefinition[] = [
               title={requireArg(args, 1, "title")}
               visibility={visibility}
               description={flag(flags, "description")}
+              groupId={intFlag(flags, "group-id")}
             />
           );
         case "update":
@@ -163,6 +178,10 @@ export const commands: CommandDefinition[] = [
               slug={requireArg(args, 1, "slug")}
               page={optPage(flags)}
               per={optPer(flags)}
+              sort={
+                flagAs<ChannelContentSort>(flags, "sort") ?? "position_desc"
+              }
+              userId={intFlag(flags, "user-id")}
             />
           );
         case "connections":
@@ -171,6 +190,7 @@ export const commands: CommandDefinition[] = [
               slug={requireArg(args, 1, "slug")}
               page={optPage(flags)}
               per={optPer(flags)}
+              sort={flagAs<ConnectionSort>(flags, "sort")}
             />
           );
         case "followers":
@@ -179,6 +199,7 @@ export const commands: CommandDefinition[] = [
               slug={requireArg(args, 1, "slug")}
               page={optPage(flags)}
               per={optPer(flags)}
+              sort={flagAs<ConnectionSort>(flags, "sort")}
             />
           );
         default:
@@ -280,9 +301,18 @@ export const commands: CommandDefinition[] = [
     group: "Blocks",
     help: [
       { usage: "block <id>", description: "View a block" },
-      { usage: "block update <id>", description: "Update a block" },
-      { usage: "block comments <id>", description: "View block comments" },
-      { usage: "block connections <id>", description: "Where block appears" },
+      {
+        usage: 'block update <id> --title "New" --description "Updated"',
+        description: "Update block metadata/content",
+      },
+      {
+        usage: "block comments <id> --sort connected_at_desc",
+        description: "View block comments (sortable)",
+      },
+      {
+        usage: "block connections <id> --sort connected_at_desc --filter OWN",
+        description: "Where block appears (sortable/filterable)",
+      },
     ],
     session: { args: "<id>", desc: "View a block" },
     render(args, flags) {
@@ -304,6 +334,7 @@ export const commands: CommandDefinition[] = [
               id={idArg(args, 1, "block id")}
               page={optPage(flags)}
               per={optPer(flags)}
+              sort={flagAs<ConnectionSort>(flags, "sort")}
             />
           );
         case "connections":
@@ -312,6 +343,8 @@ export const commands: CommandDefinition[] = [
               id={idArg(args, 1, "block id")}
               page={optPage(flags)}
               per={optPer(flags)}
+              sort={flagAs<ConnectionSort>(flags, "sort")}
+              filter={flagAs<ConnectionFilter>(flags, "filter")}
             />
           );
         default:
@@ -463,6 +496,23 @@ export const commands: CommandDefinition[] = [
         usage: "add <channel> <value>",
         description: "Add content to a channel",
       },
+      {
+        usage: 'add <channel> <value> --title "Title" --description "Notes"',
+        description: "Add with title/description",
+      },
+      {
+        usage: 'add <channel> <value> --alt-text "Accessible text"',
+        description: "Add image alt text",
+      },
+      {
+        usage:
+          'add <channel> <value> --original-source-url <url> --original-source-title "Source"',
+        description: "Attach original source metadata",
+      },
+      {
+        usage: "add <channel> <value> --insert-at 1",
+        description: "Insert at a specific position",
+      },
     ],
     render(args, flags) {
       const value = requireArg([args.slice(1).join(" ")], 0, "value");
@@ -470,7 +520,12 @@ export const commands: CommandDefinition[] = [
         <AddCommand
           channel={requireArg(args, 0, "channel")}
           value={value}
+          title={flag(flags, "title")}
           description={flag(flags, "description")}
+          altText={flag(flags, "alt-text")}
+          originalSourceUrl={flag(flags, "original-source-url")}
+          originalSourceTitle={flag(flags, "original-source-title")}
+          insertAt={intFlag(flags, "insert-at")}
         />
       );
     },
@@ -511,6 +566,11 @@ export const commands: CommandDefinition[] = [
       {
         usage: "upload <file> --channel <ch>",
         description: "Upload a file",
+      },
+      {
+        usage:
+          'upload <file> --channel <ch> --title "Title" --description "Notes"',
+        description: "Upload with metadata",
       },
     ],
     render(args, flags) {
@@ -629,12 +689,18 @@ export const commands: CommandDefinition[] = [
         usage: "connect <id> <channel>",
         description: "Connect block to channel",
       },
+      {
+        usage: "connect <id> <channel> --type Channel --position 1",
+        description: "Set connectable type and insertion position",
+      },
     ],
-    render(args) {
+    render(args, flags) {
       return (
         <ConnectCommand
           blockId={idArg(args, 0, "block id")}
           channel={requireArg(args, 1, "channel")}
+          connectableType={flagAs<"Block" | "Channel">(flags, "type")}
+          position={intFlag(flags, "position")}
         />
       );
     },
@@ -660,8 +726,12 @@ export const commands: CommandDefinition[] = [
       { usage: "connection <id>", description: "View a connection" },
       { usage: "connection delete <id>", description: "Remove a connection" },
       {
-        usage: "connection move <id>",
+        usage: "connection move <id> --movement move_to_top",
         description: "Reposition a connection",
+      },
+      {
+        usage: "connection move <id> --movement insert_at --position 1",
+        description: "Move connection to explicit position",
       },
     ],
     destructive: {
@@ -769,9 +839,18 @@ export const commands: CommandDefinition[] = [
     group: "Users & Groups",
     help: [
       { usage: "user <slug>", description: "View a user" },
-      { usage: "user contents <slug>", description: "User's content" },
-      { usage: "user followers <slug>", description: "User's followers" },
-      { usage: "user following <slug>", description: "Who user follows" },
+      {
+        usage: "user contents <slug> --type Image --sort updated_at_desc",
+        description: "User's content (filter/sort)",
+      },
+      {
+        usage: "user followers <slug> --sort connected_at_desc",
+        description: "User's followers (sortable)",
+      },
+      {
+        usage: "user following <slug> --type User --sort connected_at_desc",
+        description: "Who user follows (filter/sort)",
+      },
     ],
     session: { args: "<slug>", desc: "View a user profile" },
     render(args, flags) {
@@ -784,6 +863,7 @@ export const commands: CommandDefinition[] = [
               page={optPage(flags)}
               per={optPer(flags)}
               type={flag(flags, "type")}
+              sort={flagAs<ContentSort>(flags, "sort")}
             />
           );
         case "followers":
@@ -792,6 +872,7 @@ export const commands: CommandDefinition[] = [
               slug={requireArg(args, 1, "slug")}
               page={optPage(flags)}
               per={optPer(flags)}
+              sort={flagAs<ConnectionSort>(flags, "sort")}
             />
           );
         case "following":
@@ -801,6 +882,7 @@ export const commands: CommandDefinition[] = [
               page={optPage(flags)}
               per={optPer(flags)}
               type={flag(flags, "type")}
+              sort={flagAs<ConnectionSort>(flags, "sort")}
             />
           );
         default:
@@ -867,8 +949,14 @@ export const commands: CommandDefinition[] = [
     group: "Users & Groups",
     help: [
       { usage: "group <slug>", description: "View a group" },
-      { usage: "group contents <slug>", description: "Group's content" },
-      { usage: "group followers <slug>", description: "Group's followers" },
+      {
+        usage: "group contents <slug> --type Image --sort updated_at_desc",
+        description: "Group's content (filter/sort)",
+      },
+      {
+        usage: "group followers <slug> --sort connected_at_desc",
+        description: "Group's followers (sortable)",
+      },
     ],
     session: { args: "<slug>", desc: "View a group profile" },
     render(args, flags) {
@@ -881,6 +969,7 @@ export const commands: CommandDefinition[] = [
               page={optPage(flags)}
               per={optPer(flags)}
               type={flag(flags, "type")}
+              sort={flagAs<ContentSort>(flags, "sort")}
             />
           );
         case "followers":
@@ -889,6 +978,7 @@ export const commands: CommandDefinition[] = [
               slug={requireArg(args, 1, "slug")}
               page={optPage(flags)}
               per={optPer(flags)}
+              sort={flagAs<ConnectionSort>(flags, "sort")}
             />
           );
         default:

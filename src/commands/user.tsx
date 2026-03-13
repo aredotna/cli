@@ -1,6 +1,11 @@
 import { Box, Text } from "ink";
 import { client, getData } from "../api/client";
-import type { ContentTypeFilter, FollowableType } from "../api/types";
+import type {
+  ConnectionSort,
+  ContentSort,
+  ContentTypeFilter,
+  FollowableType,
+} from "../api/types";
 import { BlockItem } from "../components/BlockItem";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
@@ -37,18 +42,25 @@ export function UserContentsCommand({
   page = 1,
   per,
   type,
+  sort,
 }: {
   slug: string;
   page?: number;
   per?: number;
   type?: string;
+  sort?: ContentSort;
 }) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.GET("/v3/users/{id}/contents", {
         params: {
           path: { id: slug },
-          query: { page, per, type: type as ContentTypeFilter | undefined },
+          query: {
+            page,
+            per,
+            type: type as ContentTypeFilter | undefined,
+            sort,
+          },
         },
       }),
     ),
@@ -77,15 +89,17 @@ export function UserFollowersCommand({
   slug,
   page = 1,
   per,
+  sort,
 }: {
   slug: string;
   page?: number;
   per?: number;
+  sort?: ConnectionSort;
 }) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.GET("/v3/users/{id}/followers", {
-        params: { path: { id: slug }, query: { page, per } },
+        params: { path: { id: slug }, query: { page, per, sort } },
       }),
     ),
   );
@@ -116,18 +130,25 @@ export function UserFollowingCommand({
   page = 1,
   per,
   type,
+  sort,
 }: {
   slug: string;
   page?: number;
   per?: number;
   type?: string;
+  sort?: ConnectionSort;
 }) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.GET("/v3/users/{id}/following", {
         params: {
           path: { id: slug },
-          query: { page, per, type: type as FollowableType | undefined },
+          query: {
+            page,
+            per,
+            type: type as FollowableType | undefined,
+            sort,
+          },
         },
       }),
     ),

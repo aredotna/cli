@@ -1,6 +1,10 @@
 import { Box, Text } from "ink";
 import { client, getData } from "../api/client";
-import type { ContentTypeFilter } from "../api/types";
+import type {
+  ConnectionSort,
+  ContentSort,
+  ContentTypeFilter,
+} from "../api/types";
 import { BlockItem } from "../components/BlockItem";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
@@ -42,6 +46,7 @@ interface GroupContentsProps {
   page?: number;
   per?: number;
   type?: string;
+  sort?: ContentSort;
 }
 
 export function GroupContentsCommand({
@@ -49,13 +54,19 @@ export function GroupContentsCommand({
   page = 1,
   per,
   type,
+  sort,
 }: GroupContentsProps) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.GET("/v3/groups/{id}/contents", {
         params: {
           path: { id: slug },
-          query: { page, per, type: type as ContentTypeFilter | undefined },
+          query: {
+            page,
+            per,
+            type: type as ContentTypeFilter | undefined,
+            sort,
+          },
         },
       }),
     ),
@@ -84,17 +95,19 @@ interface GroupFollowersProps {
   slug: string;
   page?: number;
   per?: number;
+  sort?: ConnectionSort;
 }
 
 export function GroupFollowersCommand({
   slug,
   page = 1,
   per,
+  sort,
 }: GroupFollowersProps) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.GET("/v3/groups/{id}/followers", {
-        params: { path: { id: slug }, query: { page, per } },
+        params: { path: { id: slug }, query: { page, per, sort } },
       }),
     ),
   );

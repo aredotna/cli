@@ -37,11 +37,13 @@ Running `arena` with no arguments opens an interactive session. Pass a command f
 ```bash
 arena channel worldmaking                     # View a channel
 arena channel contents worldmaking            # Paginated contents
+arena channel contents worldmaking --sort updated_at_desc --user-id 123
 arena channel create "My Research" --visibility private
+arena channel create "Team Notes" --group-id 123
 arena channel update my-research --title "New Title" --description "Updated"
 arena channel delete my-research
-arena channel connections worldmaking         # Where channel appears
-arena channel followers worldmaking
+arena channel connections worldmaking --sort connected_at_desc
+arena channel followers worldmaking --sort connected_at_desc
 ```
 
 ### Blocks
@@ -49,10 +51,13 @@ arena channel followers worldmaking
 ```bash
 arena block 12345                             # View a block
 arena block update 12345 --title "New Title"
-arena block comments 12345                    # View comments
-arena block connections 12345                 # Where block appears
+arena block comments 12345 --sort connected_at_desc
+arena block connections 12345 --sort connected_at_desc --filter OWN
 arena add my-channel "Hello world"            # Add text
 arena add my-channel https://example.com      # Add a URL
+arena add my-channel "Hello" --title "Greeting" --description "Pinned note"
+arena add my-channel https://example.com --alt-text "Cover image" --insert-at 1
+arena add my-channel https://example.com --original-source-url https://source.com --original-source-title "Original"
 arena upload photo.jpg --channel my-channel
 arena batch my-channel "https://a.com" "https://b.com"
 arena batch status 1234
@@ -66,8 +71,10 @@ echo "piped text" | arena add my-channel
 
 ```bash
 arena connect 12345 my-channel          # Connect block to channel
+arena connect 12345 my-channel --type Channel --position 1
 arena connection 67890                  # View a connection
 arena connection move 67890 --movement move_to_top
+arena connection move 67890 --movement insert_at --position 1
 arena connection delete 67890
 ```
 
@@ -83,12 +90,12 @@ arena comment delete 67890
 ```bash
 arena whoami                            # Current user
 arena user damon-zucconi                # View a user
-arena user contents damon-zucconi       # User's content
-arena user followers damon-zucconi
-arena user following damon-zucconi
+arena user contents damon-zucconi --type Image --sort updated_at_desc
+arena user followers damon-zucconi --sort connected_at_desc
+arena user following damon-zucconi --type User --sort connected_at_desc
 arena group are-na-team                 # View a group
-arena group contents are-na-team        # Group's content
-arena group followers are-na-team
+arena group contents are-na-team --type Image --sort updated_at_desc
+arena group followers are-na-team --sort connected_at_desc
 ```
 
 ### Search
@@ -134,16 +141,19 @@ arena ping                              # API health check
 
 ### Command-specific flags
 
-| Command                            | Flags                                                                                              |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `channel create`, `channel update` | `--title`, `--description`, `--visibility`                                                         |
-| `block update`                     | `--title`, `--description`, `--content`, `--alt-text`                                              |
-| `add`, `batch`                     | `--title`, `--description`                                                                         |
-| `upload`                           | `--channel`, `--title`, `--description`                                                            |
-| `connect`                          | `--type`, `--position`                                                                             |
-| `connection move`                  | `--movement`, `--position`                                                                         |
-| `search`                           | `--scope`, `--sort`, `--ext`, `--after`, `--seed`, `--user-id`, `--group-id`, `--channel-id`       |
-| `import`                           | `--dir`, `--recursive`, `--interactive`, `--batch-size`, `--upload-concurrency`, `--poll-interval` |
+| Command            | Flags                                                                                                       |
+| ------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `channel create`   | `--description`, `--visibility`, `--group-id`                                                               |
+| `channel update`   | `--title`, `--description`, `--visibility`                                                                  |
+| `channel contents` | `--user-id`                                                                                                 |
+| `block update`     | `--title`, `--description`, `--content`, `--alt-text`                                                       |
+| `add`              | `--title`, `--description`, `--alt-text`, `--original-source-url`, `--original-source-title`, `--insert-at` |
+| `batch`            | `--title`, `--description`                                                                                  |
+| `upload`           | `--channel`, `--title`, `--description`                                                                     |
+| `connect`          | `--type`, `--position`                                                                                      |
+| `connection move`  | `--movement`, `--position`                                                                                  |
+| `search`           | `--scope`, `--sort`, `--ext`, `--after`, `--seed`, `--user-id`, `--group-id`, `--channel-id`                |
+| `import`           | `--dir`, `--recursive`, `--interactive`, `--batch-size`, `--upload-concurrency`, `--poll-interval`          |
 
 ## Aliases
 

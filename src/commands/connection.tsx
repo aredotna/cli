@@ -1,6 +1,6 @@
 import { Box, Text } from "ink";
 import { client, getData } from "../api/client";
-import type { Movement } from "../api/types";
+import type { ConnectionFilter, ConnectionSort, Movement } from "../api/types";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 import { plural } from "../lib/format";
@@ -87,15 +87,19 @@ export function BlockConnectionsCommand({
   id,
   page = 1,
   per,
+  sort,
+  filter,
 }: {
   id: number;
   page?: number;
   per?: number;
+  sort?: ConnectionSort;
+  filter?: ConnectionFilter;
 }) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.GET("/v3/blocks/{id}/connections", {
-        params: { path: { id }, query: { page, per } },
+        params: { path: { id }, query: { page, per, sort, filter } },
       }),
     ),
   );
@@ -132,15 +136,17 @@ export function ChannelConnectionsCommand({
   slug,
   page = 1,
   per,
+  sort,
 }: {
   slug: string;
   page?: number;
   per?: number;
+  sort?: ConnectionSort;
 }) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.GET("/v3/channels/{id}/connections", {
-        params: { path: { id: slug }, query: { page, per } },
+        params: { path: { id: slug }, query: { page, per, sort } },
       }),
     ),
   );
@@ -177,15 +183,17 @@ export function ChannelFollowersCommand({
   slug,
   page = 1,
   per,
+  sort,
 }: {
   slug: string;
   page?: number;
   per?: number;
+  sort?: ConnectionSort;
 }) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.GET("/v3/channels/{id}/followers", {
-        params: { path: { id: slug }, query: { page, per } },
+        params: { path: { id: slug }, query: { page, per, sort } },
       }),
     ),
   );
