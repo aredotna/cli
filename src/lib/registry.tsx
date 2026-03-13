@@ -374,7 +374,40 @@ export const commands: CommandDefinition[] = [
     name: "search",
     aliases: ["s"],
     group: "Other",
-    help: [{ usage: "search <query>", description: "Search Are.na" }],
+    help: [
+      { usage: "search <query>", description: "Search Are.na" },
+      {
+        usage: "search <query> --type Image",
+        description:
+          "Filter by type (Text, Image, Link, Attachment, Embed, Channel, Block, User, Group)",
+      },
+      {
+        usage: "search <query> --scope my",
+        description: "Limit scope (all, my, following)",
+      },
+      {
+        usage: "search <query> --sort created_at_desc",
+        description:
+          "Sort order (score_desc, created_at_desc, created_at_asc, updated_at_desc, updated_at_asc, name_asc, name_desc, connections_count_desc, random)",
+      },
+      {
+        usage: "search <query> --ext pdf",
+        description: "Filter by file extension",
+      },
+      {
+        usage: "search <query> --after 2024-01-01T00:00:00Z",
+        description: "Only results updated after timestamp (ISO 8601)",
+      },
+      {
+        usage: "search <query> --channel-id 789",
+        description:
+          "Limit to a channel (--user-id, --group-id also available)",
+      },
+      {
+        usage: "search <query> --sort random --seed 42",
+        description: "Reproducible random ordering",
+      },
+    ],
     session: { args: "<query>", desc: "Search Are.na" },
     render(args, flags) {
       const query = requireArg([args.join(" ")], 0, "query");
@@ -384,6 +417,14 @@ export const commands: CommandDefinition[] = [
           page={optPage(flags)}
           per={optPer(flags)}
           type={flag(flags, "type")}
+          sort={flagAs<SearchSort>(flags, "sort")}
+          scope={flagAs<SearchScope>(flags, "scope")}
+          ext={flagAs<FileExtension>(flags, "ext")}
+          after={flag(flags, "after")}
+          seed={intFlag(flags, "seed")}
+          userId={intFlag(flags, "user-id")}
+          groupId={intFlag(flags, "group-id")}
+          channelId={intFlag(flags, "channel-id")}
         />
       );
     },

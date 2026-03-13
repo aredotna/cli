@@ -1,6 +1,14 @@
 import { Box, Text } from "ink";
 import { client, getData } from "../api/client";
-import type { Block, ChannelRef, SearchTypeFilter, User } from "../api/types";
+import type {
+  Block,
+  ChannelRef,
+  FileExtension,
+  SearchScope,
+  SearchSort,
+  SearchTypeFilter,
+  User,
+} from "../api/types";
 import { BlockItem } from "../components/BlockItem";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
@@ -11,9 +19,30 @@ interface Props {
   page?: number;
   per?: number;
   type?: string;
+  sort?: SearchSort;
+  scope?: SearchScope;
+  ext?: FileExtension;
+  after?: string;
+  seed?: number;
+  userId?: number;
+  groupId?: number;
+  channelId?: number;
 }
 
-export function SearchCommand({ query, page = 1, per = 24, type }: Props) {
+export function SearchCommand({
+  query,
+  page = 1,
+  per = 24,
+  type,
+  sort,
+  scope,
+  ext,
+  after,
+  seed,
+  userId,
+  groupId,
+  channelId,
+}: Props) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.GET("/v3/search", {
@@ -23,6 +52,14 @@ export function SearchCommand({ query, page = 1, per = 24, type }: Props) {
             page,
             per,
             type: type ? [type as SearchTypeFilter] : undefined,
+            sort,
+            scope,
+            ext: ext ? [ext] : undefined,
+            after,
+            seed,
+            user_id: userId,
+            group_id: groupId,
+            channel_id: channelId,
           },
         },
       }),

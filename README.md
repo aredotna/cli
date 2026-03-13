@@ -96,6 +96,13 @@ arena group followers are-na-team
 ```bash
 arena search "brutalist architecture"
 arena search "photography" --type Image
+arena search "design" --scope my
+arena search "*" --type Attachment --ext pdf
+arena search "architecture" --sort created_at_desc
+arena search "*" --user-id 12345
+arena search "*" --channel-id 789
+arena search "art" --after 2024-01-01T00:00:00Z
+arena search "*" --sort random --seed 42
 ```
 
 ### Other
@@ -135,7 +142,7 @@ arena ping                              # API health check
 | `upload`                           | `--channel`, `--title`, `--description`                                                            |
 | `connect`                          | `--type`, `--position`                                                                             |
 | `connection move`                  | `--movement`, `--position`                                                                         |
-| `search`                           | `--scope`, `--ext`, `--after`, `--seed`, `--user-id`, `--group-id`, `--channel-id`                 |
+| `search`                           | `--scope`, `--sort`, `--ext`, `--after`, `--seed`, `--user-id`, `--group-id`, `--channel-id`       |
 | `import`                           | `--dir`, `--recursive`, `--interactive`, `--batch-size`, `--upload-concurrency`, `--poll-interval` |
 
 ## Aliases
