@@ -4,7 +4,8 @@ Use this checklist to cut a new npm release for `@aredotna/cli`.
 
 Publishing is automated by GitHub Actions when a PR with a release label is merged to `main`.
 Use exactly one label on the PR: `major`, `minor`, or `patch`.
-The workflow bumps the version, publishes to npm with trusted publishing (OIDC), pushes the release commit and tag, and creates a GitHub Release.
+The `Release` workflow bumps the version and pushes the release commit and tag.
+That tag then triggers the `Publish` workflow, which publishes to npm with trusted publishing (OIDC) and creates the GitHub Release.
 
 ## 1) Preflight
 
@@ -26,11 +27,17 @@ npm run check
 
 - [ ] Merge the labeled PR.
 
-This triggers `.github/workflows/publish.yml`.
+This triggers `.github/workflows/release.yml`.
 
 ## 3) Confirm publish workflow success
 
-- [ ] Wait for the "Publish" workflow on the pushed tag to complete successfully:
+- [ ] Wait for the `Release` workflow to complete successfully:
+
+```bash
+gh run list --workflow release.yml --limit 5
+```
+
+- [ ] Wait for the `Publish` workflow on the created tag to complete successfully:
 
 ```bash
 gh run list --workflow publish.yml --limit 5
@@ -71,3 +78,5 @@ arena whoami --json
 - Publish job fails with OIDC/trusted publishing error: verify trusted publisher settings on npm exactly match `aredotna/cli` and workflow file `publish.yml`.
 - Workflow skips publishing: merged PR did not contain one of `major`, `minor`, or `patch` labels.
 - Workflow fails with multiple release labels: keep exactly one of `major|minor|patch` on the PR.
+- Release job says `main` advanced after the PR merged: re-run the `Release` workflow manually after reviewing current `main`.
+- Publish job fails after the tag already exists: re-run the `Publish` workflow with the existing tag instead of creating a new version bump.
