@@ -32,95 +32,32 @@ arena logout
 
 Running `arena` with no arguments opens an interactive session. Pass a command for direct access.
 
-### Channels
+## Quick Start
 
 ```bash
-arena channel worldmaking                     # View a channel
-arena channel contents worldmaking            # Paginated contents
-arena channel contents worldmaking --sort updated_at_desc --user-id 123
-arena channel create "My Research" --visibility private
-arena channel create "Team Notes" --group-id 123
-arena channel update my-research --title "New Title" --description "Updated"
-arena channel delete my-research
-arena channel connections worldmaking --sort connected_at_desc
-arena channel followers worldmaking --sort connected_at_desc
-```
-
-### Blocks
-
-```bash
-arena block 12345                             # View a block
-arena block update 12345 --title "New Title"
-arena block comments 12345 --sort connected_at_desc
-arena block connections 12345 --sort connected_at_desc --filter OWN
-arena add my-channel "Hello world"            # Add text
-arena add my-channel https://example.com      # Add a URL
-arena add my-channel "Hello" --title "Greeting" --description "Pinned note"
-arena add my-channel https://example.com --alt-text "Cover image" --insert-at 1
-arena add my-channel https://example.com --original-source-url https://source.com --original-source-title "Original"
+arena login
+arena whoami
+arena search "brutalist architecture" --type Image
+arena channel worldmaking
+arena add my-channel "Hello world"
 arena upload photo.jpg --channel my-channel
-arena batch my-channel "https://a.com" "https://b.com"
-arena batch status 1234
-arena import my-channel --dir ./assets
-arena import my-channel --dir ./assets --recursive
-arena import my-channel --interactive
-echo "piped text" | arena add my-channel
 ```
 
-### Connections
+## Getting Help
+
+- `arena --help` shows a concise overview and common workflows.
+- `arena help <command>` shows command-specific help.
+- `arena <command> --help` also shows command-specific help.
+
+Examples:
 
 ```bash
-arena connect 12345 my-channel          # Connect block to channel
-arena connect 12345 my-channel --type Channel --position 1
-arena connection 67890                  # View a connection
-arena connection move 67890 --movement move_to_top
-arena connection move 67890 --movement insert_at --position 1
-arena connection delete 67890
+arena help search
+arena channel --help
+arena channel contents --help
 ```
 
-### Comments
-
-```bash
-arena comment 12345 "Nice find"         # Add a comment
-arena comment delete 67890
-```
-
-### Users
-
-```bash
-arena whoami                            # Current user
-arena user damon-zucconi                # View a user
-arena user contents damon-zucconi --type Image --sort updated_at_desc
-arena user followers damon-zucconi --sort connected_at_desc
-arena user following damon-zucconi --type User --sort connected_at_desc
-arena group are-na-team                 # View a group
-arena group contents are-na-team --type Image --sort updated_at_desc
-arena group followers are-na-team --sort connected_at_desc
-```
-
-### Search
-
-```bash
-arena search "brutalist architecture"
-arena search "photography" --type Image
-arena search "design" --scope my
-arena search "*" --type Attachment --ext pdf
-arena search "architecture" --sort created_at_desc
-arena search "*" --user-id 12345
-arena search "*" --channel-id 789
-arena search "art" --after 2024-01-01T00:00:00Z
-arena search "*" --sort random --seed 42
-```
-
-### Other
-
-```bash
-arena ping                              # API health check
-```
-
-## Flags
-
-### Global flags
+## Global Flags
 
 | Flag      | Description                                     |
 | --------- | ----------------------------------------------- |
@@ -129,31 +66,452 @@ arena ping                              # API health check
 | `--yes`   | Bypass destructive confirmation prompts         |
 | `--help`  | Show help                                       |
 
-### Common query flags
+## Command Reference
 
-| Flag           | Description                                     |
-| -------------- | ----------------------------------------------- |
-| `--page <n>`   | Page number                                     |
-| `--per <n>`    | Items per page                                  |
-| `--sort <s>`   | Sort order                                      |
-| `--type <t>`   | Type filter                                     |
-| `--filter <f>` | Connection filter (`ALL`, `OWN`, `EXCLUDE_OWN`) |
+Examples are shown first, then options.
 
-### Command-specific flags
+### Authentication
 
-| Command            | Flags                                                                                                       |
-| ------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `channel create`   | `--description`, `--visibility`, `--group-id`                                                               |
-| `channel update`   | `--title`, `--description`, `--visibility`                                                                  |
-| `channel contents` | `--user-id`                                                                                                 |
-| `block update`     | `--title`, `--description`, `--content`, `--alt-text`                                                       |
-| `add`              | `--title`, `--description`, `--alt-text`, `--original-source-url`, `--original-source-title`, `--insert-at` |
-| `batch`            | `--title`, `--description`                                                                                  |
-| `upload`           | `--channel`, `--title`, `--description`                                                                     |
-| `connect`          | `--type`, `--position`                                                                                      |
-| `connection move`  | `--movement`, `--position`                                                                                  |
-| `search`           | `--scope`, `--sort`, `--ext`, `--after`, `--seed`, `--user-id`, `--group-id`, `--channel-id`                |
-| `import`           | `--dir`, `--recursive`, `--interactive`, `--batch-size`, `--upload-concurrency`, `--poll-interval`          |
+#### `login`
+
+Authenticate via OAuth.
+
+Examples:
+
+```bash
+arena login
+```
+
+Options:
+
+- `--token <token>`
+
+#### `whoami`
+
+Show current authenticated user.
+
+Examples:
+
+```bash
+arena whoami
+```
+
+Options:
+
+- None
+
+#### `logout`
+
+Clear local auth token.
+
+Examples:
+
+```bash
+arena logout
+```
+
+Options:
+
+- None
+
+### Search
+
+#### `search`
+
+Search across blocks, channels, users, and groups.
+
+Examples:
+
+```bash
+arena search "brutalist architecture"
+arena search "photography" --type Image
+arena search "design" --scope my
+arena search "*" --type Attachment --ext pdf
+arena search "architecture" --sort created_at_desc
+arena search "*" --sort random --seed 42
+arena search "*" --channel-id 789
+```
+
+Options:
+
+- `--page <n>`
+- `--per <n>`
+- `--type <t>`
+- `--scope <all|my|following>`
+- `--sort <s>`
+- `--ext <ext>`
+- `--after <iso8601>`
+- `--seed <n>`
+- `--user-id <id>`
+- `--group-id <id>`
+- `--channel-id <id>`
+
+### Channels
+
+#### `channel`
+
+View channel details.
+
+Examples:
+
+```bash
+arena channel worldmaking
+```
+
+Options:
+
+- `--page <n>`
+- `--per <n>`
+
+#### `channel contents`
+
+List channel contents.
+
+Examples:
+
+```bash
+arena channel contents worldmaking
+arena channel contents worldmaking --sort updated_at_desc --user-id 123
+```
+
+Options:
+
+- `--page <n>`
+- `--per <n>`
+- `--sort <s>`
+- `--user-id <id>`
+
+#### `channel create`
+
+Create a channel.
+
+Examples:
+
+```bash
+arena channel create "My Research" --visibility private
+arena channel create "Team Notes" --group-id 123
+```
+
+Options:
+
+- `--visibility <public|private|closed>`
+- `--description <text>`
+- `--group-id <id>`
+
+#### `channel update`
+
+Update a channel.
+
+Examples:
+
+```bash
+arena channel update my-research --title "New Title" --description "Updated"
+```
+
+Options:
+
+- `--title <text>`
+- `--description <text>`
+- `--visibility <public|private|closed>`
+
+#### `channel delete`
+
+Delete a channel.
+
+Examples:
+
+```bash
+arena channel delete my-research
+```
+
+Options:
+
+- None
+
+#### `channel connections`
+
+Show where a channel appears.
+
+Examples:
+
+```bash
+arena channel connections worldmaking --sort connected_at_desc
+```
+
+Options:
+
+- `--page <n>`
+- `--per <n>`
+- `--sort <s>`
+
+#### `channel followers`
+
+List channel followers.
+
+Examples:
+
+```bash
+arena channel followers worldmaking --sort connected_at_desc
+```
+
+Options:
+
+- `--page <n>`
+- `--per <n>`
+- `--sort <s>`
+
+### Blocks
+
+#### `block`
+
+View a block.
+
+Examples:
+
+```bash
+arena block 12345
+```
+
+Options:
+
+- None
+
+#### `block update`
+
+Update block metadata/content.
+
+Examples:
+
+```bash
+arena block update 12345 --title "New Title"
+```
+
+Options:
+
+- `--title <text>`
+- `--description <text>`
+- `--content <text>`
+- `--alt-text <text>`
+
+#### `block comments`
+
+List block comments.
+
+Examples:
+
+```bash
+arena block comments 12345 --sort connected_at_desc
+```
+
+Options:
+
+- `--page <n>`
+- `--per <n>`
+- `--sort <s>`
+
+#### `block connections`
+
+Show channels connected to a block.
+
+Examples:
+
+```bash
+arena block connections 12345 --sort connected_at_desc --filter OWN
+```
+
+Options:
+
+- `--page <n>`
+- `--per <n>`
+- `--sort <s>`
+- `--filter <ALL|OWN|EXCLUDE_OWN>`
+
+#### `add`
+
+Add text/URL content to a channel.
+
+Examples:
+
+```bash
+arena add my-channel "Hello world"
+arena add my-channel "Hello" --title "Greeting" --description "Pinned note"
+arena add my-channel https://example.com --alt-text "Cover image" --insert-at 1
+arena add my-channel https://example.com --original-source-url https://source.com --original-source-title "Original"
+echo "piped text" | arena add my-channel
+```
+
+Options:
+
+- `--title <text>`
+- `--description <text>`
+- `--alt-text <text>`
+- `--original-source-url <url>`
+- `--original-source-title <text>`
+- `--insert-at <n>`
+
+#### `upload`
+
+Upload local file content.
+
+Examples:
+
+```bash
+arena upload photo.jpg --channel my-channel
+arena upload photo.jpg --channel my-channel --title "Cover" --description "Homepage image"
+```
+
+Options:
+
+- `--channel <slug|id>` (required)
+- `--title <text>`
+- `--description <text>`
+
+#### `batch`
+
+Create many blocks asynchronously.
+
+Examples:
+
+```bash
+arena batch my-channel "https://a.com" "https://b.com"
+arena batch status 1234
+```
+
+Options:
+
+- `--title <text>`
+- `--description <text>`
+
+#### `import`
+
+Import local files in bulk.
+
+Examples:
+
+```bash
+arena import my-channel --dir ./assets
+arena import my-channel --dir ./assets --recursive
+arena import my-channel --interactive
+```
+
+Options:
+
+- `--dir <path>`
+- `--recursive`
+- `--interactive`
+- `--batch-size <n>`
+- `--upload-concurrency <n>`
+- `--poll-interval <ms>`
+
+### Connections
+
+#### `connect`
+
+Connect a block/channel to a channel.
+
+Examples:
+
+```bash
+arena connect 12345 my-channel
+arena connect 12345 my-channel --type Channel --position 1
+```
+
+Options:
+
+- `--type <Block|Channel>`
+- `--position <n>`
+
+#### `connection`
+
+Inspect/delete/move connections.
+
+Examples:
+
+```bash
+arena connection 67890
+arena connection delete 67890
+arena connection move 67890 --movement move_to_top
+arena connection move 67890 --movement insert_at --position 1
+```
+
+Options:
+
+- `--movement <move_to_top|move_to_bottom|insert_at>` (for `connection move`)
+- `--position <n>` (for `connection move`)
+
+### Comments
+
+#### `comment`
+
+Create or delete comments.
+
+Examples:
+
+```bash
+arena comment 12345 "Nice find"
+arena comment delete 67890
+```
+
+Options:
+
+- None
+
+### Users & Groups
+
+#### `user`
+
+View users and relationships.
+
+Examples:
+
+```bash
+arena user damon-zucconi
+arena user contents damon-zucconi --type Image --sort updated_at_desc
+arena user followers damon-zucconi --sort connected_at_desc
+arena user following damon-zucconi --type User --sort connected_at_desc
+```
+
+Options:
+
+- `--page <n>`
+- `--per <n>`
+- `--type <t>`
+- `--sort <s>`
+
+#### `group`
+
+View groups and group activity.
+
+Examples:
+
+```bash
+arena group are-na-team
+arena group contents are-na-team --type Image --sort updated_at_desc
+arena group followers are-na-team --sort connected_at_desc
+```
+
+Options:
+
+- `--page <n>`
+- `--per <n>`
+- `--type <t>`
+- `--sort <s>`
+
+### Other
+
+#### `ping`
+
+Check API health.
+
+Examples:
+
+```bash
+arena ping
+```
+
+Options:
+
+- None
 
 ## Aliases
 

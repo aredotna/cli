@@ -86,6 +86,21 @@ interface HelpLine {
   description: string;
 }
 
+export interface HelpOption {
+  flag: string;
+  description: string;
+}
+
+export interface CommandHelpDoc {
+  summary: string;
+  usage: string[];
+  options?: HelpOption[];
+  examples: string[];
+  notes?: string[];
+  seeAlso?: string[];
+  subcommands?: Record<string, Omit<CommandHelpDoc, "subcommands">>;
+}
+
 export interface CommandDefinition {
   name: string;
   aliases?: string[];
@@ -114,32 +129,59 @@ export const commands: CommandDefinition[] = [
     aliases: ["ch"],
     group: "Channels",
     help: [
-      { usage: "channel <slug>", description: "View a channel" },
       {
-        usage: "channel contents <slug>",
-        description: "Channel contents (paginated)",
+        usage: "channel <slug> [--page <n>] [--per <n>]",
+        description: "Options",
       },
+      { usage: "channel worldmaking", description: "Example" },
       {
-        usage: "channel contents <slug> --sort updated_at_desc --user-id 123",
-        description: "Sort/filter channel contents",
-      },
-      {
-        usage: "channel create <title> --visibility private --group-id 123",
-        description: "Create a channel (optionally in a group)",
+        usage:
+          "channel contents <slug> [--page <n>] [--per <n>] [--sort <s>] [--user-id <id>]",
+        description: "Options",
       },
       {
         usage:
-          'channel update <slug> --title "New title" --description "Updated"',
-        description: "Update channel metadata",
-      },
-      { usage: "channel delete <slug>", description: "Delete a channel" },
-      {
-        usage: "channel connections <slug> --sort connected_at_desc",
-        description: "Where channel appears (sortable)",
+          "channel contents worldmaking --sort updated_at_desc --user-id 123",
+        description: "Example",
       },
       {
-        usage: "channel followers <slug> --sort connected_at_desc",
-        description: "Channel followers (sortable)",
+        usage:
+          "channel create <title> [--visibility <public|private|closed>] [--description <text>] [--group-id <id>]",
+        description: "Options",
+      },
+      {
+        usage:
+          'channel create "My Research" --visibility private --group-id 123',
+        description: "Example",
+      },
+      {
+        usage:
+          "channel update <slug> [--title <text>] [--description <text>] [--visibility <public|private|closed>]",
+        description: "Options",
+      },
+      {
+        usage:
+          'channel update my-research --title "New title" --description "Updated"',
+        description: "Example",
+      },
+      { usage: "channel delete <slug>", description: "Options" },
+      { usage: "channel delete my-research", description: "Example" },
+      {
+        usage:
+          "channel connections <slug> [--page <n>] [--per <n>] [--sort <s>]",
+        description: "Options",
+      },
+      {
+        usage: "channel connections worldmaking --sort connected_at_desc",
+        description: "Example",
+      },
+      {
+        usage: "channel followers <slug> [--page <n>] [--per <n>] [--sort <s>]",
+        description: "Options",
+      },
+      {
+        usage: "channel followers worldmaking --sort connected_at_desc",
+        description: "Example",
       },
     ],
     destructive: {
@@ -300,18 +342,33 @@ export const commands: CommandDefinition[] = [
     aliases: ["bl"],
     group: "Blocks",
     help: [
-      { usage: "block <id>", description: "View a block" },
+      { usage: "block <id>", description: "Options" },
+      { usage: "block 12345", description: "Example" },
       {
-        usage: 'block update <id> --title "New" --description "Updated"',
-        description: "Update block metadata/content",
+        usage:
+          "block update <id> [--title <text>] [--description <text>] [--content <text>] [--alt-text <text>]",
+        description: "Options",
       },
       {
-        usage: "block comments <id> --sort connected_at_desc",
-        description: "View block comments (sortable)",
+        usage: 'block update 12345 --title "New" --description "Updated"',
+        description: "Example",
       },
       {
-        usage: "block connections <id> --sort connected_at_desc --filter OWN",
-        description: "Where block appears (sortable/filterable)",
+        usage: "block comments <id> [--page <n>] [--per <n>] [--sort <s>]",
+        description: "Options",
+      },
+      {
+        usage: "block comments 12345 --sort connected_at_desc",
+        description: "Example",
+      },
+      {
+        usage:
+          "block connections <id> [--page <n>] [--per <n>] [--sort <s>] [--filter <ALL|OWN|EXCLUDE_OWN>]",
+        description: "Options",
+      },
+      {
+        usage: "block connections 12345 --sort connected_at_desc --filter OWN",
+        description: "Example",
       },
     ],
     session: { args: "<id>", desc: "View a block" },
@@ -408,37 +465,42 @@ export const commands: CommandDefinition[] = [
     aliases: ["s"],
     group: "Other",
     help: [
-      { usage: "search <query>", description: "Search Are.na" },
+      {
+        usage:
+          "search <query> [--page <n>] [--per <n>] [--type <t>] [--scope <all|my|following>] [--sort <s>] [--ext <ext>] [--after <iso8601>] [--seed <n>] [--user-id <id>] [--group-id <id>] [--channel-id <id>]",
+        description: "Options",
+      },
+      {
+        usage: 'search "brutalist architecture"',
+        description: "Example",
+      },
       {
         usage: "search <query> --type Image",
-        description:
-          "Filter by type (Text, Image, Link, Attachment, Embed, Channel, Block, User, Group)",
+        description: "Example",
       },
       {
         usage: "search <query> --scope my",
-        description: "Limit scope (all, my, following)",
+        description: "Example",
       },
       {
         usage: "search <query> --sort created_at_desc",
-        description:
-          "Sort order (score_desc, created_at_desc, created_at_asc, updated_at_desc, updated_at_asc, name_asc, name_desc, connections_count_desc, random)",
+        description: "Example",
       },
       {
         usage: "search <query> --ext pdf",
-        description: "Filter by file extension",
+        description: "Example",
       },
       {
         usage: "search <query> --after 2024-01-01T00:00:00Z",
-        description: "Only results updated after timestamp (ISO 8601)",
+        description: "Example",
       },
       {
         usage: "search <query> --channel-id 789",
-        description:
-          "Limit to a channel (--user-id, --group-id also available)",
+        description: "Example",
       },
       {
         usage: "search <query> --sort random --seed 42",
-        description: "Reproducible random ordering",
+        description: "Example",
       },
     ],
     session: { args: "<query>", desc: "Search Are.na" },
@@ -493,25 +555,26 @@ export const commands: CommandDefinition[] = [
     group: "Blocks",
     help: [
       {
-        usage: "add <channel> <value>",
-        description: "Add content to a channel",
+        usage:
+          "add <channel> <value> [--title <text>] [--description <text>] [--alt-text <text>] [--original-source-url <url>] [--original-source-title <text>] [--insert-at <n>]",
+        description: "Options",
       },
       {
         usage: 'add <channel> <value> --title "Title" --description "Notes"',
-        description: "Add with title/description",
+        description: "Example",
       },
       {
         usage: 'add <channel> <value> --alt-text "Accessible text"',
-        description: "Add image alt text",
+        description: "Example",
       },
       {
         usage:
           'add <channel> <value> --original-source-url <url> --original-source-title "Source"',
-        description: "Attach original source metadata",
+        description: "Example",
       },
       {
         usage: "add <channel> <value> --insert-at 1",
-        description: "Insert at a specific position",
+        description: "Example",
       },
     ],
     render(args, flags) {
@@ -564,13 +627,14 @@ export const commands: CommandDefinition[] = [
     group: "Blocks",
     help: [
       {
-        usage: "upload <file> --channel <ch>",
-        description: "Upload a file",
+        usage:
+          "upload <file> --channel <ch> [--title <text>] [--description <text>]",
+        description: "Options",
       },
       {
         usage:
           'upload <file> --channel <ch> --title "Title" --description "Notes"',
-        description: "Upload with metadata",
+        description: "Example",
       },
     ],
     render(args, flags) {
@@ -609,12 +673,21 @@ export const commands: CommandDefinition[] = [
     group: "Blocks",
     help: [
       {
-        usage: "batch <channel> [values...]",
-        description: "Batch create blocks (async)",
+        usage:
+          "batch <channel> [values...] [--title <text>] [--description <text>]",
+        description: "Options",
+      },
+      {
+        usage: 'batch my-channel "https://a.com" "https://b.com"',
+        description: "Example",
       },
       {
         usage: "batch status <batch_id>",
-        description: "Check batch status",
+        description: "Options",
+      },
+      {
+        usage: "batch status 1234",
+        description: "Example",
       },
     ],
     render(_args) {
@@ -662,12 +735,17 @@ export const commands: CommandDefinition[] = [
     group: "Blocks",
     help: [
       {
-        usage: "import <channel>",
-        description: "Import files from a directory (defaults to .)",
+        usage:
+          "import <channel> [--dir <path>] [--recursive] [--interactive] [--batch-size <n>] [--upload-concurrency <n>] [--poll-interval <ms>]",
+        description: "Options",
       },
       {
-        usage: "import <channel> --interactive",
-        description: "Open interactive file picker before importing",
+        usage: "import my-channel --dir ./assets --recursive",
+        description: "Example",
+      },
+      {
+        usage: "import my-channel --interactive",
+        description: "Example",
       },
     ],
     render(args, flags) {
@@ -686,12 +764,13 @@ export const commands: CommandDefinition[] = [
     group: "Connections",
     help: [
       {
-        usage: "connect <id> <channel>",
-        description: "Connect block to channel",
+        usage:
+          "connect <id> <channel> [--type <Block|Channel>] [--position <n>]",
+        description: "Options",
       },
       {
         usage: "connect <id> <channel> --type Channel --position 1",
-        description: "Set connectable type and insertion position",
+        description: "Example",
       },
     ],
     render(args, flags) {
@@ -723,15 +802,18 @@ export const commands: CommandDefinition[] = [
     aliases: [],
     group: "Connections",
     help: [
-      { usage: "connection <id>", description: "View a connection" },
-      { usage: "connection delete <id>", description: "Remove a connection" },
+      { usage: "connection <id>", description: "Options" },
+      { usage: "connection 67890", description: "Example" },
+      { usage: "connection delete <id>", description: "Options" },
+      { usage: "connection delete 67890", description: "Example" },
       {
-        usage: "connection move <id> --movement move_to_top",
-        description: "Reposition a connection",
+        usage:
+          "connection move <id> [--movement <move_to_top|move_to_bottom|insert_at>] [--position <n>]",
+        description: "Options",
       },
       {
         usage: "connection move <id> --movement insert_at --position 1",
-        description: "Move connection to explicit position",
+        description: "Example",
       },
     ],
     destructive: {
@@ -793,9 +875,11 @@ export const commands: CommandDefinition[] = [
     help: [
       {
         usage: "comment <blockId> <text>",
-        description: "Add a comment",
+        description: "Options",
       },
-      { usage: "comment delete <id>", description: "Delete a comment" },
+      { usage: 'comment 12345 "Nice find"', description: "Example" },
+      { usage: "comment delete <id>", description: "Options" },
+      { usage: "comment delete 67890", description: "Example" },
     ],
     destructive: {
       subcommands: {
@@ -838,18 +922,33 @@ export const commands: CommandDefinition[] = [
     aliases: [],
     group: "Users & Groups",
     help: [
-      { usage: "user <slug>", description: "View a user" },
+      { usage: "user <slug>", description: "Options" },
+      { usage: "user damon-zucconi", description: "Example" },
+      {
+        usage:
+          "user contents <slug> [--page <n>] [--per <n>] [--type <t>] [--sort <s>]",
+        description: "Options",
+      },
       {
         usage: "user contents <slug> --type Image --sort updated_at_desc",
-        description: "User's content (filter/sort)",
+        description: "Example",
+      },
+      {
+        usage: "user followers <slug> [--page <n>] [--per <n>] [--sort <s>]",
+        description: "Options",
       },
       {
         usage: "user followers <slug> --sort connected_at_desc",
-        description: "User's followers (sortable)",
+        description: "Example",
+      },
+      {
+        usage:
+          "user following <slug> [--page <n>] [--per <n>] [--type <t>] [--sort <s>]",
+        description: "Options",
       },
       {
         usage: "user following <slug> --type User --sort connected_at_desc",
-        description: "Who user follows (filter/sort)",
+        description: "Example",
       },
     ],
     session: { args: "<slug>", desc: "View a user profile" },
@@ -948,14 +1047,24 @@ export const commands: CommandDefinition[] = [
     aliases: [],
     group: "Users & Groups",
     help: [
-      { usage: "group <slug>", description: "View a group" },
+      { usage: "group <slug>", description: "Options" },
+      { usage: "group are-na-team", description: "Example" },
+      {
+        usage:
+          "group contents <slug> [--page <n>] [--per <n>] [--type <t>] [--sort <s>]",
+        description: "Options",
+      },
       {
         usage: "group contents <slug> --type Image --sort updated_at_desc",
-        description: "Group's content (filter/sort)",
+        description: "Example",
+      },
+      {
+        usage: "group followers <slug> [--page <n>] [--per <n>] [--sort <s>]",
+        description: "Options",
       },
       {
         usage: "group followers <slug> --sort connected_at_desc",
-        description: "Group's followers (sortable)",
+        description: "Example",
       },
     ],
     session: { args: "<slug>", desc: "View a group profile" },
@@ -1029,7 +1138,10 @@ export const commands: CommandDefinition[] = [
     name: "version",
     aliases: ["v"],
     group: "Other",
-    help: [{ usage: "version", description: "Show CLI version" }],
+    help: [
+      { usage: "version", description: "Options" },
+      { usage: "version", description: "Example" },
+    ],
     render() {
       return <VersionCommand />;
     },
@@ -1043,8 +1155,9 @@ export const commands: CommandDefinition[] = [
     aliases: ["upgrade"],
     group: "Other",
     help: [
-      { usage: "update", description: "Check for a newer CLI version" },
-      { usage: "update --yes", description: "Install latest CLI globally" },
+      { usage: "update [--yes]", description: "Options" },
+      { usage: "update", description: "Example" },
+      { usage: "update --yes", description: "Example" },
     ],
     render(_args, flags) {
       const apply = flags["yes"] !== undefined || flags["y"] !== undefined;
@@ -1063,7 +1176,10 @@ export const commands: CommandDefinition[] = [
     name: "whoami",
     aliases: ["me"],
     group: "Other",
-    help: [{ usage: "whoami", description: "Show current user" }],
+    help: [
+      { usage: "whoami", description: "Options" },
+      { usage: "whoami", description: "Example" },
+    ],
     session: { args: null, desc: "View your profile" },
     render() {
       return <WhoamiCommand />;
@@ -1078,7 +1194,10 @@ export const commands: CommandDefinition[] = [
     name: "login",
     aliases: [],
     group: "Other",
-    help: [{ usage: "login", description: "Authenticate via OAuth" }],
+    help: [
+      { usage: "login [--token <token>]", description: "Options" },
+      { usage: "login", description: "Example" },
+    ],
     render(args, flags) {
       return <LoginCommand token={flag(flags, "token") || args[0]} />;
     },
@@ -1088,7 +1207,10 @@ export const commands: CommandDefinition[] = [
     name: "logout",
     aliases: [],
     group: "Other",
-    help: [{ usage: "logout", description: "Log out of your account" }],
+    help: [
+      { usage: "logout", description: "Options" },
+      { usage: "logout", description: "Example" },
+    ],
     session: { args: null, desc: "Log out of your account" },
     render() {
       return <LogoutCommand />;
@@ -1104,7 +1226,10 @@ export const commands: CommandDefinition[] = [
     name: "ping",
     aliases: [],
     group: "Other",
-    help: [{ usage: "ping", description: "API health check" }],
+    help: [
+      { usage: "ping", description: "Options" },
+      { usage: "ping", description: "Example" },
+    ],
     render() {
       return <PingCommand />;
     },
@@ -1147,3 +1272,448 @@ export function groupedCommands(): [string, CommandDefinition[]][] {
     groups.get(g)!,
   ]);
 }
+
+export const commandHelpDocs: Record<string, CommandHelpDoc> = {
+  login: {
+    summary: "Authenticate your Are.na account via OAuth.",
+    usage: ["arena login", "arena login --token <token>"],
+    options: [
+      {
+        flag: "--token <token>",
+        description: "Use an existing token directly",
+      },
+    ],
+    examples: ["arena login"],
+    seeAlso: ["whoami", "logout"],
+  },
+  whoami: {
+    summary: "Show your authenticated user profile.",
+    usage: ["arena whoami"],
+    examples: ["arena whoami", "arena whoami --json"],
+    seeAlso: ["login", "logout"],
+  },
+  logout: {
+    summary: "Clear the locally stored access token.",
+    usage: ["arena logout"],
+    examples: ["arena logout"],
+    seeAlso: ["login"],
+  },
+  search: {
+    summary: "Search across Are.na blocks, channels, users, and groups.",
+    usage: ["arena search <query> [flags]"],
+    options: [
+      { flag: "--page <n>", description: "Page number (default: 1)" },
+      { flag: "--per <n>", description: "Results per page (default: 24)" },
+      {
+        flag: "--type <t>",
+        description:
+          "Type filter (Text, Image, Link, Attachment, Embed, Channel, Block, User, Group)",
+      },
+      { flag: "--scope <all|my|following>", description: "Search scope" },
+      {
+        flag: "--sort <s>",
+        description:
+          "Sort order (score_desc, created_at_desc, created_at_asc, updated_at_desc, updated_at_asc, name_asc, name_desc, connections_count_desc, random)",
+      },
+      {
+        flag: "--ext <ext>",
+        description: "File extension filter (pdf, jpg, png, ...)",
+      },
+      {
+        flag: "--after <iso8601>",
+        description: "Only results updated after timestamp",
+      },
+      {
+        flag: "--seed <n>",
+        description: "Random seed (use with --sort random)",
+      },
+      {
+        flag: "--user-id <id>",
+        description: "Limit to a specific user's content",
+      },
+      {
+        flag: "--group-id <id>",
+        description: "Limit to a specific group's content",
+      },
+      {
+        flag: "--channel-id <id>",
+        description: "Limit to a specific channel's content",
+      },
+    ],
+    examples: [
+      'arena search "brutalist architecture"',
+      'arena search "photography" --type Image',
+      'arena search "*" --sort random --seed 42',
+      'arena search "*" --channel-id 789 --ext pdf',
+    ],
+    seeAlso: ["channel", "user", "group"],
+  },
+  channel: {
+    summary: "View and manage channels.",
+    usage: ["arena channel <slug>", "arena channel <subcommand> ..."],
+    examples: [
+      "arena channel worldmaking",
+      "arena channel contents worldmaking --sort updated_at_desc",
+      'arena channel create "My Research" --visibility private',
+    ],
+    subcommands: {
+      contents: {
+        summary: "List channel contents with pagination and filtering.",
+        usage: ["arena channel contents <slug> [flags]"],
+        options: [
+          { flag: "--page <n>", description: "Page number" },
+          { flag: "--per <n>", description: "Items per page" },
+          { flag: "--sort <s>", description: "Sort order" },
+          {
+            flag: "--user-id <id>",
+            description: "Limit to a specific user within the channel",
+          },
+        ],
+        examples: [
+          "arena channel contents worldmaking --sort updated_at_desc --user-id 123",
+        ],
+      },
+      create: {
+        summary: "Create a channel.",
+        usage: ["arena channel create <title> [flags]"],
+        options: [
+          {
+            flag: "--visibility <public|private|closed>",
+            description: "Channel visibility",
+          },
+          { flag: "--description <text>", description: "Optional description" },
+          {
+            flag: "--group-id <id>",
+            description: "Create channel under a group",
+          },
+        ],
+        examples: ['arena channel create "Team Notes" --group-id 123'],
+      },
+      update: {
+        summary: "Update a channel.",
+        usage: ["arena channel update <slug> [flags]"],
+        options: [
+          { flag: "--title <text>", description: "New title" },
+          { flag: "--description <text>", description: "New description" },
+          {
+            flag: "--visibility <public|private|closed>",
+            description: "New visibility",
+          },
+        ],
+        examples: ['arena channel update my-research --title "New Title"'],
+      },
+      delete: {
+        summary: "Delete a channel.",
+        usage: ["arena channel delete <slug>"],
+        examples: ["arena channel delete my-research"],
+      },
+      connections: {
+        summary: "Show where a channel appears.",
+        usage: ["arena channel connections <slug> [flags]"],
+        options: [
+          { flag: "--page <n>", description: "Page number" },
+          { flag: "--per <n>", description: "Items per page" },
+          { flag: "--sort <s>", description: "Sort order" },
+        ],
+        examples: [
+          "arena channel connections worldmaking --sort connected_at_desc",
+        ],
+      },
+      followers: {
+        summary: "List channel followers.",
+        usage: ["arena channel followers <slug> [flags]"],
+        options: [
+          { flag: "--page <n>", description: "Page number" },
+          { flag: "--per <n>", description: "Items per page" },
+          { flag: "--sort <s>", description: "Sort order" },
+        ],
+        examples: [
+          "arena channel followers worldmaking --sort connected_at_desc",
+        ],
+      },
+    },
+    seeAlso: ["search", "add", "connect"],
+  },
+  block: {
+    summary: "View and manage blocks.",
+    usage: ["arena block <id>", "arena block <subcommand> ..."],
+    examples: [
+      "arena block 12345",
+      "arena block comments 12345 --sort connected_at_desc",
+    ],
+    subcommands: {
+      update: {
+        summary: "Update a block's metadata or content.",
+        usage: ["arena block update <id> [flags]"],
+        options: [
+          { flag: "--title <text>", description: "New title" },
+          { flag: "--description <text>", description: "New description" },
+          { flag: "--content <text>", description: "Text content" },
+          { flag: "--alt-text <text>", description: "Image alt text" },
+        ],
+        examples: [
+          'arena block update 12345 --title "New Title" --description "Updated"',
+        ],
+      },
+      comments: {
+        summary: "List comments on a block.",
+        usage: ["arena block comments <id> [flags]"],
+        options: [
+          { flag: "--page <n>", description: "Page number" },
+          { flag: "--per <n>", description: "Items per page" },
+          { flag: "--sort <s>", description: "Sort order" },
+        ],
+        examples: ["arena block comments 12345 --sort connected_at_desc"],
+      },
+      connections: {
+        summary: "Show channels connected to a block.",
+        usage: ["arena block connections <id> [flags]"],
+        options: [
+          { flag: "--page <n>", description: "Page number" },
+          { flag: "--per <n>", description: "Items per page" },
+          { flag: "--sort <s>", description: "Sort order" },
+          {
+            flag: "--filter <ALL|OWN|EXCLUDE_OWN>",
+            description: "Connection filter",
+          },
+        ],
+        examples: [
+          "arena block connections 12345 --sort connected_at_desc --filter OWN",
+        ],
+      },
+    },
+    seeAlso: ["add", "connect", "comment"],
+  },
+  add: {
+    summary: "Add text or URL content to a channel.",
+    usage: ["arena add <channel> <value> [flags]"],
+    options: [
+      { flag: "--title <text>", description: "Optional block title" },
+      {
+        flag: "--description <text>",
+        description: "Optional block description",
+      },
+      { flag: "--alt-text <text>", description: "Image alt text" },
+      {
+        flag: "--original-source-url <url>",
+        description: "Original source URL",
+      },
+      {
+        flag: "--original-source-title <text>",
+        description: "Original source title",
+      },
+      {
+        flag: "--insert-at <n>",
+        description: "Insert position within the channel",
+      },
+    ],
+    examples: [
+      'arena add my-channel "Hello world"',
+      'arena add my-channel https://example.com --alt-text "Cover image" --insert-at 1',
+      'echo "piped text" | arena add my-channel',
+    ],
+    seeAlso: ["upload", "batch", "channel"],
+  },
+  upload: {
+    summary: "Upload a local file and add it as a block.",
+    usage: ["arena upload <file> --channel <slug|id> [flags]"],
+    options: [
+      { flag: "--channel <slug|id>", description: "Target channel (required)" },
+      { flag: "--title <text>", description: "Optional block title" },
+      {
+        flag: "--description <text>",
+        description: "Optional block description",
+      },
+    ],
+    examples: ["arena upload photo.jpg --channel my-channel"],
+    seeAlso: ["add", "batch", "import"],
+  },
+  batch: {
+    summary: "Create many blocks asynchronously.",
+    usage: [
+      "arena batch <channel> [values...] [flags]",
+      "arena batch status <batch_id>",
+    ],
+    options: [
+      { flag: "--title <text>", description: "Default title for each block" },
+      {
+        flag: "--description <text>",
+        description: "Default description for each block",
+      },
+    ],
+    examples: [
+      'arena batch my-channel "https://a.com" "https://b.com"',
+      "arena batch status 1234",
+    ],
+    seeAlso: ["add", "import"],
+  },
+  import: {
+    summary: "Bulk import local files into a channel.",
+    usage: ["arena import <channel> [flags]"],
+    options: [
+      { flag: "--dir <path>", description: "Directory to scan (default: .)" },
+      { flag: "--recursive", description: "Scan directories recursively" },
+      {
+        flag: "--interactive",
+        description: "Pick files interactively before import",
+      },
+      {
+        flag: "--batch-size <n>",
+        description: "Batch size for async create calls",
+      },
+      {
+        flag: "--upload-concurrency <n>",
+        description: "Concurrent file uploads",
+      },
+      {
+        flag: "--poll-interval <ms>",
+        description: "Batch status polling interval",
+      },
+    ],
+    examples: [
+      "arena import my-channel --dir ./assets --recursive",
+      "arena import my-channel --interactive",
+    ],
+    seeAlso: ["upload", "batch"],
+  },
+  connect: {
+    summary: "Connect a block or channel to a channel.",
+    usage: ["arena connect <id> <channel> [flags]"],
+    options: [
+      { flag: "--type <Block|Channel>", description: "Connectable type" },
+      { flag: "--position <n>", description: "Insertion position" },
+    ],
+    examples: ["arena connect 12345 my-channel --type Channel --position 1"],
+    seeAlso: ["connection", "block", "channel"],
+  },
+  connection: {
+    summary: "Inspect, move, or delete a connection.",
+    usage: [
+      "arena connection <id>",
+      "arena connection delete <id>",
+      "arena connection move <id> [flags]",
+    ],
+    options: [
+      {
+        flag: "--movement <move_to_top|move_to_bottom|insert_at>",
+        description: "Move strategy (for move subcommand)",
+      },
+      {
+        flag: "--position <n>",
+        description: "Target position (for move subcommand)",
+      },
+    ],
+    examples: [
+      "arena connection 67890",
+      "arena connection move 67890 --movement insert_at --position 1",
+    ],
+    seeAlso: ["connect"],
+  },
+  comment: {
+    summary: "Create or delete comments.",
+    usage: ["arena comment <blockId> <text>", "arena comment delete <id>"],
+    examples: ['arena comment 12345 "Nice find"', "arena comment delete 67890"],
+    seeAlso: ["block"],
+  },
+  user: {
+    summary: "View users and user relationships.",
+    usage: ["arena user <slug>", "arena user <subcommand> ..."],
+    examples: [
+      "arena user damon-zucconi",
+      "arena user contents damon-zucconi --type Image --sort updated_at_desc",
+    ],
+    subcommands: {
+      contents: {
+        summary: "List a user's published content.",
+        usage: ["arena user contents <slug> [flags]"],
+        options: [
+          { flag: "--page <n>", description: "Page number" },
+          { flag: "--per <n>", description: "Items per page" },
+          { flag: "--type <t>", description: "Content type filter" },
+          { flag: "--sort <s>", description: "Sort order" },
+        ],
+        examples: [
+          "arena user contents damon-zucconi --type Image --sort updated_at_desc",
+        ],
+      },
+      followers: {
+        summary: "List a user's followers.",
+        usage: ["arena user followers <slug> [flags]"],
+        options: [
+          { flag: "--page <n>", description: "Page number" },
+          { flag: "--per <n>", description: "Items per page" },
+          { flag: "--sort <s>", description: "Sort order" },
+        ],
+        examples: [
+          "arena user followers damon-zucconi --sort connected_at_desc",
+        ],
+      },
+      following: {
+        summary: "List who a user follows.",
+        usage: ["arena user following <slug> [flags]"],
+        options: [
+          { flag: "--page <n>", description: "Page number" },
+          { flag: "--per <n>", description: "Items per page" },
+          { flag: "--type <t>", description: "Filter followable type" },
+          { flag: "--sort <s>", description: "Sort order" },
+        ],
+        examples: [
+          "arena user following damon-zucconi --type User --sort connected_at_desc",
+        ],
+      },
+    },
+    seeAlso: ["group", "search"],
+  },
+  group: {
+    summary: "View groups and group activity.",
+    usage: ["arena group <slug>", "arena group <subcommand> ..."],
+    examples: [
+      "arena group are-na-team",
+      "arena group contents are-na-team --type Image --sort updated_at_desc",
+    ],
+    subcommands: {
+      contents: {
+        summary: "List group content.",
+        usage: ["arena group contents <slug> [flags]"],
+        options: [
+          { flag: "--page <n>", description: "Page number" },
+          { flag: "--per <n>", description: "Items per page" },
+          { flag: "--type <t>", description: "Content type filter" },
+          { flag: "--sort <s>", description: "Sort order" },
+        ],
+        examples: [
+          "arena group contents are-na-team --type Image --sort updated_at_desc",
+        ],
+      },
+      followers: {
+        summary: "List group followers.",
+        usage: ["arena group followers <slug> [flags]"],
+        options: [
+          { flag: "--page <n>", description: "Page number" },
+          { flag: "--per <n>", description: "Items per page" },
+          { flag: "--sort <s>", description: "Sort order" },
+        ],
+        examples: [
+          "arena group followers are-na-team --sort connected_at_desc",
+        ],
+      },
+    },
+    seeAlso: ["user", "search"],
+  },
+  ping: {
+    summary: "Check API health.",
+    usage: ["arena ping"],
+    examples: ["arena ping", "arena ping --json"],
+  },
+  version: {
+    summary: "Show CLI version.",
+    usage: ["arena version"],
+    examples: ["arena version"],
+  },
+  update: {
+    summary: "Check for and install CLI updates.",
+    usage: ["arena update [--yes]"],
+    options: [{ flag: "--yes", description: "Install update without prompt" }],
+    examples: ["arena update", "arena update --yes"],
+  },
+};
