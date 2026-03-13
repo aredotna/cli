@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { fetchWithTimeout } from "./network";
 
 type VcrMode = "off" | "record" | "replay" | "auto";
 
@@ -89,7 +90,7 @@ export async function vcrFetch(
   init?: RequestInit,
 ): Promise<Response> {
   const mode = modeFromEnv();
-  if (mode === "off") return fetch(input, init);
+  if (mode === "off") return fetchWithTimeout(input, init);
 
   const normalized = new Request(input, init);
   const method = normalized.method.toUpperCase();
@@ -118,7 +119,12 @@ export async function vcrFetch(
   }
 
   const headers = Object.fromEntries(normalized.headers.entries());
-  const response = await fetch(url, { method, headers, body: requestBody });
+  const response = await fetchWithTimeout(url, {
+    method,
+    headers,
+    body: requestBody,
+    signal: normalized.signal,
+  });
   const responseBody = await response.text();
 
   tape.entries.push({

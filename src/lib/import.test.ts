@@ -182,3 +182,103 @@ test("executeImport captures upload and batch failures", async () => {
   assert.equal(summary.batch_failures[0]?.file, "c.txt");
   assert.equal(importExitCode(summary), 1);
 });
+
+test("executeImport retries transient upload failures", async () => {
+  const files: ImportFile[] = [
+    { absolutePath: "/tmp/retry.txt", relativePath: "retry.txt" },
+  ];
+  let uploadAttempts = 0;
+  let sleepCalls = 0;
+
+  const adapter: ImportAdapter = {
+    async uploadFile(file) {
+      uploadAttempts += 1;
+      if (uploadAttempts < 3) {
+        throw new Error("fetch failed");
+      }
+      return { s3Url: `https://s3/${file.relativePath}` };
+    },
+    async submitBatch() {
+      return { batch_id: "batch-1" };
+    },
+    async getBatchStatus(batchId) {
+      return {
+        batch_id: batchId,
+        status: "completed",
+        total: 1,
+        successful_count: 1,
+        failed_count: 0,
+      };
+    },
+    async sleep() {
+      sleepCalls += 1;
+    },
+  };
+
+  const summary = await executeImport({
+    channel: "test-channel",
+    directory: ".",
+    recursive: false,
+    batchSize: 100,
+    uploadConcurrency: 1,
+    pollIntervalMs: 1,
+    adapter,
+    discover: async () => files,
+  });
+
+  assert.equal(uploadAttempts, 3);
+  assert.ok(sleepCalls >= 2);
+  assert.equal(summary.uploaded, 1);
+  assert.equal(summary.upload_failed, 0);
+  assert.equal(importExitCode(summary), 0);
+});
+
+test("executeImport tolerates transient batch status errors", async () => {
+  const files: ImportFile[] = [
+    { absolutePath: "/tmp/a.txt", relativePath: "a.txt" },
+  ];
+  let statusAttempts = 0;
+  let sleepCalls = 0;
+
+  const adapter: ImportAdapter = {
+    async uploadFile(file) {
+      return { s3Url: `https://s3/${file.relativePath}` };
+    },
+    async submitBatch() {
+      return { batch_id: "batch-1" };
+    },
+    async getBatchStatus(batchId) {
+      statusAttempts += 1;
+      if (statusAttempts < 3) {
+        throw new Error("network timeout");
+      }
+      return {
+        batch_id: batchId,
+        status: "completed",
+        total: 1,
+        successful_count: 1,
+        failed_count: 0,
+      };
+    },
+    async sleep() {
+      sleepCalls += 1;
+    },
+  };
+
+  const summary = await executeImport({
+    channel: "test-channel",
+    directory: ".",
+    recursive: false,
+    batchSize: 100,
+    uploadConcurrency: 1,
+    pollIntervalMs: 1,
+    adapter,
+    discover: async () => files,
+  });
+
+  assert.equal(statusAttempts, 3);
+  assert.ok(sleepCalls >= 2);
+  assert.equal(summary.batch_successful, 1);
+  assert.equal(summary.batch_failed, 0);
+  assert.equal(importExitCode(summary), 0);
+});

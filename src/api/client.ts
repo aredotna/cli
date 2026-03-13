@@ -2,6 +2,7 @@ import createClient, { type Middleware } from "openapi-fetch";
 import { loadEnv } from "../lib/env";
 import { config } from "../lib/config";
 import { vcrFetch } from "../lib/vcr";
+import { withRequestSignal } from "../lib/network";
 import type { paths } from "./schema";
 
 // Ensure env is populated before reading API URL at module init time.
@@ -59,6 +60,14 @@ const authMiddleware: Middleware = {
   },
 };
 
+const timeoutMiddleware: Middleware = {
+  async onRequest({ request }) {
+    return new Request(request, {
+      signal: withRequestSignal(request.signal),
+    });
+  },
+};
+
 const errorMiddleware: Middleware = {
   async onResponse({ response }) {
     if (!response.ok) {
@@ -85,4 +94,5 @@ export const client = createClient<paths>({
 
 client.use(baseUrlMiddleware);
 client.use(authMiddleware);
+client.use(timeoutMiddleware);
 client.use(errorMiddleware);

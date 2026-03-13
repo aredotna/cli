@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "http";
 import { randomBytes, createHash } from "crypto";
 import { openUrl } from "./open";
 import { loadEnv } from "./env";
+import { fetchWithTimeout } from "./network";
 
 // Ensure env is populated before reading OAuth URLs.
 loadEnv();
@@ -127,7 +128,7 @@ export async function performOAuthFlow(
   });
 
   // Exchange code for token
-  const response = await fetch(tokenUrl(), {
+  const response = await fetchWithTimeout(tokenUrl(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
