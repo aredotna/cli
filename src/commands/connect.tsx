@@ -1,14 +1,22 @@
 import { Box, Text } from "ink";
 import { client, getData } from "../api/client";
+import type { ConnectableType } from "../api/types";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 
 interface Props {
   blockId: number;
   channel: string;
+  connectableType?: ConnectableType;
+  position?: number;
 }
 
-export function ConnectCommand({ blockId, channel }: Props) {
+export function ConnectCommand({
+  blockId,
+  channel,
+  connectableType = "Block",
+  position,
+}: Props) {
   const { data, error, loading } = useCommand(async () => {
     const ch = await getData(
       client.GET("/v3/channels/{id}", {
@@ -19,8 +27,9 @@ export function ConnectCommand({ blockId, channel }: Props) {
     await client.POST("/v3/connections", {
       body: {
         connectable_id: blockId,
-        connectable_type: "Block",
+        connectable_type: connectableType,
         channel_ids: [ch.id],
+        position,
       },
     });
     return { channel: ch };

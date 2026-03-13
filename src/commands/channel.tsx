@@ -1,6 +1,6 @@
 import { Box, Text, useApp } from "ink";
 import { client, getData } from "../api/client";
-import type { Visibility } from "../api/types";
+import type { ChannelContentSort, Visibility } from "../api/types";
 import { BlockItem } from "../components/BlockItem";
 import { ChannelBlockViewer } from "../components/ChannelBlockViewer";
 import {
@@ -175,17 +175,21 @@ export function ChannelContentsCommand({
   slug,
   page = 1,
   per = 24,
+  sort,
+  userId,
 }: {
   slug: string;
   page?: number;
   per?: number;
+  sort?: ChannelContentSort;
+  userId?: number;
 }) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.GET("/v3/channels/{id}/contents", {
         params: {
           path: { id: slug },
-          query: { page, per, sort: "position_desc" },
+          query: { page, per, sort: sort ?? "position_desc", user_id: userId },
         },
       }),
     ),
@@ -223,15 +227,17 @@ export function ChannelCreateCommand({
   title,
   visibility,
   description,
+  groupId,
 }: {
   title: string;
   visibility?: Visibility;
   description?: string;
+  groupId?: number;
 }) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.POST("/v3/channels", {
-        body: { title, visibility, description },
+        body: { title, visibility, description, group_id: groupId },
       }),
     ),
   );

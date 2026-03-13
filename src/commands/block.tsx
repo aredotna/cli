@@ -1,5 +1,6 @@
 import { Box, Text } from "ink";
 import { client, getData } from "../api/client";
+import type { ConnectionSort } from "../api/types";
 import { BlockContent } from "../components/BlockContent";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
@@ -60,15 +61,17 @@ export function BlockCommentsCommand({
   id,
   page = 1,
   per,
+  sort,
 }: {
   id: number;
   page?: number;
   per?: number;
+  sort?: ConnectionSort;
 }) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.GET("/v3/blocks/{id}/comments", {
-        params: { path: { id }, query: { page, per } },
+        params: { path: { id }, query: { page, per, sort } },
       }),
     ),
   );
