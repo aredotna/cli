@@ -1,0 +1,90 @@
+name: Publish
+
+on:
+  pull_request_target:
+    types: [closed]
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Determine release bump from labels
+        id: release_meta
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = (context.payload.pull_request.labels || []).map((label) => label.name);
+            const candidates = ["major", "minor", "patch"];
+            const matched = candidates.filter((candidate) => labels.includes(candidate));
+
+            if (matched.length === 0) {
+              core.notice("No release label found (major|minor|patch). Skipping publish.");
+              core.setOutput("should_release", "false");
+              return;
+            }
+
+            if (matched.length > 1) {
+              core.setFailed(`Multiple release labels found: ${matched.join(", ")}. Keep exactly one of major|minor|patch.`);
+              return;
+            }
+
+            core.info(`Selected release bump: ${matched[0]}`);
+            core.setOutput("should_release", "true");
+            core.setOutput("bump", matched[0]);
+
+      - uses: actions/checkout@v4
+        if: steps.release_meta.outputs.should_release == 'true'
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        if: steps.release_meta.outputs.should_release == 'true'
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+        if: steps.release_meta.outputs.should_release == 'true'
+
+      - run: npm run check
+        if: steps.release_meta.outputs.should_release == 'true'
+        env:
+          ARENA_VCR_MODE: replay
+          ARENA_API_URL: https://staging-api.are.na
+
+      - name: Configure git author
+        if: steps.release_meta.outputs.should_release == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version and create tag
+        id: version
+        if: steps.release_meta.outputs.should_release == 'true'
+        run: |
+          NEW_TAG="$(npm version "${{ steps.release_meta.outputs.bump }}" -m "release: %s")"
+          echo "tag=${NEW_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Push release commit and tags
+        if: steps.release_meta.outputs.should_release == 'true'
+        run: git push origin HEAD:main --follow-tags
+
+      - run: npm publish --provenance --access public
+        if: steps.release_meta.outputs.should_release == 'true'
+
+      - name: Create GitHub Release
+        if: steps.release_meta.outputs.should_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ steps.version.outputs.tag }}" --generate-notes

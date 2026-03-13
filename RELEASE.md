@@ -2,67 +2,41 @@
 
 Use this checklist to cut a new npm release for `@aredotna/cli`.
 
+Publishing is automated by GitHub Actions when a PR with a release label is merged to `main`.
+Use exactly one label on the PR: `major`, `minor`, or `patch`.
+The workflow bumps the version, publishes to npm with trusted publishing (OIDC), pushes the release commit and tag, and creates a GitHub Release.
+
 ## 1) Preflight
 
-- [ ] Ensure you are on the intended release branch:
+- [ ] Ensure release label is present on the PR:
 
 ```bash
-git branch --show-current
+gh pr view --json labels --jq '.labels[].name'
 ```
 
-- [ ] Ensure working tree is clean:
+- [ ] Verify exactly one of `major|minor|patch` is set.
 
-```bash
-git status --short
-```
-
-- [ ] Run full checks:
+- [ ] (Optional) Run full checks locally before merge:
 
 ```bash
 npm run check
 ```
 
-## 2) Confirm npm auth
+## 2) Merge the PR to `main`
 
-- [ ] Verify npm login:
+- [ ] Merge the labeled PR.
 
-```bash
-npm whoami
-```
+This triggers `.github/workflows/publish.yml`.
 
-If this fails with `401 Unauthorized`, authenticate first:
+## 3) Confirm publish workflow success
 
-```bash
-npm login
-```
-
-## 3) Bump version
-
-- [ ] Choose version type (`patch`, `minor`, `major`) and bump:
+- [ ] Wait for the "Publish" workflow on the pushed tag to complete successfully:
 
 ```bash
-npm version patch
+gh run list --workflow publish.yml --limit 5
 ```
 
-This updates `package.json`, creates a release commit, and creates a git tag.
-
-## 4) Publish package
-
-- [ ] Publish to npm:
-
-```bash
-npm publish
-```
-
-## 5) Push commit + tag
-
-- [ ] Push branch and tags:
-
-```bash
-git push origin "$(git branch --show-current)" --follow-tags
-```
-
-## 6) Verify release
+## 4) Verify release
 
 - [ ] Check published version:
 
@@ -70,13 +44,14 @@ git push origin "$(git branch --show-current)" --follow-tags
 npm view @aredotna/cli version
 ```
 
-- [ ] Confirm tag exists remotely:
+- [ ] Verify GitHub Release exists for the tag:
 
 ```bash
-git ls-remote --tags origin | tail
+VERSION="$(npm view @aredotna/cli version)"
+gh release view "v${VERSION}"
 ```
 
-## 7) Optional post-release smoke test
+## 5) Optional post-release smoke test
 
 - [ ] Install latest globally:
 
@@ -93,6 +68,6 @@ arena whoami --json
 
 ## Troubleshooting
 
-- `npm whoami` fails with 401: run `npm login` and retry.
-- `npm publish` says version exists: bump again (`npm version patch`) and republish.
-- Push fails due to remote changes: rebase/merge branch, rerun checks, then push again.
+- Publish job fails with OIDC/trusted publishing error: verify trusted publisher settings on npm exactly match `aredotna/cli` and workflow file `publish.yml`.
+- Workflow skips publishing: merged PR did not contain one of `major`, `minor`, or `patch` labels.
+- Workflow fails with multiple release labels: keep exactly one of `major|minor|patch` on the PR.
