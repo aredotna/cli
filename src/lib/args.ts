@@ -5,6 +5,18 @@ interface ParsedArgs {
   flags: Flags;
 }
 
+const KNOWN_BOOLEAN_LONG_FLAGS = new Set([
+  "help",
+  "json",
+  "quiet",
+  "version",
+  "yes",
+  "recursive",
+  "interactive",
+]);
+
+const KNOWN_BOOLEAN_SHORT_FLAGS = new Set(["h", "j", "q", "v", "y"]);
+
 export function parseArgs(argv: string[]): ParsedArgs {
   const args: string[] = [];
   const flags: Flags = {};
@@ -33,6 +45,11 @@ export function parseArgs(argv: string[]): ParsedArgs {
         continue;
       }
 
+      if (KNOWN_BOOLEAN_LONG_FLAGS.has(key)) {
+        flags[key] = true;
+        continue;
+      }
+
       const next = argv[i + 1];
       if (next && !next.startsWith("-")) {
         flags[key] = next;
@@ -49,6 +66,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
         for (const shortFlag of shorts) flags[shortFlag] = true;
       } else {
         const key = shorts;
+        if (KNOWN_BOOLEAN_SHORT_FLAGS.has(key)) {
+          flags[key] = true;
+          continue;
+        }
         const next = argv[i + 1];
         if (next && !next.startsWith("-")) {
           flags[key] = next;

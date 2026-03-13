@@ -6,6 +6,7 @@ import { render, Box, Text, useApp } from "ink";
 import { SWRConfig } from "swr";
 import { parseArgs, type Flags } from "./lib/args";
 import {
+  commands,
   commandMap,
   commandHelpDocs,
   type CommandHelpDoc,
@@ -14,6 +15,9 @@ import { exitCodeFromError, formatJsonError } from "./lib/exit-codes";
 import { CLI_PACKAGE_NAME, getCliVersion } from "./lib/version";
 import { confirmDestructiveIfNeeded } from "./lib/destructive-confirmation";
 import { SessionMode } from "./commands/session";
+import { initCancellationHandling } from "./lib/network";
+
+initCancellationHandling();
 
 // ── Help ──
 
@@ -185,13 +189,94 @@ function RenderError({ message }: { message: string }) {
   return <Text color="red">✕ {message}</Text>;
 }
 
-function quietResult(result: unknown): unknown {
-  if (!result || typeof result !== "object") return result;
-  if (Array.isArray(result)) return result.map(quietResult);
-  const obj = result as Record<string, unknown>;
-  if ("id" in obj) return { id: obj.id };
-  if ("slug" in obj) return { slug: obj.slug };
-  return result;
+function levenshtein(a: string, b: string): number {
+  const rows = a.length + 1;
+  const cols = b.length + 1;
+  const dist = Array.from({ length: rows }, () => Array<number>(cols).fill(0));
+
+  for (let i = 0; i < rows; i++) dist[i]![0] = i;
+  for (let j = 0; j < cols; j++) dist[0]![j] = j;
+
+  for (let i = 1; i < rows; i++) {
+    for (let j = 1; j < cols; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dist[i]![j] = Math.min(
+        dist[i - 1]![j]! + 1,
+        dist[i]![j - 1]! + 1,
+        dist[i - 1]![j - 1]! + cost,
+      );
+    }
+  }
+
+  return dist[rows - 1]![cols - 1]!;
+}
+
+function nearest(input: string, candidates: string[]): string | undefined {
+  if (!input || candidates.length === 0) return undefined;
+  const normalized = input.toLowerCase();
+  let best: { candidate: string; score: number } | undefined;
+
+  for (const candidate of candidates) {
+    const score = levenshtein(normalized, candidate.toLowerCase());
+    if (!best || score < best.score) {
+      best = { candidate, score };
+    }
+  }
+
+  if (!best) return undefined;
+  const threshold = Math.max(2, Math.floor(normalized.length / 3));
+  return best.score <= threshold ? best.candidate : undefined;
+}
+
+function allCanonicalCommands(): string[] {
+  return [...new Set(commands.map((command) => command.name))];
+}
+
+function knownSubcommands(commandName: string): string[] {
+  return Object.keys(commandHelpDocs[commandName]?.subcommands ?? {});
+}
+
+function validateSubcommand(
+  commandName: string,
+  args: string[],
+): {
+  badSubcommand?: string;
+  suggestion?: string;
+} {
+  const subcommands = knownSubcommands(commandName);
+  if (subcommands.length === 0 || args.length <= 1) return {};
+  const provided = args[0];
+  if (!provided || subcommands.includes(provided) || provided.startsWith("-")) {
+    return {};
+  }
+  return {
+    badSubcommand: provided,
+    suggestion: nearest(provided, subcommands),
+  };
+}
+
+function unknownCommandPayload(command: string) {
+  const suggestion = nearest(command, allCanonicalCommands());
+  return {
+    error: `Unknown command: ${command}`,
+    code: null,
+    type: "unknown_command",
+    hint: suggestion
+      ? `Did you mean "arena ${suggestion}"?`
+      : "Run: arena --help",
+  };
+}
+
+function unknownSubcommandPayload(command: string, subcommand: string) {
+  const suggestion = nearest(subcommand, knownSubcommands(command));
+  return {
+    error: `Unknown subcommand: ${command} ${subcommand}`,
+    code: null,
+    type: "unknown_subcommand",
+    hint: suggestion
+      ? `Did you mean "arena ${command} ${suggestion}"?`
+      : `Run: arena help ${command}`,
+  };
 }
 
 // ── JSON handler ──
@@ -199,12 +284,29 @@ function quietResult(result: unknown): unknown {
 async function handleJson(command: string, args: string[], flags: Flags) {
   const def = commandMap.get(command);
 
-  if (!def || (!def.json && !def.jsonStream)) {
+  if (!def) {
+    process.stderr.write(JSON.stringify(unknownCommandPayload(command)) + "\n");
+    process.exit(1);
+  }
+
+  const canonicalCommand = def.name;
+  const { badSubcommand } = validateSubcommand(canonicalCommand, args);
+  if (badSubcommand) {
+    process.stderr.write(
+      JSON.stringify(
+        unknownSubcommandPayload(canonicalCommand, badSubcommand),
+      ) + "\n",
+    );
+    process.exit(1);
+  }
+
+  if (!def.json && !def.jsonStream) {
     process.stderr.write(
       JSON.stringify({
-        error: `Unknown command: ${command}`,
+        error: `Command does not support --json: ${canonicalCommand}`,
         code: null,
-        type: "unknown_command",
+        type: "json_not_supported",
+        hint: `Run without --json or use: arena help ${canonicalCommand}`,
       }) + "\n",
     );
     process.exit(1);
@@ -223,13 +325,12 @@ async function handleJson(command: string, args: string[], flags: Flags) {
     }
 
     if (!def.json) {
-      throw new Error(`Unknown command: ${command}`);
+      throw new Error(`Command does not support --json: ${canonicalCommand}`);
     }
 
     const result = await def.json(args, flags);
-    const output = flags.quiet ? quietResult(result) : result;
     const indent = flags.quiet ? undefined : 2;
-    process.stdout.write(JSON.stringify(output, null, indent) + "\n");
+    process.stdout.write(JSON.stringify(result, null, indent) + "\n");
   } catch (err: unknown) {
     process.stderr.write(JSON.stringify(formatJsonError(err)) + "\n");
     process.exit(exitCodeFromError(err));
@@ -246,7 +347,24 @@ function routeCommand(
   const def = commandMap.get(command);
 
   if (!def) {
-    return <TopLevelHelp />;
+    const payload = unknownCommandPayload(command);
+    return <RenderError message={`${payload.error}. ${payload.hint}`} />;
+  }
+
+  const canonicalCommand = def.name;
+  const { badSubcommand, suggestion } = validateSubcommand(
+    canonicalCommand,
+    rest,
+  );
+  if (badSubcommand) {
+    const hint = suggestion
+      ? `Did you mean "arena ${canonicalCommand} ${suggestion}"?`
+      : `Run: arena help ${canonicalCommand}`;
+    return (
+      <RenderError
+        message={`Unknown subcommand: ${canonicalCommand} ${badSubcommand}. ${hint}`}
+      />
+    );
   }
 
   try {
@@ -261,6 +379,9 @@ function routeCommand(
 
 const { args, flags } = parseArgs(process.argv.slice(2));
 const [command, ...rest] = args;
+const isInteractiveTerminal = Boolean(
+  process.stdin.isTTY && process.stdout.isTTY,
+);
 
 const SWR_OPTIONS = {
   revalidateOnFocus: false,
@@ -327,11 +448,34 @@ if (flags.json && command) {
     );
   }
 } else if (!command) {
-  const element = process.stdin.isTTY ? <SessionMode /> : <TopLevelHelp />;
+  const element = isInteractiveTerminal ? <SessionMode /> : <TopLevelHelp />;
   await runInk(<App>{element}</App>, {
-    fullscreen: Boolean(process.stdin.isTTY && process.stdout.isTTY),
+    fullscreen: isInteractiveTerminal,
   });
 } else {
+  if (!isInteractiveTerminal) {
+    const maybeDef = commandMap.get(command);
+    if (!maybeDef) {
+      const payload = unknownCommandPayload(command);
+      process.stderr.write(`${payload.error}. ${payload.hint}\n`);
+      process.exit(1);
+    }
+
+    const { badSubcommand, suggestion } = validateSubcommand(
+      maybeDef.name,
+      rest,
+    );
+    if (badSubcommand) {
+      const hint = suggestion
+        ? `Did you mean "arena ${maybeDef.name} ${suggestion}"?`
+        : `Run: arena help ${maybeDef.name}`;
+      process.stderr.write(
+        `Unknown subcommand: ${maybeDef.name} ${badSubcommand}. ${hint}\n`,
+      );
+      process.exit(1);
+    }
+  }
+
   const def = commandMap.get(command);
   let element: React.JSX.Element;
   try {

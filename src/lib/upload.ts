@@ -1,6 +1,7 @@
 import { readFileSync } from "fs";
 import { basename } from "path";
 import { ArenaError, client, getData } from "../api/client";
+import { fetchWithTimeout } from "./network";
 
 const EXT_TO_MIME: Record<string, string> = {
   jpg: "image/jpeg",
@@ -76,7 +77,7 @@ export async function uploadLocalFile(filePath: string): Promise<{
   if (!uploadTarget)
     throw new Error("Upload target was not returned by Are.na");
 
-  const putResponse = await fetch(uploadTarget.upload_url, {
+  const putResponse = await fetchWithTimeout(uploadTarget.upload_url, {
     method: "PUT",
     headers: { "Content-Type": uploadTarget.content_type },
     body: fileBuffer,

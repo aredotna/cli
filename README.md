@@ -66,6 +66,34 @@ arena channel contents --help
 | `--yes`   | Bypass destructive confirmation prompts         |
 | `--help`  | Show help                                       |
 
+## Output & Errors
+
+- `stdout`:
+  - Successful command output.
+  - `--json` returns JSON objects; `import --json` returns NDJSON progress events.
+  - `--quiet` only changes JSON formatting (compact, single-line); it does **not** change response fields.
+- `stderr`:
+  - Human-readable failures in non-interactive mode.
+  - Structured JSON errors in `--json` mode.
+- JSON error shape:
+  - `{"error": string, "code": number | null, "type": string, "hint"?: string}`
+  - Common `type` values include: `unknown_command`, `unknown_subcommand`, `json_not_supported`, API-derived types like `not_found`.
+- Exit codes:
+  - `0` success
+  - `1` client/usage errors and unknown command/subcommand
+  - `2` unauthorized (`401`)
+  - `3` not found (`404`)
+  - `4` validation/bad request (`400`, `422`)
+  - `5` rate limited (`429`)
+  - `6` forbidden (`403`)
+
+### Non-Interactive Behavior
+
+- Interactive session mode only starts when **both** `stdin` and `stdout` are TTYs.
+- In non-interactive contexts (pipes/CI), output is deterministic and unknown commands fail fast with non-zero exits.
+- `batch` is JSON-only; use `--json`.
+- For stdin-driven automation (for example piping content into `add`), use `--json`.
+
 ## Command Reference
 
 Examples are shown first, then options.
@@ -337,7 +365,7 @@ arena add my-channel "Hello world"
 arena add my-channel "Hello" --title "Greeting" --description "Pinned note"
 arena add my-channel https://example.com --alt-text "Cover image" --insert-at 1
 arena add my-channel https://example.com --original-source-url https://source.com --original-source-title "Original"
-echo "piped text" | arena add my-channel
+echo "piped text" | arena --json add my-channel
 ```
 
 Options:
@@ -369,6 +397,8 @@ Options:
 #### `batch`
 
 Create many blocks asynchronously.
+
+`batch` is available in `--json` mode.
 
 Examples:
 

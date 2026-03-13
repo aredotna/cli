@@ -13,6 +13,7 @@ import {
   type ImportSummary,
 } from "../lib/import";
 import { Spinner } from "../components/Spinner";
+import { cancellationSignal } from "../lib/network";
 
 export interface ImportCommandOptions {
   channel: string;
@@ -354,6 +355,7 @@ export function ImportCommand({
           uploadConcurrency,
           pollIntervalMs,
           onEvent,
+          signal: cancellationSignal(),
         };
 
         const result = await executeImport(runOptions);
@@ -599,6 +601,7 @@ export async function runImportJsonStream(
     uploadConcurrency: options.uploadConcurrency,
     pollIntervalMs: options.pollIntervalMs,
     onEvent: write,
+    signal: cancellationSignal(),
   });
 
   return importExitCode(summary);

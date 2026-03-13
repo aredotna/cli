@@ -38,22 +38,13 @@ function assertNonProductionApiBase(): void {
 
 assertNonProductionApiBase();
 
-function quietResult(result: unknown): unknown {
-  if (!result || typeof result !== "object") return result;
-  if (Array.isArray(result)) return result.map(quietResult);
-  const obj = result as Record<string, unknown>;
-  if ("id" in obj) return { id: obj.id };
-  if ("slug" in obj) return { slug: obj.slug };
-  return result;
-}
-
 async function json(...rawArgs: string[]): Promise<unknown> {
   const { args, flags } = parseArgs(rawArgs);
   const [command, ...rest] = args;
   const def = commandMap.get(command!);
   if (!def?.json) throw new Error(`Unknown command: ${command}`);
   const result = await def.json(rest, flags);
-  return flags.quiet ? quietResult(result) : result;
+  return result;
 }
 
 async function sleep(ms: number): Promise<void> {
@@ -665,11 +656,11 @@ describe("aliases", () => {
 // ── Quiet mode ──
 
 describe("quiet mode", () => {
-  test("--quiet reduces output to just id", async () => {
+  test("--quiet preserves schema shape", async () => {
     const data = (await json("whoami", "--quiet")) as Record<string, unknown>;
     assert.ok("id" in data);
-    assert.ok(!("name" in data));
-    assert.ok(!("slug" in data));
+    assert.ok("name" in data);
+    assert.ok("slug" in data);
   });
 
   test("--quiet passes through objects without id or slug", async () => {

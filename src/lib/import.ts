@@ -1,6 +1,6 @@
 import { readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { client, getData } from "../api/client";
+import { ArenaError, client, getData } from "../api/client";
 import { uploadLocalFile } from "./upload";
 
 export interface ImportFile {
@@ -106,6 +106,12 @@ interface ImportBatch {
   status?: BatchStatus;
 }
 
+const MAX_UPLOAD_ATTEMPTS = 3;
+const MAX_BATCH_SUBMIT_ATTEMPTS = 3;
+const MAX_BATCH_STATUS_ATTEMPTS = 4;
+const MAX_STATUS_FAILURE_STREAK = 5;
+const RETRY_BASE_DELAY_MS = 300;
+
 export interface ImportAdapter {
   uploadFile: (file: ImportFile) => Promise<{ s3Url: string }>;
   submitBatch: (
@@ -128,6 +134,7 @@ export interface ExecuteImportOptions {
   adapter?: ImportAdapter;
   discover?: (directory: string, recursive: boolean) => Promise<ImportFile[]>;
   onEvent?: (event: ImportEvent) => void | Promise<void>;
+  signal?: AbortSignal;
 }
 
 export function importExitCode(summary: ImportSummary): number {
@@ -219,6 +226,13 @@ async function emit(
   await onEvent(event);
 }
 
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  const reason = signal.reason;
+  if (reason instanceof Error) throw reason;
+  throw new Error("Operation cancelled by user");
+}
+
 function terminal(status: BatchStatus["status"]): boolean {
   return status === "completed" || status === "failed";
 }
@@ -281,6 +295,47 @@ function mapBatchFailures(batches: ImportBatch[]): BatchFailure[] {
   return failures;
 }
 
+function isTransientError(err: unknown): boolean {
+  if (err instanceof ArenaError) {
+    return err.status >= 500 || err.status === 429;
+  }
+  const message =
+    err instanceof Error ? err.message.toLowerCase() : String(err);
+  return (
+    message.includes("timed out") ||
+    message.includes("fetch failed") ||
+    message.includes("network") ||
+    message.includes("econnreset") ||
+    message.includes("socket")
+  );
+}
+
+async function retryWithBackoff<T>(options: {
+  attempts: number;
+  baseDelayMs: number;
+  sleep: (ms: number) => Promise<void>;
+  run: () => Promise<T>;
+  shouldRetry: (err: unknown) => boolean;
+}): Promise<T> {
+  const { attempts, baseDelayMs, sleep, run, shouldRetry } = options;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await run();
+    } catch (err: unknown) {
+      lastError = err;
+      if (attempt >= attempts || !shouldRetry(err)) {
+        throw err;
+      }
+      const waitMs = Math.min(baseDelayMs * 2 ** (attempt - 1), 5_000);
+      await sleep(waitMs);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
 async function runImportPipeline(options: {
   channel: string;
   directory: string;
@@ -292,6 +347,7 @@ async function runImportPipeline(options: {
   pollIntervalMs: number;
   adapter: ImportAdapter;
   onEvent?: (event: ImportEvent) => void | Promise<void>;
+  signal?: AbortSignal;
 }): Promise<ImportSummary> {
   const {
     channel,
@@ -304,7 +360,10 @@ async function runImportPipeline(options: {
     pollIntervalMs,
     adapter,
     onEvent,
+    signal,
   } = options;
+
+  throwIfAborted(signal);
 
   await emit(onEvent, {
     type: "selection_completed",
@@ -325,6 +384,7 @@ async function runImportPipeline(options: {
 
   const workers = Array.from({ length: workerCount }, async () => {
     while (true) {
+      throwIfAborted(signal);
       const index = cursor;
       cursor += 1;
       if (index >= selectedFiles.length) return;
@@ -332,7 +392,13 @@ async function runImportPipeline(options: {
       const file = selectedFiles[index]!;
 
       try {
-        const uploaded = await adapter.uploadFile(file);
+        const uploaded = await retryWithBackoff({
+          attempts: MAX_UPLOAD_ATTEMPTS,
+          baseDelayMs: RETRY_BASE_DELAY_MS,
+          sleep: adapter.sleep,
+          run: () => adapter.uploadFile(file),
+          shouldRetry: isTransientError,
+        });
         uploadedByIndex[index] = { index, file, s3Url: uploaded.s3Url };
         successfulUploads += 1;
       } catch (err: unknown) {
@@ -376,11 +442,19 @@ async function runImportPipeline(options: {
   const batches: ImportBatch[] = [];
 
   for (let i = 0; i < chunks.length; i++) {
+    throwIfAborted(signal);
     const chunk = chunks[i]!;
-    const response = await adapter.submitBatch(
-      channel,
-      chunk.map((entry) => ({ value: entry.s3Url })),
-    );
+    const response = await retryWithBackoff({
+      attempts: MAX_BATCH_SUBMIT_ATTEMPTS,
+      baseDelayMs: RETRY_BASE_DELAY_MS,
+      sleep: adapter.sleep,
+      run: () =>
+        adapter.submitBatch(
+          channel,
+          chunk.map((entry) => ({ value: entry.s3Url })),
+        ),
+      shouldRetry: isTransientError,
+    });
 
     batches.push({
       batchId: response.batch_id,
@@ -397,11 +471,41 @@ async function runImportPipeline(options: {
   }
 
   const pending = new Set(batches.map((batch) => batch.batchId));
+  const statusFailureStreak = new Map<string, number>();
   while (pending.size > 0) {
+    throwIfAborted(signal);
     for (const batch of batches) {
       if (!pending.has(batch.batchId)) continue;
+      throwIfAborted(signal);
 
-      const status = await adapter.getBatchStatus(batch.batchId);
+      let status: BatchStatus;
+      try {
+        status = await retryWithBackoff({
+          attempts: MAX_BATCH_STATUS_ATTEMPTS,
+          baseDelayMs: RETRY_BASE_DELAY_MS,
+          sleep: adapter.sleep,
+          run: () => adapter.getBatchStatus(batch.batchId),
+          shouldRetry: isTransientError,
+        });
+        statusFailureStreak.delete(batch.batchId);
+      } catch (err: unknown) {
+        const streak = (statusFailureStreak.get(batch.batchId) ?? 0) + 1;
+        statusFailureStreak.set(batch.batchId, streak);
+        if (streak < MAX_STATUS_FAILURE_STREAK) {
+          continue;
+        }
+
+        const error = err instanceof Error ? err.message : String(err);
+        status = {
+          batch_id: batch.batchId,
+          status: "failed",
+          total: batch.entries.length,
+          successful_count: 0,
+          failed_count: batch.entries.length,
+          error: `Status polling failed repeatedly: ${error}`,
+        };
+      }
+
       batch.status = status;
 
       await emit(onEvent, {
@@ -428,6 +532,7 @@ async function runImportPipeline(options: {
     });
 
     if (pending.size > 0) {
+      throwIfAborted(signal);
       await adapter.sleep(pollIntervalMs);
     }
   }
@@ -468,7 +573,10 @@ export async function executeImport(
     discoveredCount,
     discover,
     onEvent,
+    signal,
   } = options;
+
+  throwIfAborted(signal);
 
   let files = selectedFiles;
   let totalDiscovered = discoveredCount;
@@ -482,6 +590,7 @@ export async function executeImport(
 
     const discoverFiles = discover ?? discoverImportFiles;
     files = await discoverFiles(directory, recursive);
+    throwIfAborted(signal);
     totalDiscovered = files.length;
 
     await emit(onEvent, {
@@ -502,6 +611,7 @@ export async function executeImport(
     pollIntervalMs: options.pollIntervalMs,
     adapter,
     onEvent,
+    signal,
   });
 
   await emit(onEvent, { type: "completed", summary });

@@ -26,6 +26,36 @@ test("parseArgs handles long, short, and -- separator", () => {
   assert.equal(parsed.flags.h, true);
 });
 
+test("parseArgs keeps command tokens after boolean globals", () => {
+  const helpFirst = parseArgs(["--help", "channel"]);
+  assert.deepEqual(helpFirst.args, ["channel"]);
+  assert.equal(helpFirst.flags.help, true);
+
+  const jsonFirst = parseArgs(["--json", "ping"]);
+  assert.deepEqual(jsonFirst.args, ["ping"]);
+  assert.equal(jsonFirst.flags.json, true);
+
+  const mixedOrder = parseArgs(["channel", "--help"]);
+  assert.deepEqual(mixedOrder.args, ["channel"]);
+  assert.equal(mixedOrder.flags.help, true);
+});
+
+test("parseArgs preserves value semantics for value flags", () => {
+  const parsed = parseArgs([
+    "channel",
+    "contents",
+    "worldmaking",
+    "--sort",
+    "updated_at_desc",
+    "--page",
+    "2",
+  ]);
+
+  assert.deepEqual(parsed.args, ["channel", "contents", "worldmaking"]);
+  assert.equal(parsed.flags.sort, "updated_at_desc");
+  assert.equal(parsed.flags.page, "2");
+});
+
 test("requireArg enforces required values", () => {
   assert.equal(requireArg(["abc"], 0, "slug"), "abc");
   assert.throws(
