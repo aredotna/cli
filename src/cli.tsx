@@ -5,7 +5,11 @@ import React, { useEffect } from "react";
 import { render, Box, Text, useApp } from "ink";
 import { SWRConfig } from "swr";
 import { parseArgs, type Flags } from "./lib/args";
-import { commandMap, groupedCommands } from "./lib/registry";
+import {
+  commandMap,
+  commandHelpDocs,
+  type CommandHelpDoc,
+} from "./lib/registry";
 import { exitCodeFromError, formatJsonError } from "./lib/exit-codes";
 import { CLI_PACKAGE_NAME, getCliVersion } from "./lib/version";
 import { confirmDestructiveIfNeeded } from "./lib/destructive-confirmation";
@@ -13,11 +17,9 @@ import { SessionMode } from "./commands/session";
 
 // ── Help ──
 
-function Help() {
+function TopLevelHelp() {
   const { exit } = useApp();
   useEffect(() => exit(), [exit]);
-
-  const groups = groupedCommands();
 
   return (
     <Box flexDirection="column">
@@ -31,73 +33,146 @@ function Help() {
 
       <Box flexDirection="column" marginBottom={1}>
         <Text dimColor>Usage</Text>
-        <Text> $ arena &lt;command&gt; [options]</Text>
+        <Text> arena &lt;command&gt; [flags]</Text>
+        <Text> arena help &lt;command&gt;</Text>
+        <Text> arena &lt;command&gt; --help</Text>
       </Box>
 
-      {groups.map(([group, cmds]) => (
-        <Box key={group} flexDirection="column" marginBottom={1}>
-          <Text dimColor>{group}</Text>
-          {cmds.flatMap((cmd) =>
-            cmd.help.map((h) => (
-              <Text key={h.usage}>
-                {" "}
-                {h.usage.padEnd(32)}
-                {h.description}
-              </Text>
-            )),
-          )}
-        </Box>
-      ))}
+      <Box flexDirection="column" marginBottom={1}>
+        <Text dimColor>Common Commands</Text>
+        <Text> login Authenticate your account</Text>
+        <Text> whoami Show current authenticated user</Text>
+        <Text> search Search across Are.na content</Text>
+        <Text> channel View/manage channels</Text>
+        <Text> add Add text/URLs to a channel</Text>
+        <Text> upload Upload local files</Text>
+        <Text> import Bulk import from a directory</Text>
+      </Box>
 
       <Box flexDirection="column" marginBottom={1}>
-        <Text dimColor>Global Options</Text>
-        <Text> --json Output as JSON (import streams NDJSON events)</Text>
+        <Text dimColor>Examples</Text>
+        <Text> arena login</Text>
+        <Text> arena search "brutalist architecture" --type Image</Text>
+        <Text> arena add my-channel "Hello world"</Text>
+        <Text> arena import my-channel --dir ./assets --recursive</Text>
+      </Box>
+
+      <Box flexDirection="column" marginBottom={1}>
+        <Text dimColor>Global Flags</Text>
+        <Text> --json Output JSON (import streams NDJSON events)</Text>
         <Text> --quiet Compact JSON output when supported</Text>
         <Text> --yes Bypass destructive confirmation prompts</Text>
         <Text> --version Show CLI version</Text>
         <Text> --help Show help</Text>
       </Box>
 
-      <Box flexDirection="column" marginBottom={1}>
-        <Text dimColor>Common Query Flags</Text>
-        <Text> --page &lt;n&gt;, --per &lt;n&gt; Pagination</Text>
-        <Text> --sort &lt;s&gt; Sort order</Text>
-        <Text> --type &lt;t&gt; Type filter</Text>
-        <Text>
-          {" "}
-          --filter &lt;f&gt; Connection filter (ALL, OWN, EXCLUDE_OWN)
-        </Text>
-      </Box>
-
-      <Box flexDirection="column" marginBottom={1}>
-        <Text dimColor>Command-Specific Flags</Text>
-        <Text> channel create/update: --title --description --visibility</Text>
-        <Text> block update: --title --description --content --alt-text</Text>
-        <Text> add/batch: --title --description</Text>
-        <Text> upload: --channel --title --description</Text>
-        <Text> connect: --type --position</Text>
-        <Text> connection move: --movement --position</Text>
-        <Text> import: --dir --recursive --interactive --batch-size</Text>
-        <Text> import: --upload-concurrency --poll-interval</Text>
-        <Text>
-          search: --scope --ext --after --seed --user-id --group-id --channel-id
-        </Text>
-      </Box>
-
       <Box flexDirection="column">
-        <Text dimColor>Examples</Text>
-        <Text> $ arena channel worldmaking</Text>
-        <Text> $ arena search "brutalist architecture" --type Image</Text>
-        <Text> $ arena add my-channel "Hello world"</Text>
-        <Text> $ echo "piped text" | arena add my-channel --json</Text>
-        <Text> $ arena block 12345 --json</Text>
-        <Text> $ arena channel create "My Research" --visibility private</Text>
-        <Text> $ arena user damon-zucconi</Text>
-        <Text> $ arena upload photo.jpg --channel my-channel</Text>
-        <Text> $ arena import my-channel --dir ./assets --recursive</Text>
+        <Text dimColor>Learn More</Text>
+        <Text>README: https://github.com/aredotna/cli#readme</Text>
+        <Text>Issues: https://github.com/aredotna/cli/issues</Text>
       </Box>
     </Box>
   );
+}
+
+function section(title: string, lines: string[]) {
+  if (lines.length === 0) return null;
+  return (
+    <Box flexDirection="column" marginBottom={1}>
+      <Text dimColor>{title}</Text>
+      {lines.map((line) => (
+        <Text key={`${title}-${line}`}>{line}</Text>
+      ))}
+    </Box>
+  );
+}
+
+function renderCommandHelp(doc: CommandHelpDoc, commandPath: string) {
+  const usageLines = doc.usage;
+  const optionLines =
+    doc.options?.map((opt) => `${opt.flag.padEnd(34)}${opt.description}`) ?? [];
+  const exampleLines = doc.examples;
+  const noteLines = doc.notes ?? [];
+  const seeAlsoLines = doc.seeAlso?.map((entry) => `arena help ${entry}`) ?? [];
+
+  return (
+    <Box flexDirection="column">
+      <Box marginBottom={1}>
+        <Text bold color="green">
+          **
+        </Text>
+        <Text bold> Are.na</Text>
+        <Text dimColor> v{getCliVersion()}</Text>
+      </Box>
+
+      <Box flexDirection="column" marginBottom={1}>
+        <Text dimColor>SUMMARY</Text>
+        <Text>{doc.summary}</Text>
+      </Box>
+
+      {section("USAGE", usageLines)}
+      {section("OPTIONS", optionLines)}
+      {section("EXAMPLES", exampleLines)}
+      {section("NOTES", noteLines)}
+      {section("SEE ALSO", seeAlsoLines)}
+
+      <Box flexDirection="column">
+        <Text dimColor>LEARN MORE</Text>
+        <Text>arena help {commandPath}</Text>
+        <Text>https://github.com/aredotna/cli#readme</Text>
+      </Box>
+    </Box>
+  );
+}
+
+function lookupHelp(
+  commandName?: string,
+  subcommandName?: string,
+): {
+  doc?: Omit<CommandHelpDoc, "subcommands">;
+  canonicalCommand?: string;
+} {
+  if (!commandName) return {};
+  const def = commandMap.get(commandName);
+  if (!def) return {};
+  const canonicalCommand = def.name;
+  const topDoc = commandHelpDocs[canonicalCommand];
+  if (!topDoc) return { canonicalCommand };
+  if (subcommandName && topDoc.subcommands?.[subcommandName]) {
+    return {
+      doc: topDoc.subcommands[subcommandName],
+      canonicalCommand,
+    };
+  }
+  const { subcommands: _subcommands, ...doc } = topDoc;
+  return { doc, canonicalCommand };
+}
+
+function CommandHelp({
+  commandName,
+  subcommandName,
+}: {
+  commandName?: string;
+  subcommandName?: string;
+}) {
+  const { exit } = useApp();
+  useEffect(() => exit(), [exit]);
+  const { doc, canonicalCommand } = lookupHelp(commandName, subcommandName);
+
+  if (!commandName || !doc || !canonicalCommand) {
+    return (
+      <Box flexDirection="column">
+        <Text color="red">Unknown command help target.</Text>
+        <Text>Try: arena --help</Text>
+      </Box>
+    );
+  }
+
+  const commandPath = subcommandName
+    ? `${canonicalCommand} ${subcommandName}`
+    : canonicalCommand;
+
+  return renderCommandHelp(doc, commandPath);
 }
 
 function RenderError({ message }: { message: string }) {
@@ -171,7 +246,7 @@ function routeCommand(
   const def = commandMap.get(command);
 
   if (!def) {
-    return <Help />;
+    return <TopLevelHelp />;
   }
 
   try {
@@ -229,10 +304,30 @@ if (flags.json && command) {
   await handleJson(command, rest, flags);
 } else if (!command && (flags.version || flags.v)) {
   process.stdout.write(`${CLI_PACKAGE_NAME} v${getCliVersion()}\n`);
-} else if (flags.help || flags.h) {
-  await runInk(<Help />, { fullscreen: false });
+} else if ((flags.help || flags.h) && command) {
+  const subcommandName = rest[0];
+  await runInk(
+    <CommandHelp commandName={command} subcommandName={subcommandName} />,
+    { fullscreen: false },
+  );
+} else if ((flags.help || flags.h) && !command) {
+  await runInk(<TopLevelHelp />, { fullscreen: false });
+} else if (command === "help") {
+  const targetCommand = rest[0];
+  const targetSubcommand = rest[1];
+  if (!targetCommand) {
+    await runInk(<TopLevelHelp />, { fullscreen: false });
+  } else {
+    await runInk(
+      <CommandHelp
+        commandName={targetCommand}
+        subcommandName={targetSubcommand}
+      />,
+      { fullscreen: false },
+    );
+  }
 } else if (!command) {
-  const element = process.stdin.isTTY ? <SessionMode /> : <Help />;
+  const element = process.stdin.isTTY ? <SessionMode /> : <TopLevelHelp />;
   await runInk(<App>{element}</App>, {
     fullscreen: Boolean(process.stdin.isTTY && process.stdout.isTTY),
   });
