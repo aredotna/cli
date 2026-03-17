@@ -1,5 +1,5 @@
 import type { User } from "../api/types";
-import { plural } from "../lib/format";
+import { formatTier, plural } from "../lib/format";
 import { EntityProfileScreen } from "./EntityProfileScreen";
 
 export function WhoamiScreen({ me, onBack }: { me: User; onBack: () => void }) {
@@ -8,6 +8,7 @@ export function WhoamiScreen({ me, onBack }: { me: User; onBack: () => void }) {
       name={me.name}
       slug={me.slug}
       statsLine={`${plural(me.counts.channels, "channel")} · ${me.counts.following.toLocaleString()} following · ${plural(me.counts.followers, "follower")}`}
+      metaLine={formatTier(me.tier)}
       browserUrl={`https://www.are.na/${me.slug}`}
       onBack={onBack}
     />

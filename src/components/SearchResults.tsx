@@ -1,4 +1,5 @@
-import { Box, Text } from "ink";
+import { Box, Text, useInput } from "ink";
+import { useState } from "react";
 import useSWR from "swr";
 import { ArenaError, client, getData } from "../api/client";
 import type {
@@ -16,7 +17,9 @@ import { accentColor, mutedColor } from "../lib/theme";
 import { BlockItem } from "./BlockItem";
 import { useSessionPaletteActive } from "./SessionPaletteContext";
 import { Panel, ScreenFrame } from "./ScreenChrome";
-import { ScreenEmpty, ScreenError, ScreenLoading } from "./ScreenStates";
+import { ScreenEmpty, ScreenLoading } from "./ScreenStates";
+
+const BILLING_URL = "https://www.are.na/billing";
 
 type SearchNavigateView =
   | { kind: "channel"; slug: string }
@@ -133,10 +136,18 @@ export function SearchResults({
 
   if (error) {
     const isPermission = error instanceof ArenaError && error.status === 403;
-    const message = isPermission
-      ? "Search requires Are.na Premium"
-      : error.message;
-    return <ScreenError message={message} />;
+
+    if (isPermission) {
+      return <SearchPremiumGate onBack={onBack} />;
+    }
+
+    return (
+      <ScreenFrame title="Search">
+        <Box paddingX={1}>
+          <Text color="red">✕ {error.message}</Text>
+        </Box>
+      </ScreenFrame>
+    );
   }
 
   if (items.length === 0) {
@@ -186,6 +197,31 @@ export function SearchResults({
           })}
         </Box>
       </Panel>
+    </ScreenFrame>
+  );
+}
+
+function SearchPremiumGate({ onBack }: { onBack: () => void }) {
+  const paletteActive = useSessionPaletteActive();
+  const [opened, setOpened] = useState(false);
+
+  useInput((input, key) => {
+    if (paletteActive) return;
+    if (input === "q" || key.escape) return onBack();
+    if (input === "o" && !opened) {
+      openUrl(BILLING_URL);
+      setOpened(true);
+    }
+  });
+
+  return (
+    <ScreenFrame title="Search">
+      <Box flexDirection="column" paddingX={1}>
+        <Text color="red">Search requires an Are.na Premium subscription</Text>
+        <Text dimColor>
+          {opened ? `Opened ${BILLING_URL}` : "Press o to open billing page"}
+        </Text>
+      </Box>
     </ScreenFrame>
   );
 }

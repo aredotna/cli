@@ -34,6 +34,7 @@ export type ConnectionSort = Schemas["ConnectionSort"];
 export type ChannelContentSort = Schemas["ChannelContentSort"];
 export type ContentSort = Schemas["ContentSort"];
 export type ConnectionFilter = Schemas["ConnectionFilter"];
+export type UserTier = Schemas["UserTier"];
 
 export type PresignedFile = Schemas["PresignedFile"];
 export type PaginationMeta = Schemas["PaginationMeta"];

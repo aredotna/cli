@@ -13,6 +13,9 @@ import { BlockItem } from "../components/BlockItem";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 import { plural } from "../lib/format";
+import { openUrl } from "../lib/open";
+
+const BILLING_URL = "https://www.are.na/billing";
 
 interface Props {
   query: string;
@@ -69,11 +72,23 @@ export function SearchCommand({
   if (loading) return <Spinner label={`Searching "${query}"`} />;
 
   if (error) {
+    const isPremiumError = error.includes("Forbidden");
+
+    if (isPremiumError) {
+      openUrl(BILLING_URL);
+    }
+
     return (
       <Box flexDirection="column">
         <Text color="red">✕ {error}</Text>
-        {error.includes("Forbidden") && (
-          <Text dimColor> Search requires an Are.na Premium subscription</Text>
+        {isPremiumError && (
+          <>
+            <Text dimColor>
+              {" "}
+              Search requires an Are.na Premium subscription
+            </Text>
+            <Text dimColor> Opening {BILLING_URL}</Text>
+          </>
         )}
       </Box>
     );
