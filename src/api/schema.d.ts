@@ -986,6 +986,10 @@ export interface components {
       updated_at: string;
       /** @description User biography with markdown, HTML, and plain text renderings */
       bio?: components["schemas"]["MarkdownContent"] | null;
+      /** @description Denotes plan or other distinction */
+      badge: components["schemas"]["UserBadge"] | null;
+      /** @description User's subscription tier */
+      tier: components["schemas"]["UserTier"];
       counts: components["schemas"]["UserCounts"];
       /** @description HATEOAS links for navigation */
       _links: components["schemas"]["Links"];
@@ -1043,6 +1047,15 @@ export interface components {
        */
       users: number;
     };
+    /**
+     * @description Denotes plan or other distinction:
+     *     - `staff`: Are.na staff member
+     *     - `investor`: Investor
+     *     - `supporter`: Supporter subscriber
+     *     - `premium`: Premium subscriber
+     * @enum {string}
+     */
+    UserBadge: "staff" | "investor" | "supporter" | "premium";
     /**
      * @description User subscription tier:
      *     - `guest`: Unauthenticated user

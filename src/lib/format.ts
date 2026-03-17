@@ -1,4 +1,4 @@
-import type { Followable } from "../api/types";
+import type { Followable, UserTier } from "../api/types";
 
 export function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -64,6 +64,21 @@ export function formatFollowable(item: Followable): string {
     case "Group":
       return `${item.name} [group]`;
   }
+}
+
+const TIER_LABELS: Record<UserTier, string> = {
+  premium: "Premium",
+  supporter: "Supporter",
+  free: "Free",
+  guest: "Guest",
+};
+
+export function formatTier(tier: UserTier): string {
+  return TIER_LABELS[tier] ?? tier;
+}
+
+export function isPremium(tier: UserTier): boolean {
+  return tier === "premium" || tier === "supporter";
 }
 
 export function formatFileSize(bytes?: number | null): string | null {
