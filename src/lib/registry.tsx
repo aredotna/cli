@@ -578,11 +578,11 @@ export const commands: CommandDefinition[] = [
       },
     ],
     render(args, flags) {
-      const value = requireArg([args.slice(1).join(" ")], 0, "value");
+      const argValue = args.slice(1).join(" ").trim() || undefined;
       return (
         <AddCommand
           channel={requireArg(args, 0, "channel")}
-          value={value}
+          value={argValue}
           title={flag(flags, "title")}
           description={flag(flags, "description")}
           altText={flag(flags, "alt-text")}

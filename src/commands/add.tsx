@@ -1,11 +1,12 @@
 import { Box, Text } from "ink";
 import { client, getData } from "../api/client";
+import { readStdin } from "../lib/args";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 
 interface Props {
   channel: string;
-  value: string;
+  value?: string;
   title?: string;
   description?: string;
   altText?: string;
@@ -16,7 +17,7 @@ interface Props {
 
 export function AddCommand({
   channel,
-  value,
+  value: valueProp,
   title,
   description,
   altText,
@@ -25,6 +26,9 @@ export function AddCommand({
   insertAt,
 }: Props) {
   const { data, error, loading } = useCommand(async () => {
+    const resolvedValue = valueProp ?? (await readStdin());
+    if (!resolvedValue) throw new Error("Missing required argument: value");
+
     const ch = await getData(
       client.GET("/v3/channels/{id}", {
         params: { path: { id: channel } },
@@ -33,7 +37,7 @@ export function AddCommand({
     const block = await getData(
       client.POST("/v3/blocks", {
         body: {
-          value,
+          value: resolvedValue,
           channel_ids: [ch.id],
           title,
           description,

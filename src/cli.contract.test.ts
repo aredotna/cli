@@ -7,7 +7,7 @@ import { dirname, resolve } from "node:path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, "..");
 
-function runCli(args: string[]) {
+function runCli(args: string[], options?: { input?: string }) {
   return spawnSync(
     process.execPath,
     ["--import", "tsx", "src/cli.tsx", ...args],
@@ -15,6 +15,7 @@ function runCli(args: string[]) {
       cwd: projectRoot,
       encoding: "utf8",
       env: process.env,
+      input: options?.input,
     },
   );
 }
@@ -69,4 +70,13 @@ test("--quiet keeps schema while compacting JSON", () => {
   assert.deepEqual(quietPayload, prettyPayload);
   assert.ok(!quiet.stdout.includes("\n  "), "expected compact JSON output");
   assert.ok(pretty.stdout.includes("\n  "), "expected pretty JSON output");
+});
+
+test("add command reads value from piped stdin", () => {
+  const result = runCli(["add", "some-channel"], { input: "hello from stdin" });
+  const output = result.stdout + result.stderr;
+  assert.ok(
+    !output.includes("Missing required argument: value"),
+    `expected stdin to supply the value, got: ${output}`,
+  );
 });
