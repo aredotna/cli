@@ -1,4 +1,4 @@
-# Are.na CLI
+# @aredotna/cli
 
 A command-line interface for [Are.na](https://www.are.na).
 
