@@ -154,6 +154,9 @@ export interface paths {
      *
      *     You can connect the block to multiple channels at once (up to 20).
      *
+     *     Specify target channels using either `channels` (preferred) or `channel_ids` (legacy), but not both.
+     *     The `channels` form allows per-channel position and connection metadata.
+     *
      *     **Authentication required.**
      */
     post: operations["createBlock"];
@@ -393,6 +396,9 @@ export interface paths {
      * @description Connects a block or channel to one or more channels.
      *     Returns the created connection(s).
      *
+     *     Specify target channels using either `channels` (preferred) or `channel_ids` (legacy), but not both.
+     *     The `channels` form allows per-channel position and connection metadata.
+     *
      *     **Authentication required.**
      */
     post: operations["createConnection"];
@@ -418,7 +424,14 @@ export interface paths {
      *     are returned as part of channel contents.
      */
     get: operations["getConnection"];
-    put?: never;
+    /**
+     * Update a connection
+     * @description Updates a connection's metadata. Uses merge semantics: new keys are added,
+     *     existing keys are updated, keys set to null are removed.
+     *
+     *     **Authentication required.**
+     */
+    put: operations["updateConnection"];
     post?: never;
     /**
      * Delete a connection
@@ -615,6 +628,28 @@ export interface paths {
      *     Can be filtered by type to return only specific followable types.
      */
     get: operations["getUserFollowing"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v3/users/{id}/groups": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get user groups
+     * @description Returns paginated list of groups the user belongs to (as owner or member).
+     *     When authenticated as the target user, includes private groups.
+     *     Otherwise only public groups are returned.
+     */
+    get: operations["getUserGroups"];
     put?: never;
     post?: never;
     delete?: never;
@@ -894,6 +929,28 @@ export interface components {
        */
       initials: string;
     };
+    /**
+     * @description Arbitrary key-value pairs stored on an entity.
+     *     Keys are alphanumeric/underscore, max 40 characters.
+     *     Values are scalars (string, number, boolean). Max 50 keys, 32KB total.
+     * @example {
+     *       "status": "reviewed",
+     *       "score": 0.95,
+     *       "featured": true
+     *     }
+     */
+    Metadata: {
+      [key: string]: string | number | boolean;
+    };
+    /**
+     * @description Arbitrary key-value pairs to set on an entity. Uses merge semantics:
+     *     new keys are added, existing keys are updated, keys set to null are removed.
+     *     Keys must be alphanumeric/underscore, max 40 characters.
+     *     Values must be scalars (string, number, boolean) or null (to delete). Max 50 keys, 32KB total.
+     */
+    MetadataInput: {
+      [key: string]: string | number | boolean | null;
+    };
     /** @description Embedded connection representation used when connection is nested in other resources */
     EmbeddedConnection: {
       /**
@@ -902,7 +959,7 @@ export interface components {
        */
       id: number;
       /**
-       * @description Position of the item within the channel
+       * @description Position of the item within the channel (1-indexed)
        * @example 1
        */
       position: number;
@@ -911,6 +968,8 @@ export interface components {
        * @example false
        */
       pinned: boolean;
+      /** @description Custom key-value metadata */
+      metadata?: components["schemas"]["Metadata"] | null;
       /**
        * Format: date-time
        * @description When the item was connected
@@ -1263,6 +1322,23 @@ export interface components {
       | "updated_at_asc"
       | "updated_at_desc";
     /**
+     * @description Sort order for groups.
+     *     - `name_asc`: Alphabetical (default)
+     *     - `name_desc`: Reverse alphabetical
+     *     - `created_at_desc`: Newest first
+     *     - `created_at_asc`: Oldest first
+     *     - `updated_at_desc`: Recently updated first
+     *     - `updated_at_asc`: Least recently updated first
+     * @enum {string}
+     */
+    GroupSort:
+      | "name_asc"
+      | "name_desc"
+      | "created_at_asc"
+      | "created_at_desc"
+      | "updated_at_asc"
+      | "updated_at_desc";
+    /**
      * @description Limit search to a specific context.
      *     - `all`: Everything accessible to the user (default)
      *     - `my`: Only the current user's own content
@@ -1326,6 +1402,15 @@ export interface components {
      *     ]
      */
     ChannelIds: (number | string)[];
+    /** @description A channel to connect to, with optional position and connection metadata. */
+    ConnectTo: {
+      /** @description Channel ID or slug. */
+      id: number | string;
+      /** @description Position to insert at within this channel (1-indexed). */
+      position?: number;
+      /** @description Connection metadata for this specific connection. */
+      metadata?: components["schemas"]["Metadata"];
+    };
     /** @description A presigned S3 upload URL for a single file */
     PresignedFile: {
       /**
@@ -1392,6 +1477,8 @@ export interface components {
        * @example Beige flags
        */
       alt_text?: string;
+      /** @description Custom key-value metadata to set on the new block. */
+      metadata?: components["schemas"]["Metadata"];
     };
     /** @description Response returned when a batch is accepted for processing */
     BatchResponse: {
@@ -1511,6 +1598,8 @@ export interface components {
        */
       updated_at: string;
       user: components["schemas"]["EmbeddedUser"];
+      /** @description Custom key-value metadata */
+      metadata?: components["schemas"]["Metadata"] | null;
       /** @description Source URL and metadata (if block was created from a URL) */
       source?: components["schemas"]["BlockSource"] | null;
       /** @description HATEOAS links for navigation */
@@ -1920,6 +2009,8 @@ export interface components {
        * @example 2023-01-15T14:45:00Z
        */
       updated_at: string;
+      /** @description Custom key-value metadata */
+      metadata?: components["schemas"]["Metadata"] | null;
       owner: components["schemas"]["ChannelOwner"];
       counts: components["schemas"]["ChannelCounts"];
       /**
@@ -2083,6 +2174,14 @@ export interface components {
     /** @description Paginated list of channels with total count */
     ChannelListResponse: components["schemas"]["ChannelList"] &
       components["schemas"]["PaginatedResponse"];
+    /** @description Data payload containing an array of groups */
+    GroupList: {
+      /** @description Array of groups */
+      data: components["schemas"]["Group"][];
+    };
+    /** @description Paginated list of groups with total count */
+    GroupListResponse: components["schemas"]["GroupList"] &
+      components["schemas"]["PaginatedResponse"];
     /** @description Paginated list of connectable content (blocks and channels) */
     ConnectableListResponse: components["schemas"]["ConnectableList"] &
       components["schemas"]["PaginatedResponse"];
@@ -2241,6 +2340,11 @@ export interface components {
      * @example created_at_desc
      */
     ContentSortParam: components["schemas"]["ContentSort"];
+    /**
+     * @description Sort groups by name or date.
+     * @example name_asc
+     */
+    GroupSortParam: components["schemas"]["GroupSort"];
     /**
      * @description Sort channel contents. Use `position` for the owner's manual
      *     arrangement, or sort by date. Defaults to `position_desc`.
@@ -2483,15 +2587,22 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["BlockInput"] & {
-          channel_ids: components["schemas"]["ChannelIds"];
-          /**
-           * @description Position to insert the block in the channel.
-           *     Only valid when connecting to a single channel.
-           * @example 0
-           */
-          insert_at?: number;
-        };
+        "application/json": components["schemas"]["BlockInput"] &
+          (
+            | {
+                channel_ids: components["schemas"]["ChannelIds"];
+                /**
+                 * @description Position to insert the block in the channel (1-indexed).
+                 *     Only valid when connecting to a single channel.
+                 * @example 1
+                 */
+                insert_at?: number;
+              }
+            | {
+                /** @description Target channels with optional per-channel position and connection metadata. */
+                channels: components["schemas"]["ConnectTo"][];
+              }
+          );
       };
     };
     responses: {
@@ -2648,6 +2759,11 @@ export interface operations {
            * @example A descriptive alt text for accessibility
            */
           alt_text?: string;
+          /**
+           * @description Custom key-value metadata. Uses merge semantics: new keys are added,
+           *     existing keys are updated, keys set to null are removed.
+           */
+          metadata?: components["schemas"]["MetadataInput"];
         };
       };
     };
@@ -2852,6 +2968,8 @@ export interface operations {
            * @example 12345
            */
           group_id?: number;
+          /** @description Custom key-value metadata to set on the new channel. */
+          metadata?: components["schemas"]["Metadata"];
         };
       };
     };
@@ -2923,6 +3041,11 @@ export interface operations {
            * @example Updated description
            */
           description?: string | null;
+          /**
+           * @description Custom key-value metadata. Uses merge semantics: new keys are added,
+           *     existing keys are updated, keys set to null are removed.
+           */
+          metadata?: components["schemas"]["MetadataInput"];
         };
       };
     };
@@ -2983,13 +3106,20 @@ export interface operations {
           connectable_id: number;
           /** @description Type of the connectable. */
           connectable_type: components["schemas"]["ConnectableType"];
-          channel_ids: components["schemas"]["ChannelIds"];
-          /**
-           * @description Position to insert at within the channel. Only valid
-           *     when connecting to a single channel.
-           */
-          position?: number;
-        };
+        } & (
+          | {
+              channel_ids: components["schemas"]["ChannelIds"];
+              /**
+               * @description Position to insert at within the channel (1-indexed).
+               *     Only valid when connecting to a single channel.
+               */
+              position?: number;
+            }
+          | {
+              /** @description Target channels with optional per-channel position and connection metadata. */
+              channels: components["schemas"]["ConnectTo"][];
+            }
+        );
       };
     };
     responses: {
@@ -3039,6 +3169,45 @@ export interface operations {
       429: components["responses"]["RateLimitResponse"];
     };
   };
+  updateConnection: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource ID */
+        id: components["parameters"]["IdParam"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /**
+           * @description Custom key-value metadata. Uses merge semantics: new keys are added,
+           *     existing keys are updated, keys set to null are removed.
+           */
+          metadata?: components["schemas"]["MetadataInput"];
+        };
+      };
+    };
+    responses: {
+      /** @description Connection updated successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Connection"];
+        };
+      };
+      400: components["responses"]["ValidationErrorResponse"];
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      404: components["responses"]["NotFoundResponse"];
+      422: components["responses"]["UnprocessableEntityResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
   deleteConnection: {
     parameters: {
       query?: never;
@@ -3079,7 +3248,7 @@ export interface operations {
         "application/json": {
           /** @default insert_at */
           movement?: components["schemas"]["Movement"];
-          /** @description Target position (required when movement is insert_at) */
+          /** @description Target position, 1-indexed (required when movement is insert_at) */
           position?: number;
         };
       };
@@ -3417,6 +3586,49 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["FollowableListResponse"];
+        };
+      };
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      404: components["responses"]["NotFoundResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  getUserGroups: {
+    parameters: {
+      query?: {
+        /**
+         * @description Page number for pagination
+         * @example 1
+         */
+        page?: components["parameters"]["PageParam"];
+        /**
+         * @description Number of items per page (max 100)
+         * @example 24
+         */
+        per?: components["parameters"]["PerParam"];
+        /**
+         * @description Sort groups by name or date.
+         * @example name_asc
+         */
+        sort?: components["parameters"]["GroupSortParam"];
+      };
+      header?: never;
+      path: {
+        /** @description Resource ID or slug */
+        id: components["parameters"]["SlugOrIdParam"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description List of groups the user belongs to */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GroupListResponse"];
         };
       };
       401: components["responses"]["UnauthorizedResponse"];

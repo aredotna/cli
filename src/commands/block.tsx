@@ -1,6 +1,6 @@
 import { Box, Text } from "ink";
 import { client, getData } from "../api/client";
-import type { ConnectionSort } from "../api/types";
+import type { ConnectionSort, MetadataInput } from "../api/types";
 import { BlockContent } from "../components/BlockContent";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
@@ -28,18 +28,20 @@ export function BlockUpdateCommand({
   description,
   content,
   altText,
+  metadata,
 }: {
   id: number;
   title?: string;
   description?: string;
   content?: string;
   altText?: string;
+  metadata?: MetadataInput;
 }) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.PUT("/v3/blocks/{id}", {
         params: { path: { id } },
-        body: { title, description, content, alt_text: altText },
+        body: { title, description, content, alt_text: altText, metadata },
       }),
     ),
   );

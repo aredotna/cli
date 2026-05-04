@@ -1,5 +1,6 @@
 import { Box, Text } from "ink";
 import { client, getData } from "../api/client";
+import type { Metadata } from "../api/types";
 import { readStdin } from "../lib/args";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
@@ -13,6 +14,8 @@ interface Props {
   originalSourceUrl?: string;
   originalSourceTitle?: string;
   insertAt?: number;
+  metadata?: Metadata;
+  connectionMetadata?: Metadata;
 }
 
 export function AddCommand({
@@ -24,6 +27,8 @@ export function AddCommand({
   originalSourceUrl,
   originalSourceTitle,
   insertAt,
+  metadata,
+  connectionMetadata,
 }: Props) {
   const { data, error, loading } = useCommand(async () => {
     const resolvedValue = valueProp ?? (await readStdin());
@@ -38,13 +43,19 @@ export function AddCommand({
       client.POST("/v3/blocks", {
         body: {
           value: resolvedValue,
-          channel_ids: [ch.id],
+          channels: [
+            {
+              id: ch.id,
+              position: insertAt,
+              metadata: connectionMetadata,
+            },
+          ],
           title,
           description,
           alt_text: altText,
           original_source_url: originalSourceUrl,
           original_source_title: originalSourceTitle,
-          insert_at: insertAt,
+          metadata,
         },
       }),
     );

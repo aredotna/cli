@@ -1,6 +1,11 @@
 import { Box, Text, useApp } from "ink";
 import { client, getData } from "../api/client";
-import type { ChannelContentSort, Visibility } from "../api/types";
+import type {
+  ChannelContentSort,
+  Metadata,
+  MetadataInput,
+  Visibility,
+} from "../api/types";
 import { BlockItem } from "../components/BlockItem";
 import { ChannelBlockViewer } from "../components/ChannelBlockViewer";
 import {
@@ -11,6 +16,7 @@ import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 import { useStackNavigator } from "../hooks/useStackNavigator";
 import { plural, timeAgo } from "../lib/format";
+import { formatMetadata } from "../lib/metadata";
 import { clearTerminalViewport } from "../lib/terminalViewport";
 import { visibilityLabel } from "../lib/theme";
 
@@ -147,6 +153,9 @@ function StaticChannelView({
           {plural(channel.counts.contents, "block")}
         </Text>
         <Text dimColor>Updated {timeAgo(channel.updated_at)}</Text>
+        {channel.metadata && (
+          <Text dimColor>Metadata {formatMetadata(channel.metadata)}</Text>
+        )}
       </Box>
 
       <Box flexDirection="column">
@@ -228,16 +237,18 @@ export function ChannelCreateCommand({
   visibility,
   description,
   groupId,
+  metadata,
 }: {
   title: string;
   visibility?: Visibility;
   description?: string;
   groupId?: number;
+  metadata?: Metadata;
 }) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.POST("/v3/channels", {
-        body: { title, visibility, description, group_id: groupId },
+        body: { title, visibility, description, group_id: groupId, metadata },
       }),
     ),
   );
@@ -264,17 +275,19 @@ export function ChannelUpdateCommand({
   title,
   visibility,
   description,
+  metadata,
 }: {
   slug: string;
   title?: string;
   visibility?: Visibility;
   description?: string;
+  metadata?: MetadataInput;
 }) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.PUT("/v3/channels/{id}", {
         params: { path: { id: slug } },
-        body: { title, visibility, description },
+        body: { title, visibility, description, metadata },
       }),
     ),
   );
