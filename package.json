@@ -38,6 +38,9 @@
     "swr": "^2.4.1",
     "terminal-image": "^4.2.0"
   },
+  "overrides": {
+    "simple-xml-to-json": "1.2.3"
+  },
   "devDependencies": {
     "@types/node": "^25.3.3",
     "@types/react": "^19.0.0",
