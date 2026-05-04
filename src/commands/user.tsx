@@ -5,6 +5,7 @@ import type {
   ContentSort,
   ContentTypeFilter,
   FollowableType,
+  GroupSort,
 } from "../api/types";
 import { BlockItem } from "../components/BlockItem";
 import { Spinner } from "../components/Spinner";
@@ -168,6 +169,46 @@ export function UserFollowingCommand({
       <Text dimColor>
         {"\n"}Page {data.meta.current_page}/{data.meta.total_pages} ·{" "}
         {plural(data.meta.total_count, "item")}
+      </Text>
+    </Box>
+  );
+}
+
+export function UserGroupsCommand({
+  slug,
+  page = 1,
+  per,
+  sort,
+}: {
+  slug: string;
+  page?: number;
+  per?: number;
+  sort?: GroupSort;
+}) {
+  const { data, error, loading } = useCommand(() =>
+    getData(
+      client.GET("/v3/users/{id}/groups", {
+        params: { path: { id: slug }, query: { page, per, sort } },
+      }),
+    ),
+  );
+
+  if (loading) return <Spinner label="Loading groups" />;
+  if (error) return <Text color="red">✕ {error}</Text>;
+  if (!data) return null;
+
+  if (data.data.length === 0) return <Text dimColor>No groups</Text>;
+
+  return (
+    <Box flexDirection="column">
+      {data.data.map((group) => (
+        <Text key={group.id}>
+          {group.name} <Text dimColor>@{group.slug}</Text>
+        </Text>
+      ))}
+      <Text dimColor>
+        {"\n"}Page {data.meta.current_page}/{data.meta.total_pages} ·{" "}
+        {plural(data.meta.total_count, "group")}
       </Text>
     </Box>
   );

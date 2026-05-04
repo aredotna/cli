@@ -1,9 +1,15 @@
 import { Box, Text } from "ink";
 import { client, getData } from "../api/client";
-import type { ConnectionFilter, ConnectionSort, Movement } from "../api/types";
+import type {
+  ConnectionFilter,
+  ConnectionSort,
+  MetadataInput,
+  Movement,
+} from "../api/types";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 import { plural } from "../lib/format";
+import { formatMetadata } from "../lib/metadata";
 import { channelColor, INDICATORS } from "../lib/theme";
 
 export function ConnectionGetCommand({ id }: { id: number }) {
@@ -29,6 +35,37 @@ export function ConnectionGetCommand({ id }: { id: number }) {
       {data.connected_by && (
         <Text dimColor>Connected by {data.connected_by.name}</Text>
       )}
+      {data.metadata && (
+        <Text dimColor>Metadata {formatMetadata(data.metadata)}</Text>
+      )}
+    </Box>
+  );
+}
+
+export function ConnectionUpdateCommand({
+  id,
+  metadata,
+}: {
+  id: number;
+  metadata: MetadataInput;
+}) {
+  const { data, error, loading } = useCommand(() =>
+    getData(
+      client.PUT("/v3/connections/{id}", {
+        params: { path: { id } },
+        body: { metadata },
+      }),
+    ),
+  );
+
+  if (loading) return <Spinner label="Updating connection" />;
+  if (error) return <Text color="red">✕ {error}</Text>;
+  if (!data) return null;
+
+  return (
+    <Box>
+      <Text color="green">✓ </Text>
+      <Text>Updated connection {data.id}</Text>
     </Box>
   );
 }

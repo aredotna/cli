@@ -8,6 +8,7 @@ import type {
   ContentTypeFilter,
   FileExtension,
   FollowableType,
+  GroupSort,
   Movement,
   SearchScope,
   SearchSort,
@@ -48,6 +49,7 @@ import {
   ConnectionGetCommand,
   ConnectionDeleteCommand,
   ConnectionMoveCommand,
+  ConnectionUpdateCommand,
   BlockConnectionsCommand,
   ChannelConnectionsCommand,
   ChannelFollowersCommand,
@@ -72,6 +74,7 @@ import {
   UserContentsCommand,
   UserFollowersCommand,
   UserFollowingCommand,
+  UserGroupsCommand,
   UserViewCommand,
 } from "../commands/user";
 import { VersionCommand } from "../commands/version";
@@ -79,6 +82,11 @@ import { WhoamiCommand } from "../commands/whoami";
 import { config } from "./config";
 import type { DestructiveCommandConfig } from "./destructive-confirmation";
 import { uploadLocalFile } from "./upload";
+import {
+  entityMetadataFlag,
+  metadataInputFlag,
+  requireMetadataInputFlag,
+} from "./metadata";
 import { CLI_PACKAGE_NAME, getCliVersion } from "./version";
 
 interface HelpLine {
@@ -146,17 +154,17 @@ export const commands: CommandDefinition[] = [
       },
       {
         usage:
-          "channel create <title> [--visibility <public|private|closed>] [--description <text>] [--group-id <id>]",
+          "channel create <title> [--visibility <public|private|closed>] [--description <text>] [--group-id <id>] [--metadata <json|key=value>]",
         description: "Options",
       },
       {
         usage:
-          'channel create "My Research" --visibility private --group-id 123',
+          'channel create "My Research" --visibility private --metadata status=draft',
         description: "Example",
       },
       {
         usage:
-          "channel update <slug> [--title <text>] [--description <text>] [--visibility <public|private|closed>]",
+          "channel update <slug> [--title <text>] [--description <text>] [--visibility <public|private|closed>] [--metadata <json|key=value>]",
         description: "Options",
       },
       {
@@ -201,6 +209,7 @@ export const commands: CommandDefinition[] = [
               visibility={visibility}
               description={flag(flags, "description")}
               groupId={intFlag(flags, "group-id")}
+              metadata={entityMetadataFlag(flags)}
             />
           );
         case "update":
@@ -210,6 +219,7 @@ export const commands: CommandDefinition[] = [
               title={flag(flags, "title")}
               visibility={visibility}
               description={flag(flags, "description")}
+              metadata={metadataInputFlag(flags)}
             />
           );
         case "delete":
@@ -266,6 +276,7 @@ export const commands: CommandDefinition[] = [
                 visibility,
                 description: flag(flags, "description"),
                 group_id: intFlag(flags, "group-id"),
+                metadata: entityMetadataFlag(flags),
               },
             }),
           );
@@ -277,6 +288,7 @@ export const commands: CommandDefinition[] = [
                 title: flag(flags, "title"),
                 visibility,
                 description: flag(flags, "description"),
+                metadata: metadataInputFlag(flags),
               },
             }),
           );
@@ -346,7 +358,7 @@ export const commands: CommandDefinition[] = [
       { usage: "block 12345", description: "Example" },
       {
         usage:
-          "block update <id> [--title <text>] [--description <text>] [--content <text>] [--alt-text <text>]",
+          "block update <id> [--title <text>] [--description <text>] [--content <text>] [--alt-text <text>] [--metadata <json|key=value>]",
         description: "Options",
       },
       {
@@ -383,6 +395,7 @@ export const commands: CommandDefinition[] = [
               description={flag(flags, "description")}
               content={flag(flags, "content")}
               altText={flag(flags, "alt-text")}
+              metadata={metadataInputFlag(flags)}
             />
           );
         case "comments":
@@ -420,6 +433,7 @@ export const commands: CommandDefinition[] = [
                 description: flag(flags, "description"),
                 content: flag(flags, "content"),
                 alt_text: flag(flags, "alt-text"),
+                metadata: metadataInputFlag(flags),
               },
             }),
           );
@@ -576,6 +590,14 @@ export const commands: CommandDefinition[] = [
         usage: "add <channel> <value> --insert-at 1",
         description: "Example",
       },
+      {
+        usage: "add <channel> <value> --metadata status=reviewed",
+        description: "Example",
+      },
+      {
+        usage: "add <channel> <value> --connection-metadata placement=homepage",
+        description: "Example",
+      },
     ],
     render(args, flags) {
       const argValue = args.slice(1).join(" ").trim() || undefined;
@@ -589,6 +611,8 @@ export const commands: CommandDefinition[] = [
           originalSourceUrl={flag(flags, "original-source-url")}
           originalSourceTitle={flag(flags, "original-source-title")}
           insertAt={intFlag(flags, "insert-at")}
+          metadata={entityMetadataFlag(flags)}
+          connectionMetadata={entityMetadataFlag(flags, "connection-metadata")}
         />
       );
     },
@@ -603,18 +627,29 @@ export const commands: CommandDefinition[] = [
       const stdin = argValue ? undefined : await readStdin();
       const value = argValue ?? stdin;
       if (!value) throw new Error("Missing required argument: value");
+      const metadata = entityMetadataFlag(flags);
+      const connectionMetadata = entityMetadataFlag(
+        flags,
+        "connection-metadata",
+      );
 
       return getData(
         client.POST("/v3/blocks", {
           body: {
             value,
-            channel_ids: [ch.id],
+            channels: [
+              {
+                id: ch.id,
+                position: intFlag(flags, "insert-at"),
+                metadata: connectionMetadata,
+              },
+            ],
             title: flag(flags, "title"),
             description: flag(flags, "description"),
             alt_text: flag(flags, "alt-text"),
             original_source_url: flag(flags, "original-source-url"),
             original_source_title: flag(flags, "original-source-title"),
-            insert_at: intFlag(flags, "insert-at"),
+            metadata,
           },
         }),
       );
@@ -765,11 +800,12 @@ export const commands: CommandDefinition[] = [
     help: [
       {
         usage:
-          "connect <id> <channel> [--type <Block|Channel>] [--position <n>]",
+          "connect <id> <channel> [--type <Block|Channel>] [--position <n>] [--metadata <json|key=value>]",
         description: "Options",
       },
       {
-        usage: "connect <id> <channel> --type Channel --position 1",
+        usage:
+          "connect <id> <channel> --type Channel --position 1 --metadata status=reviewed",
         description: "Example",
       },
     ],
@@ -780,20 +816,28 @@ export const commands: CommandDefinition[] = [
           channel={requireArg(args, 1, "channel")}
           connectableType={flagAs<"Block" | "Channel">(flags, "type")}
           position={intFlag(flags, "position")}
+          metadata={entityMetadataFlag(flags)}
         />
       );
     },
     async json(args, flags) {
-      await client.POST("/v3/connections", {
-        body: {
-          connectable_id: idArg(args, 0, "block id"),
-          channel_ids: [requireArg(args, 1, "channel")],
-          connectable_type:
-            flagAs<"Block" | "Channel">(flags, "type") || "Block",
-          position: intFlag(flags, "position"),
-        },
-      });
-      return { connected: true };
+      const response = await getData(
+        client.POST("/v3/connections", {
+          body: {
+            connectable_id: idArg(args, 0, "block id"),
+            connectable_type:
+              flagAs<"Block" | "Channel">(flags, "type") || "Block",
+            channels: [
+              {
+                id: requireArg(args, 1, "channel"),
+                position: intFlag(flags, "position"),
+                metadata: entityMetadataFlag(flags),
+              },
+            ],
+          },
+        }),
+      );
+      return { connected: true, ...response };
     },
   },
 
@@ -806,6 +850,14 @@ export const commands: CommandDefinition[] = [
       { usage: "connection 67890", description: "Example" },
       { usage: "connection delete <id>", description: "Options" },
       { usage: "connection delete 67890", description: "Example" },
+      {
+        usage: "connection update <id> --metadata <json|key=value>",
+        description: "Options",
+      },
+      {
+        usage: "connection update 67890 --metadata status=reviewed,score=1",
+        description: "Example",
+      },
       {
         usage:
           "connection move <id> [--movement <move_to_top|move_to_bottom|insert_at>] [--position <n>]",
@@ -836,6 +888,13 @@ export const commands: CommandDefinition[] = [
               position={intFlag(flags, "position")}
             />
           );
+        case "update":
+          return (
+            <ConnectionUpdateCommand
+              id={idArg(args, 1, "connection id")}
+              metadata={requireMetadataInputFlag(flags)}
+            />
+          );
         default:
           return <ConnectionGetCommand id={idArg(args, 0, "connection id")} />;
       }
@@ -856,6 +915,13 @@ export const commands: CommandDefinition[] = [
                 movement: flagAs<Movement>(flags, "movement") || "insert_at",
                 position: intFlag(flags, "position"),
               },
+            }),
+          );
+        case "update":
+          return getData(
+            client.PUT("/v3/connections/{id}", {
+              params: { path: { id: idArg(args, 1, "connection id") } },
+              body: { metadata: requireMetadataInputFlag(flags) },
             }),
           );
         default:
@@ -950,6 +1016,14 @@ export const commands: CommandDefinition[] = [
         usage: "user following <slug> --type User --sort connected_at_desc",
         description: "Example",
       },
+      {
+        usage: "user groups <slug> [--page <n>] [--per <n>] [--sort <s>]",
+        description: "Options",
+      },
+      {
+        usage: "user groups <slug> --sort updated_at_desc",
+        description: "Example",
+      },
     ],
     session: { args: "<slug>", desc: "View a user profile" },
     render(args, flags) {
@@ -982,6 +1056,15 @@ export const commands: CommandDefinition[] = [
               per={optPer(flags)}
               type={flag(flags, "type")}
               sort={flagAs<ConnectionSort>(flags, "sort")}
+            />
+          );
+        case "groups":
+          return (
+            <UserGroupsCommand
+              slug={requireArg(args, 1, "slug")}
+              page={optPage(flags)}
+              per={optPer(flags)}
+              sort={flagAs<GroupSort>(flags, "sort")}
             />
           );
         default:
@@ -1028,6 +1111,19 @@ export const commands: CommandDefinition[] = [
                   per: per(flags),
                   type: flagAs<FollowableType>(flags, "type"),
                   sort: flagAs<ConnectionSort>(flags, "sort"),
+                },
+              },
+            }),
+          );
+        case "groups":
+          return getData(
+            client.GET("/v3/users/{id}/groups", {
+              params: {
+                path: { id: requireArg(args, 1, "slug") },
+                query: {
+                  page: page(flags),
+                  per: per(flags),
+                  sort: flagAs<GroupSort>(flags, "sort"),
                 },
               },
             }),
@@ -1386,8 +1482,14 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
             flag: "--group-id <id>",
             description: "Create channel under a group",
           },
+          {
+            flag: "--metadata <json|key=value>",
+            description: "Custom channel metadata",
+          },
         ],
-        examples: ['arena channel create "Team Notes" --group-id 123'],
+        examples: [
+          'arena channel create "Team Notes" --group-id 123 --metadata status=draft',
+        ],
       },
       update: {
         summary: "Update a channel.",
@@ -1399,8 +1501,14 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
             flag: "--visibility <public|private|closed>",
             description: "New visibility",
           },
+          {
+            flag: "--metadata <json|key=value>",
+            description: "Merge channel metadata; use null to remove keys",
+          },
         ],
-        examples: ['arena channel update my-research --title "New Title"'],
+        examples: [
+          'arena channel update my-research --title "New Title" --metadata status=published',
+        ],
       },
       delete: {
         summary: "Delete a channel.",
@@ -1450,9 +1558,13 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
           { flag: "--description <text>", description: "New description" },
           { flag: "--content <text>", description: "Text content" },
           { flag: "--alt-text <text>", description: "Image alt text" },
+          {
+            flag: "--metadata <json|key=value>",
+            description: "Merge block metadata; use null to remove keys",
+          },
         ],
         examples: [
-          'arena block update 12345 --title "New Title" --description "Updated"',
+          'arena block update 12345 --title "New Title" --metadata status=reviewed',
         ],
       },
       comments: {
@@ -1506,10 +1618,18 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
         flag: "--insert-at <n>",
         description: "Insert position within the channel",
       },
+      {
+        flag: "--metadata <json|key=value>",
+        description: "Custom block metadata",
+      },
+      {
+        flag: "--connection-metadata <json|key=value>",
+        description: "Metadata for the channel connection",
+      },
     ],
     examples: [
       'arena add my-channel "Hello world"',
-      'arena add my-channel https://example.com --alt-text "Cover image" --insert-at 1',
+      'arena add my-channel https://example.com --alt-text "Cover image" --insert-at 1 --metadata status=reviewed',
       'echo "piped text" | arena add my-channel',
     ],
     seeAlso: ["upload", "batch", "channel"],
@@ -1582,14 +1702,21 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
     options: [
       { flag: "--type <Block|Channel>", description: "Connectable type" },
       { flag: "--position <n>", description: "Insertion position" },
+      {
+        flag: "--metadata <json|key=value>",
+        description: "Metadata for the created connection",
+      },
     ],
-    examples: ["arena connect 12345 my-channel --type Channel --position 1"],
+    examples: [
+      "arena connect 12345 my-channel --type Channel --position 1 --metadata status=reviewed",
+    ],
     seeAlso: ["connection", "block", "channel"],
   },
   connection: {
-    summary: "Inspect, move, or delete a connection.",
+    summary: "Inspect, update, move, or delete a connection.",
     usage: [
       "arena connection <id>",
+      "arena connection update <id> --metadata <json|key=value>",
       "arena connection delete <id>",
       "arena connection move <id> [flags]",
     ],
@@ -1602,9 +1729,14 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
         flag: "--position <n>",
         description: "Target position (for move subcommand)",
       },
+      {
+        flag: "--metadata <json|key=value>",
+        description: "Merge metadata for update; use null to remove keys",
+      },
     ],
     examples: [
       "arena connection 67890",
+      "arena connection update 67890 --metadata status=reviewed",
       "arena connection move 67890 --movement insert_at --position 1",
     ],
     seeAlso: ["connect"],
@@ -1660,6 +1792,16 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
         examples: [
           "arena user following damon-zucconi --type User --sort connected_at_desc",
         ],
+      },
+      groups: {
+        summary: "List groups a user belongs to.",
+        usage: ["arena user groups <slug> [flags]"],
+        options: [
+          { flag: "--page <n>", description: "Page number" },
+          { flag: "--per <n>", description: "Items per page" },
+          { flag: "--sort <s>", description: "Sort order" },
+        ],
+        examples: ["arena user groups damon-zucconi --sort updated_at_desc"],
       },
     },
     seeAlso: ["group", "search"],

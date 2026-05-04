@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Box, Text } from "ink";
 import type { Block } from "../api/types";
 import { formatFileSize, timeAgo } from "../lib/format";
+import { formatMetadata } from "../lib/metadata";
 import { blockTextColor } from "../lib/theme";
 import { TerminalImage } from "./TerminalImage";
 
@@ -74,6 +75,7 @@ export function BlockContent({
         value: `${block.updated_at} (${timeAgo(block.updated_at)})`,
       },
       { label: "By", value: block.user.name },
+      { label: "Metadata", value: formatMetadata(block.metadata) },
       ...(previewImage
         ? [
             { label: "Image", value: previewImage.filename },

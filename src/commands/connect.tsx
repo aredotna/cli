@@ -1,6 +1,6 @@
 import { Box, Text } from "ink";
 import { client, getData } from "../api/client";
-import type { ConnectableType } from "../api/types";
+import type { ConnectableType, Metadata } from "../api/types";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 
@@ -9,6 +9,7 @@ interface Props {
   channel: string;
   connectableType?: ConnectableType;
   position?: number;
+  metadata?: Metadata;
 }
 
 export function ConnectCommand({
@@ -16,6 +17,7 @@ export function ConnectCommand({
   channel,
   connectableType = "Block",
   position,
+  metadata,
 }: Props) {
   const { data, error, loading } = useCommand(async () => {
     const ch = await getData(
@@ -28,8 +30,7 @@ export function ConnectCommand({
       body: {
         connectable_id: blockId,
         connectable_type: connectableType,
-        channel_ids: [ch.id],
-        position,
+        channels: [{ id: ch.id, position, metadata }],
       },
     });
     return { channel: ch };
