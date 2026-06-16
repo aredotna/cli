@@ -80,6 +80,11 @@ import {
   runImportJsonStream,
 } from "../commands/import";
 import { FeedCommand } from "../commands/feed";
+import {
+  DownloadCommand,
+  parseDownloadOptions,
+  runDownloadJsonStream,
+} from "../commands/download";
 import { PingCommand } from "../commands/ping";
 import { SearchCommand } from "../commands/search";
 import {
@@ -376,6 +381,36 @@ export const commands: CommandDefinition[] = [
             }),
           );
       }
+    },
+  },
+
+  {
+    name: "download",
+    aliases: ["dl"],
+    group: "Channels",
+    help: [
+      {
+        usage:
+          "download <slug> [--dir <path>] [--size <original|large|medium|small|square>] [--concurrency <n>] [--include-text] [--type <Image|Attachment>] [--overwrite]",
+        description: "Options",
+      },
+      {
+        usage: "download worldmaking --dir ./refs",
+        description: "Example",
+      },
+      {
+        usage: "download my-private-channel --type Image --size large",
+        description: "Example",
+      },
+    ],
+    session: { args: "<slug>", desc: "Download a channel's files" },
+    render(args, flags) {
+      return <DownloadCommand {...parseDownloadOptions(args, flags)} />;
+    },
+    async jsonStream(args, flags, write) {
+      return runDownloadJsonStream(parseDownloadOptions(args, flags), (event) =>
+        write(event),
+      );
     },
   },
 
@@ -1939,6 +1974,45 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
       },
     },
     seeAlso: ["search", "add", "connect"],
+  },
+  download: {
+    summary:
+      "Download a channel's images and attachments to a local directory. Works with private channels when authenticated.",
+    usage: ["arena download <slug> [flags]"],
+    options: [
+      {
+        flag: "--dir <path>",
+        description: "Output directory (default: the channel slug)",
+      },
+      {
+        flag: "--size <original|large|medium|small|square>",
+        description: "Image resolution to download (default: original)",
+      },
+      {
+        flag: "--concurrency <n>",
+        description: "Concurrent downloads (default: 4)",
+      },
+      {
+        flag: "--include-text",
+        description: "Also write Text blocks as .md files",
+      },
+      {
+        flag: "--type <Image|Attachment>",
+        description: "Only download blocks of this type",
+      },
+      {
+        flag: "--overwrite",
+        description: "Re-download files that already exist locally",
+      },
+    ],
+    examples: [
+      "arena download worldmaking --dir ./refs",
+      "arena download my-private-channel --type Image --size large",
+    ],
+    notes: [
+      "A manifest.json with block metadata (including Link/Embed source URLs) is always written.",
+    ],
+    seeAlso: ["channel", "import", "upload"],
   },
   block: {
     summary: "View and manage blocks.",
