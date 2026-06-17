@@ -3,6 +3,10 @@
   "version": "0.9.1",
   "description": "Are.na from the terminal",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aredotna/cli.git"
+  },
   "bin": {
     "arena": "./dist/cli.js"
   },
