@@ -5,7 +5,16 @@ Use this checklist to cut a new npm release for `@aredotna/cli`.
 Publishing is automated by GitHub Actions when a PR with a release label is merged to `main`.
 Use exactly one label on the PR: `major`, `minor`, or `patch`.
 The `Release` workflow bumps the version and pushes the release commit and tag.
-That tag then triggers the `Publish` workflow, which publishes to npm using the `NPM_TOKEN` GitHub secret and creates the GitHub Release.
+That tag then triggers the `Publish` workflow, which publishes to npm with trusted publishing and provenance, then creates the GitHub Release.
+No long-lived npm publish token is required.
+
+The npm package must have a trusted publisher configured on npmjs.com:
+
+- Provider: GitHub Actions
+- Organization/user: `aredotna`
+- Repository: `cli`
+- Workflow filename: `publish.yml`
+- Allowed action: `npm publish`
 
 ## 1) Preflight
 
@@ -75,7 +84,8 @@ arena whoami --json
 
 ## Troubleshooting
 
-- Publish job fails with npm auth error (401/404): verify the `NPM_TOKEN` repository secret exists and has permission to publish `@aredotna/cli`.
+- Publish job fails with npm auth error (401/404): verify npm trusted publishing is configured for `aredotna/cli` with workflow filename `publish.yml` and allowed action `npm publish`.
+- Publish job fails before auth: verify the workflow still grants `id-token: write` and publishes on Node 22.14.0 or newer with npm 11.5.1 or newer.
 - Workflow skips publishing: merged PR did not contain one of `major`, `minor`, or `patch` labels.
 - Workflow fails with multiple release labels: keep exactly one of `major|minor|patch` on the PR.
 - Release job says `main` advanced after the PR merged: re-run the `Release` workflow manually after reviewing current `main`.
