@@ -24,7 +24,7 @@ export function GroupProfileScreen({
     <EntityProfileScreen
       name={group?.name}
       slug={group?.slug}
-      bio={group?.bio?.plain}
+      bio={group?.description?.plain}
       statsLine={
         group
           ? `${plural(group.counts.channels, "channel")} · ${plural(group.counts.users, "member")}`

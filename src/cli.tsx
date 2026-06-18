@@ -48,6 +48,8 @@ function TopLevelHelp() {
         <Text> whoami Show current authenticated user</Text>
         <Text> search Search across Are.na content</Text>
         <Text> channel View/manage channels</Text>
+        <Text> feed Show your authenticated feed</Text>
+        <Text> notifications Show/manage notifications</Text>
         <Text> add Add text/URLs to a channel</Text>
         <Text> upload Upload local files</Text>
         <Text> import Bulk import from a directory</Text>
@@ -57,6 +59,7 @@ function TopLevelHelp() {
         <Text dimColor>Examples</Text>
         <Text> arena login</Text>
         <Text> arena search "brutalist architecture" --type Image</Text>
+        <Text> arena feed --limit 10</Text>
         <Text> arena add my-channel "Hello world"</Text>
         <Text> arena import my-channel --dir ./assets --recursive</Text>
       </Box>
