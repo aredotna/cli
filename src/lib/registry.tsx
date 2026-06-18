@@ -55,8 +55,21 @@ import {
   ChannelFollowersCommand,
 } from "../commands/connection";
 import {
+  GroupCreateCommand,
+  GroupCreateInviteLinkCommand,
+  GroupDeleteCommand,
+  GroupDeleteInviteLinkCommand,
   GroupContentsCommand,
   GroupFollowersCommand,
+  GroupInvitationsCommand,
+  GroupInviteCommand,
+  GroupInviteLinkCommand,
+  GroupJoinCommand,
+  GroupLeaveCommand,
+  GroupMembersCommand,
+  GroupRemoveMemberCommand,
+  GroupRevokeInvitationCommand,
+  GroupUpdateCommand,
   GroupViewCommand,
 } from "../commands/group";
 import { LoginCommand } from "../commands/login";
@@ -66,8 +79,14 @@ import {
   parseImportOptions,
   runImportJsonStream,
 } from "../commands/import";
+import { FeedCommand } from "../commands/feed";
 import { PingCommand } from "../commands/ping";
 import { SearchCommand } from "../commands/search";
+import {
+  NotificationReadCommand,
+  NotificationsCommand,
+  NotificationsReadAllCommand,
+} from "../commands/notifications";
 import { UpdateCommand, checkForCliUpdate } from "../commands/update";
 import { UploadCommand } from "../commands/upload";
 import {
@@ -127,6 +146,17 @@ export interface CommandDefinition {
     args: string | null;
     desc: string;
   };
+}
+
+function groupInviteBody(
+  flags: Flags,
+): { user_id: number } | { email: string } {
+  const userId = intFlag(flags, "user-id");
+  const email = flag(flags, "email");
+  if ((userId && email) || (!userId && !email)) {
+    throw new Error("Provide exactly one of --user-id or --email");
+  }
+  return userId ? { user_id: userId } : { email: email! };
 }
 
 // ── Registry ──
@@ -1147,6 +1177,79 @@ export const commands: CommandDefinition[] = [
       { usage: "group are-na-team", description: "Example" },
       {
         usage:
+          "group create <name> [--description <text>] [--avatar-url <url>]",
+        description: "Options",
+      },
+      { usage: 'group create "Research Studio"', description: "Example" },
+      {
+        usage:
+          "group update <slug> [--name <text>] [--description <text>] [--avatar-url <url>]",
+        description: "Options",
+      },
+      {
+        usage: 'group update research-studio --name "Studio Notes"',
+        description: "Example",
+      },
+      { usage: "group delete <slug>", description: "Options" },
+      { usage: "group delete research-studio", description: "Example" },
+      {
+        usage: "group members <slug> [--page <n>] [--per <n>]",
+        description: "Options",
+      },
+      { usage: "group members are-na-team", description: "Example" },
+      {
+        usage: "group join <slug> [--invite-token <token>]",
+        description: "Options",
+      },
+      {
+        usage: "group join research-studio --invite-token abc123xyz",
+        description: "Example",
+      },
+      { usage: "group leave <slug>", description: "Options" },
+      { usage: "group leave research-studio", description: "Example" },
+      {
+        usage: "group remove-member <slug> <user_id>",
+        description: "Options",
+      },
+      {
+        usage: "group remove-member research-studio 12345",
+        description: "Example",
+      },
+      {
+        usage: "group invitations <slug> [--page <n>] [--per <n>]",
+        description: "Options",
+      },
+      { usage: "group invitations research-studio", description: "Example" },
+      {
+        usage: "group invite <slug> (--user-id <id> | --email <addr>)",
+        description: "Options",
+      },
+      {
+        usage: "group invite research-studio --email person@example.com",
+        description: "Example",
+      },
+      {
+        usage: "group revoke-invitation <slug> <invitation_id>",
+        description: "Options",
+      },
+      {
+        usage: "group revoke-invitation research-studio 12345",
+        description: "Example",
+      },
+      { usage: "group invite-link <slug>", description: "Options" },
+      { usage: "group invite-link research-studio", description: "Example" },
+      { usage: "group create-invite-link <slug>", description: "Options" },
+      {
+        usage: "group create-invite-link research-studio",
+        description: "Example",
+      },
+      { usage: "group delete-invite-link <slug>", description: "Options" },
+      {
+        usage: "group delete-invite-link research-studio",
+        description: "Example",
+      },
+      {
+        usage:
           "group contents <slug> [--page <n>] [--per <n>] [--type <t>] [--sort <s>]",
         description: "Options",
       },
@@ -1163,10 +1266,94 @@ export const commands: CommandDefinition[] = [
         description: "Example",
       },
     ],
+    destructive: {
+      subcommands: {
+        delete: { resourceLabel: "group slug" },
+        leave: { resourceLabel: "group slug" },
+        "remove-member": { resourceLabel: "group slug" },
+        "revoke-invitation": { resourceLabel: "group slug" },
+        "delete-invite-link": { resourceLabel: "group slug" },
+      },
+    },
     session: { args: "<slug>", desc: "View a group profile" },
     render(args, flags) {
       const sub = args[0];
       switch (sub) {
+        case "create":
+          return (
+            <GroupCreateCommand
+              name={requireArg(args, 1, "name")}
+              description={flag(flags, "description")}
+              avatarUrl={flag(flags, "avatar-url")}
+            />
+          );
+        case "update":
+          return (
+            <GroupUpdateCommand
+              slug={requireArg(args, 1, "slug")}
+              name={flag(flags, "name")}
+              description={flag(flags, "description")}
+              avatarUrl={flag(flags, "avatar-url")}
+            />
+          );
+        case "delete":
+          return <GroupDeleteCommand slug={requireArg(args, 1, "slug")} />;
+        case "members":
+          return (
+            <GroupMembersCommand
+              slug={requireArg(args, 1, "slug")}
+              page={optPage(flags)}
+              per={optPer(flags)}
+            />
+          );
+        case "join":
+          return (
+            <GroupJoinCommand
+              slug={requireArg(args, 1, "slug")}
+              inviteToken={flag(flags, "invite-token")}
+            />
+          );
+        case "leave":
+          return <GroupLeaveCommand slug={requireArg(args, 1, "slug")} />;
+        case "remove-member":
+          return (
+            <GroupRemoveMemberCommand
+              slug={requireArg(args, 1, "slug")}
+              userId={idArg(args, 2, "user id")}
+            />
+          );
+        case "invitations":
+          return (
+            <GroupInvitationsCommand
+              slug={requireArg(args, 1, "slug")}
+              page={optPage(flags)}
+              per={optPer(flags)}
+            />
+          );
+        case "invite":
+          return (
+            <GroupInviteCommand
+              slug={requireArg(args, 1, "slug")}
+              body={groupInviteBody(flags)}
+            />
+          );
+        case "revoke-invitation":
+          return (
+            <GroupRevokeInvitationCommand
+              slug={requireArg(args, 1, "slug")}
+              invitationId={idArg(args, 2, "invitation id")}
+            />
+          );
+        case "invite-link":
+          return <GroupInviteLinkCommand slug={requireArg(args, 1, "slug")} />;
+        case "create-invite-link":
+          return (
+            <GroupCreateInviteLinkCommand slug={requireArg(args, 1, "slug")} />
+          );
+        case "delete-invite-link":
+          return (
+            <GroupDeleteInviteLinkCommand slug={requireArg(args, 1, "slug")} />
+          );
         case "contents":
           return (
             <GroupContentsCommand
@@ -1193,6 +1380,118 @@ export const commands: CommandDefinition[] = [
     async json(args, flags) {
       const sub = args[0];
       switch (sub) {
+        case "create":
+          return getData(
+            client.POST("/v3/groups", {
+              body: {
+                name: requireArg(args, 1, "name"),
+                description: flag(flags, "description"),
+                avatar_url: flag(flags, "avatar-url"),
+              },
+            }),
+          );
+        case "update":
+          return getData(
+            client.PUT("/v3/groups/{id}", {
+              params: { path: { id: requireArg(args, 1, "slug") } },
+              body: {
+                name: flag(flags, "name"),
+                description: flag(flags, "description"),
+                avatar_url: flag(flags, "avatar-url"),
+              },
+            }),
+          );
+        case "delete":
+          await client.DELETE("/v3/groups/{id}", {
+            params: { path: { id: requireArg(args, 1, "slug") } },
+          });
+          return { deleted: true, slug: requireArg(args, 1, "slug") };
+        case "members":
+          return getData(
+            client.GET("/v3/groups/{id}/members", {
+              params: {
+                path: { id: requireArg(args, 1, "slug") },
+                query: { page: page(flags), per: per(flags) },
+              },
+            }),
+          );
+        case "join":
+          return getData(
+            client.POST("/v3/groups/{id}/members", {
+              params: { path: { id: requireArg(args, 1, "slug") } },
+              body: { invite_token: flag(flags, "invite-token") },
+            }),
+          );
+        case "leave":
+          await client.DELETE("/v3/groups/{id}/members/me", {
+            params: { path: { id: requireArg(args, 1, "slug") } },
+          });
+          return { left: true, slug: requireArg(args, 1, "slug") };
+        case "remove-member":
+          await client.DELETE("/v3/groups/{id}/members/{user_id}", {
+            params: {
+              path: {
+                id: requireArg(args, 1, "slug"),
+                user_id: idArg(args, 2, "user id"),
+              },
+            },
+          });
+          return {
+            removed: true,
+            slug: requireArg(args, 1, "slug"),
+            user_id: idArg(args, 2, "user id"),
+          };
+        case "invitations":
+          return getData(
+            client.GET("/v3/groups/{id}/invitations", {
+              params: {
+                path: { id: requireArg(args, 1, "slug") },
+                query: { page: page(flags), per: per(flags) },
+              },
+            }),
+          );
+        case "invite":
+          return getData(
+            client.POST("/v3/groups/{id}/invitations", {
+              params: { path: { id: requireArg(args, 1, "slug") } },
+              body: groupInviteBody(flags),
+            }),
+          );
+        case "revoke-invitation":
+          await client.DELETE("/v3/groups/{id}/invitations/{invitation_id}", {
+            params: {
+              path: {
+                id: requireArg(args, 1, "slug"),
+                invitation_id: idArg(args, 2, "invitation id"),
+              },
+            },
+          });
+          return {
+            revoked: true,
+            slug: requireArg(args, 1, "slug"),
+            invitation_id: idArg(args, 2, "invitation id"),
+          };
+        case "invite-link":
+          return getData(
+            client.GET("/v3/groups/{id}/invite", {
+              params: { path: { id: requireArg(args, 1, "slug") } },
+            }),
+          );
+        case "create-invite-link":
+          return getData(
+            client.POST("/v3/groups/{id}/invite", {
+              params: { path: { id: requireArg(args, 1, "slug") } },
+            }),
+          );
+        case "delete-invite-link":
+          await client.DELETE("/v3/groups/{id}/invite", {
+            params: { path: { id: requireArg(args, 1, "slug") } },
+          });
+          return {
+            deleted: true,
+            slug: requireArg(args, 1, "slug"),
+            resource: "group_invite_link",
+          };
         case "contents":
           return getData(
             client.GET("/v3/groups/{id}/contents", {
@@ -1283,6 +1582,105 @@ export const commands: CommandDefinition[] = [
     async json() {
       const me = await getData(client.GET("/v3/me"));
       return { ...me, api_base: arenaApiBaseUrl };
+    },
+  },
+
+  {
+    name: "feed",
+    aliases: [],
+    group: "Other",
+    help: [
+      {
+        usage: "feed [--limit <n>] [--next <cursor>] [--prev <cursor>]",
+        description: "Options",
+      },
+      { usage: "feed --limit 10", description: "Example" },
+    ],
+    render(_args, flags) {
+      return (
+        <FeedCommand
+          limit={intFlag(flags, "limit")}
+          next={flag(flags, "next")}
+          prev={flag(flags, "prev")}
+        />
+      );
+    },
+    async json(_args, flags) {
+      return getData(
+        client.GET("/v3/me/feed", {
+          params: {
+            query: {
+              limit: intFlag(flags, "limit"),
+              next: flag(flags, "next"),
+              prev: flag(flags, "prev"),
+            },
+          },
+        }),
+      );
+    },
+  },
+
+  {
+    name: "notifications",
+    aliases: [],
+    group: "Other",
+    help: [
+      {
+        usage:
+          "notifications [--limit <n>] [--next <cursor>] [--prev <cursor>] [--unread]",
+        description: "Options",
+      },
+      { usage: "notifications --unread", description: "Example" },
+      { usage: "notifications read <id>", description: "Options" },
+      { usage: "notifications read 12345", description: "Example" },
+      { usage: "notifications read-all", description: "Options" },
+      { usage: "notifications read-all", description: "Example" },
+    ],
+    render(args, flags) {
+      const sub = args[0];
+      switch (sub) {
+        case "read":
+          return (
+            <NotificationReadCommand id={idArg(args, 1, "notification id")} />
+          );
+        case "read-all":
+          return <NotificationsReadAllCommand />;
+        default:
+          return (
+            <NotificationsCommand
+              limit={intFlag(flags, "limit")}
+              next={flag(flags, "next")}
+              prev={flag(flags, "prev")}
+              unread={flags["unread"] !== undefined ? true : undefined}
+            />
+          );
+      }
+    },
+    async json(args, flags) {
+      const sub = args[0];
+      switch (sub) {
+        case "read":
+          return getData(
+            client.POST("/v3/me/notifications/{id}/read", {
+              params: { path: { id: idArg(args, 1, "notification id") } },
+            }),
+          );
+        case "read-all":
+          return getData(client.POST("/v3/me/notifications/read"));
+        default:
+          return getData(
+            client.GET("/v3/me/notifications", {
+              params: {
+                query: {
+                  limit: intFlag(flags, "limit"),
+                  next: flag(flags, "next"),
+                  prev: flag(flags, "prev"),
+                  unread: flags["unread"] !== undefined ? true : undefined,
+                },
+              },
+            }),
+          );
+      }
     },
   },
 
@@ -1807,13 +2205,108 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
     seeAlso: ["group", "search"],
   },
   group: {
-    summary: "View groups and group activity.",
+    summary: "View and manage groups and group activity.",
     usage: ["arena group <slug>", "arena group <subcommand> ..."],
     examples: [
       "arena group are-na-team",
+      'arena group create "Research Studio"',
       "arena group contents are-na-team --type Image --sort updated_at_desc",
     ],
     subcommands: {
+      create: {
+        summary: "Create a group.",
+        usage: ["arena group create <name> [flags]"],
+        options: [
+          { flag: "--description <text>", description: "Optional description" },
+          {
+            flag: "--avatar-url <url>",
+            description: "Optional avatar image URL",
+          },
+        ],
+        examples: ['arena group create "Research Studio"'],
+      },
+      update: {
+        summary: "Update a group.",
+        usage: ["arena group update <slug> [flags]"],
+        options: [
+          { flag: "--name <text>", description: "New group name" },
+          { flag: "--description <text>", description: "New description" },
+          { flag: "--avatar-url <url>", description: "New avatar image URL" },
+        ],
+        examples: ['arena group update research-studio --name "Studio Notes"'],
+      },
+      delete: {
+        summary: "Delete a group.",
+        usage: ["arena group delete <slug>"],
+        examples: ["arena group delete research-studio"],
+      },
+      members: {
+        summary: "List group members.",
+        usage: ["arena group members <slug> [flags]"],
+        options: [
+          { flag: "--page <n>", description: "Page number" },
+          { flag: "--per <n>", description: "Items per page" },
+        ],
+        examples: ["arena group members are-na-team"],
+      },
+      join: {
+        summary: "Join a group using an optional invite token.",
+        usage: ["arena group join <slug> [flags]"],
+        options: [
+          { flag: "--invite-token <token>", description: "Group invite token" },
+        ],
+        examples: ["arena group join research-studio --invite-token abc123xyz"],
+      },
+      leave: {
+        summary: "Leave a group.",
+        usage: ["arena group leave <slug>"],
+        examples: ["arena group leave research-studio"],
+      },
+      "remove-member": {
+        summary: "Remove a member from a group.",
+        usage: ["arena group remove-member <slug> <user_id>"],
+        examples: ["arena group remove-member research-studio 12345"],
+      },
+      invitations: {
+        summary: "List pending group invitations.",
+        usage: ["arena group invitations <slug> [flags]"],
+        options: [
+          { flag: "--page <n>", description: "Page number" },
+          { flag: "--per <n>", description: "Items per page" },
+        ],
+        examples: ["arena group invitations research-studio"],
+      },
+      invite: {
+        summary: "Add or invite a group member.",
+        usage: ["arena group invite <slug> (--user-id <id> | --email <addr>)"],
+        options: [
+          { flag: "--user-id <id>", description: "Existing Are.na user ID" },
+          { flag: "--email <addr>", description: "Email address to invite" },
+        ],
+        examples: [
+          "arena group invite research-studio --email person@example.com",
+        ],
+      },
+      "revoke-invitation": {
+        summary: "Revoke a pending group invitation.",
+        usage: ["arena group revoke-invitation <slug> <invitation_id>"],
+        examples: ["arena group revoke-invitation research-studio 12345"],
+      },
+      "invite-link": {
+        summary: "Show the shareable invite link for a group.",
+        usage: ["arena group invite-link <slug>"],
+        examples: ["arena group invite-link research-studio"],
+      },
+      "create-invite-link": {
+        summary: "Create or retrieve a shareable group invite link.",
+        usage: ["arena group create-invite-link <slug>"],
+        examples: ["arena group create-invite-link research-studio"],
+      },
+      "delete-invite-link": {
+        summary: "Delete a shareable group invite link.",
+        usage: ["arena group delete-invite-link <slug>"],
+        examples: ["arena group delete-invite-link research-studio"],
+      },
       contents: {
         summary: "List group content.",
         usage: ["arena group contents <slug> [flags]"],
@@ -1841,6 +2334,61 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
       },
     },
     seeAlso: ["user", "search"],
+  },
+  feed: {
+    summary: "Show your authenticated feed.",
+    usage: ["arena feed [flags]"],
+    options: [
+      { flag: "--limit <n>", description: "Number of items to return" },
+      {
+        flag: "--next <cursor>",
+        description: "Load the next page toward older items",
+      },
+      {
+        flag: "--prev <cursor>",
+        description: "Load the previous page toward newer items",
+      },
+    ],
+    examples: ["arena feed --limit 10", "arena feed --next <cursor>"],
+    seeAlso: ["notifications", "whoami"],
+  },
+  notifications: {
+    summary: "Show and manage your notifications.",
+    usage: [
+      "arena notifications [flags]",
+      "arena notifications read <id>",
+      "arena notifications read-all",
+    ],
+    options: [
+      { flag: "--limit <n>", description: "Number of items to return" },
+      {
+        flag: "--next <cursor>",
+        description: "Load the next page toward older items",
+      },
+      {
+        flag: "--prev <cursor>",
+        description: "Load the previous page toward newer items",
+      },
+      { flag: "--unread", description: "Only show unread notifications" },
+    ],
+    examples: [
+      "arena notifications --unread",
+      "arena notifications read 12345",
+      "arena notifications read-all",
+    ],
+    subcommands: {
+      read: {
+        summary: "Mark one notification as read.",
+        usage: ["arena notifications read <id>"],
+        examples: ["arena notifications read 12345"],
+      },
+      "read-all": {
+        summary: "Mark all notifications as read.",
+        usage: ["arena notifications read-all"],
+        examples: ["arena notifications read-all"],
+      },
+    },
+    seeAlso: ["feed", "whoami"],
   },
   ping: {
     summary: "Check API health.",

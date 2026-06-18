@@ -37,6 +37,7 @@ Running `arena` with no arguments opens an interactive session. Pass a command f
 ```bash
 arena login
 arena whoami
+arena feed --limit 10
 arena search "brutalist architecture" --type Image
 arena channel worldmaking
 arena add my-channel "Hello world"
@@ -510,24 +511,89 @@ Options:
 
 #### `group`
 
-View groups and group activity.
+View and manage groups and group activity.
 
 Examples:
 
 ```bash
 arena group are-na-team
+arena group create "Research Studio"
+arena group update research-studio --name "Studio Notes"
+arena group members are-na-team
+arena group invite research-studio --email person@example.com
+arena group create-invite-link research-studio
 arena group contents are-na-team --type Image --sort updated_at_desc
 arena group followers are-na-team --sort connected_at_desc
 ```
 
 Options:
 
+- `--description <text>` (for `group create`/`group update`)
+- `--avatar-url <url>` (for `group create`/`group update`)
+- `--name <text>` (for `group update`)
+- `--invite-token <token>` (for `group join`)
+- `--user-id <id>` (for `group invite`)
+- `--email <addr>` (for `group invite`)
 - `--page <n>`
 - `--per <n>`
 - `--type <t>`
 - `--sort <s>`
 
+Subcommands:
+
+- `group create <name>`
+- `group update <slug>`
+- `group delete <slug>`
+- `group members <slug>`
+- `group join <slug>`
+- `group leave <slug>`
+- `group remove-member <slug> <user_id>`
+- `group invitations <slug>`
+- `group invite <slug>`
+- `group revoke-invitation <slug> <invitation_id>`
+- `group invite-link <slug>`
+- `group create-invite-link <slug>`
+- `group delete-invite-link <slug>`
+- `group contents <slug>`
+- `group followers <slug>`
+
 ### Other
+
+#### `feed`
+
+Show your authenticated feed.
+
+Examples:
+
+```bash
+arena feed --limit 10
+arena feed --next <cursor>
+```
+
+Options:
+
+- `--limit <n>`
+- `--next <cursor>`
+- `--prev <cursor>`
+
+#### `notifications`
+
+Show and manage your notifications.
+
+Examples:
+
+```bash
+arena notifications --unread
+arena notifications read 12345
+arena notifications read-all
+```
+
+Options:
+
+- `--limit <n>`
+- `--next <cursor>`
+- `--prev <cursor>`
+- `--unread`
 
 #### `ping`
 

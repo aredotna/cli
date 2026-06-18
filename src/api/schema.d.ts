@@ -365,6 +365,7 @@ export interface paths {
     /**
      * Update a channel
      * @description Updates an existing channel. Only provided fields are updated.
+     *     Updating the owner requires permission to assign authorship to the target user or group.
      *
      *     **Authentication required.**
      */
@@ -541,11 +542,101 @@ export interface paths {
     };
     /**
      * Get current user
-     * @description Returns the currently authenticated user's profile
+     * @description Returns the currently authenticated user's profile, including the
+     *     token holder's `email` address. The `email` field is only exposed
+     *     to the user themselves and is not present on `/v3/users/{id}` or on
+     *     embedded `User` references in other resources.
      */
     get: operations["getCurrentUser"];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v3/me/feed": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get current user's feed
+     * @description Returns the authenticated user's primary activity feed.
+     *     This feed is personalized and requires authentication.
+     */
+    get: operations["getMyFeed"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v3/me/notifications": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get current user's notifications
+     * @description Returns the authenticated user's notifications feed.
+     *     Each notification includes read state for the current user.
+     */
+    get: operations["getMyNotifications"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v3/me/notifications/read": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Mark all current user's notifications as read
+     * @description Clears the authenticated user's unread notification state and returns
+     *     the new unread count.
+     */
+    post: operations["markAllMyNotificationsRead"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v3/me/notifications/{id}/read": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Mark a notification as read
+     * @description Marks one notification activity as read for the authenticated user
+     *     and returns the updated notification plus the new unread count.
+     *     The `id` is the activity id returned by `/v3/me/notifications`; the
+     *     internal notification bulletin id remains opaque. Returns 404 if the
+     *     activity is not part of the authenticated user's notifications feed.
+     */
+    post: operations["markMyNotificationRead"];
     delete?: never;
     options?: never;
     head?: never;
@@ -658,6 +749,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v3/groups": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create a group
+     * @description Creates a new group owned by the authenticated user.
+     *
+     *     **Authentication required.**
+     */
+    post: operations["createGroup"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v3/groups/{id}": {
     parameters: {
       query?: never;
@@ -667,12 +780,230 @@ export interface paths {
     };
     /**
      * Get a group
-     * @description Returns detailed information about a specific group by its slug. Includes group profile, bio, owner, and counts.
+     * @description Returns detailed information about a specific group by its slug. Includes group profile, description, owner, counts, and permissions.
      */
     get: operations["getGroup"];
+    /**
+     * Update a group
+     * @description Updates an existing group. Only provided fields are updated.
+     *
+     *     **Authentication required.**
+     */
+    put: operations["updateGroup"];
+    post?: never;
+    /**
+     * Delete a group
+     * @description Deletes a group. This can not be undone.
+     *
+     *     **Authentication required.**
+     */
+    delete: operations["deleteGroup"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v3/groups/{id}/members": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get group members
+     * @description Returns a paginated list of group members. The group owner is always
+     *     returned as the first entry on page 1 with `role: "owner"`, followed by
+     *     collaborators in newest-first order with `role: "member"`. The total
+     *     count includes the owner.
+     *
+     *     Group managers see all collaborators; other readers only see
+     *     collaborators with confirmed accounts. The owner is always shown.
+     */
+    get: operations["getGroupMembers"];
+    put?: never;
+    /**
+     * Join a group
+     * @description Adds the authenticated user to the group as a member. Requires a valid
+     *     group invite token from `GET/POST /v3/groups/{id}/invite`; the token is
+     *     the authorization to join, so it may grant access to a private group.
+     *     Idempotent: if the authenticated user is already the owner or a member,
+     *     the endpoint returns `200` with that user's group-member entry.
+     *
+     *     **Authentication required.**
+     */
+    post: operations["joinGroup"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v3/groups/{id}/members/me": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
     put?: never;
     post?: never;
+    /**
+     * Leave a group
+     * @description Removes the authenticated user from the group. Idempotent: returns
+     *     `204` whether or not the user was a member.
+     *
+     *     **Authentication required.**
+     */
+    delete: operations["leaveGroup"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v3/groups/{id}/members/{user_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Remove a group member
+     * @description Removes a user from a group.
+     *
+     *     **Authentication required.**
+     */
+    delete: operations["removeGroupMember"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v3/groups/{id}/invitations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List pending group invitations
+     * @description Returns a paginated list of open (pending) membership invitations for
+     *     the group, newest first. Only users who can manage invitations on the
+     *     group — typically the owner and existing members — may list them.
+     *
+     *     Use `POST /v3/groups/{id}/invitations` to create an invitation; that
+     *     endpoint chooses between direct add and invitation automatically based
+     *     on the follow relationship.
+     *
+     *     ### Invitation acceptance flow
+     *
+     *     Invitees receive an email with a tokenized URL that opens the Are.na web
+     *     UI. Accept and decline actions are handled there via GraphQL
+     *     (`acceptMembershipInvitation` and `declineMembershipInvitation`), not
+     *     through this REST API. There is no REST endpoint for invitees to list
+     *     their own pending invitations today; invitation discovery is email-link
+     *     based.
+     *
+     *     **Authentication required.**
+     */
+    get: operations["getGroupInvitations"];
+    put?: never;
+    /**
+     * Add or invite a group member
+     * @description Resolves a `user_id` or `email` into one of four outcomes and returns
+     *     which outcome occurred via the `outcome` field. HTTP status mirrors the
+     *     outcome: `201` when something was created (`added`, `invited`), `200`
+     *     when no work was needed (`already_member`, `invitation_pending`).
+     *
+     *     Resolution rules:
+     *
+     *     - `added`: The request targeted a `user_id` and that user already
+     *       follows the caller. A group membership is created immediately. The
+     *       "must follow caller" signal is treated as opt-in, so no invite/accept
+     *       round trip is required.
+     *     - `invited`: A new pending invitation was created and an email was sent.
+     *     - `invitation_pending`: An open invitation for this user or email
+     *       already exists; the existing invitation is returned unchanged.
+     *     - `already_member`: The user is already a member; no action is taken.
+     *
+     *     When invited by `email` and no user with that email exists, the caller
+     *     must have permission to invite new users.
+     *
+     *     **Authentication required.**
+     */
+    post: operations["createGroupInvitation"];
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v3/groups/{id}/invitations/{invitation_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Revoke a pending group invitation
+     * @description Revokes a pending invitation so the invitee can no longer accept it.
+     *     Can be called by the invitation creator or by any user who can manage
+     *     invitations on the target group.
+     *
+     *     Returns `422` if the invitation is no longer pending (already accepted,
+     *     declined, or revoked).
+     *
+     *     **Authentication required.**
+     */
+    delete: operations["revokeGroupInvitation"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v3/groups/{id}/invite": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get group invite
+     * @description Returns the group's shareable invite code and public invite URL. Only
+     *     users who can manage the group may view the reusable invite code.
+     *
+     *     **Authentication required.**
+     */
+    get: operations["getGroupInvite"];
+    put?: never;
+    /**
+     * Create or reuse group invite
+     * @description Creates the group's shareable invite code if it does not exist, or
+     *     returns the existing one. Only users who can manage the group may create
+     *     or view the reusable invite code.
+     *
+     *     **Authentication required.**
+     */
+    post: operations["createGroupInvite"];
+    /**
+     * Delete group invite
+     * @description Deletes the group's shareable invite code. Idempotent: returns `204`
+     *     whether or not an invite code existed.
+     *
+     *     **Authentication required.**
+     */
+    delete: operations["deleteGroupInvite"];
     options?: never;
     head?: never;
     patch?: never;
@@ -773,6 +1104,12 @@ export interface components {
          * @example The resource you are looking for does not exist.
          */
         message?: string;
+        /** @description Validation errors, when applicable */
+        errors?:
+          | string[]
+          | {
+              [key: string]: unknown;
+            };
       };
     };
     /** @description Rate limit exceeded error response with upgrade information and suggestions */
@@ -1053,6 +1390,21 @@ export interface components {
       /** @description HATEOAS links for navigation */
       _links: components["schemas"]["Links"];
     };
+    /**
+     * @description The authenticated user's own profile, returned by `GET /v3/me`.
+     *     Extends `User` with the token holder's email address. This field is
+     *     intentionally not present on `/v3/users/{id}` or on embedded `User`
+     *     references nested in other resources.
+     */
+    Me: components["schemas"]["User"] & {
+      counts?: components["schemas"]["MeCounts"];
+      /**
+       * Format: email
+       * @description The authenticated user's email address.
+       * @example jane@example.com
+       */
+      email: string;
+    };
     /** @description Counts of various items for the user */
     UserCounts: {
       /**
@@ -1071,10 +1423,18 @@ export interface components {
        */
       following: number;
     };
+    /** @description Counts for the authenticated user, including private notification state. */
+    MeCounts: components["schemas"]["UserCounts"] & {
+      /**
+       * @description Number of unread notifications for the authenticated user
+       * @example 3
+       */
+      notifications: number;
+    };
     /** @description Full group representation */
     Group: components["schemas"]["EmbeddedGroup"] & {
-      /** @description Group biography with markdown, HTML, and plain text renderings */
-      bio?: components["schemas"]["MarkdownContent"] | null;
+      /** @description Group description with markdown, HTML, and plain text renderings */
+      description?: components["schemas"]["MarkdownContent"] | null;
       /**
        * Format: date-time
        * @description When the group was created
@@ -1090,6 +1450,8 @@ export interface components {
       /** @description User who owns/created the group */
       user: components["schemas"]["EmbeddedUser"];
       counts: components["schemas"]["GroupCounts"];
+      /** @description Actions the current user can perform on the group */
+      can: components["schemas"]["GroupAbilities"];
       /** @description HATEOAS links for navigation */
       _links: components["schemas"]["Links"];
     };
@@ -1105,6 +1467,168 @@ export interface components {
        * @example 5
        */
       users: number;
+    };
+    /**
+     * @description Pending invitation for a user to join a group.
+     *
+     *     Invitee acceptance and decline currently happen through the Are.na web
+     *     UI using tokenized invitation links sent by email. The web UI uses the
+     *     GraphQL `acceptMembershipInvitation` and `declineMembershipInvitation`
+     *     mutations; this REST surface only exposes group-manager list and revoke
+     *     operations.
+     */
+    MembershipInvitation: {
+      /**
+       * @description Unique identifier for the invitation
+       * @example 12345
+       */
+      id: number;
+      /**
+       * @example MembershipInvitation
+       * @enum {string}
+       */
+      type: "MembershipInvitation";
+      /** @description Group the invitee is invited to join */
+      target: components["schemas"]["EmbeddedGroup"];
+      /** @description User being invited, when available */
+      invitee: components["schemas"]["EmbeddedUser"] | null;
+      /**
+       * Format: email
+       * @description Email address being invited, visible to users who can manage invitations
+       * @example invitee@example.com
+       */
+      invitee_email: string | null;
+      /** @description User who created the invitation */
+      invited_by: components["schemas"]["EmbeddedUser"];
+      /**
+       * @example pending
+       * @enum {string}
+       */
+      state: "pending" | "accepted" | "declined" | "revoked";
+      /**
+       * Format: date-time
+       * @description When the invitation was accepted
+       * @example null
+       */
+      accepted_at: string | null;
+      /**
+       * Format: date-time
+       * @description When the invitation was created
+       * @example 2023-01-15T10:30:00Z
+       */
+      created_at: string;
+      /**
+       * Format: date-time
+       * @description When the invitation was last updated
+       * @example 2023-01-15T10:30:00Z
+       */
+      updated_at: string;
+      /**
+       * @description Links for navigation. Empty today because no public endpoint
+       *     addresses an invitation directly; reserved for future use.
+       */
+      _links: {
+        [key: string]: unknown;
+      };
+    };
+    /** @description Shareable invite code for joining a group */
+    GroupInvite: {
+      /**
+       * @description Unique identifier for the invite code
+       * @example 12345
+       */
+      id: number;
+      /**
+       * @example GroupInvite
+       * @enum {string}
+       */
+      type: "GroupInvite";
+      /**
+       * @description Invite code required to join the group
+       * @example abc123xyz
+       */
+      code: string;
+      /**
+       * Format: uri
+       * @description Public Are.na URL for accepting the group invite
+       * @example https://www.are.na/group/research-studio/invite/abc123xyz
+       */
+      url: string;
+      /**
+       * Format: date-time
+       * @description When the invite code was created
+       * @example 2023-01-15T10:30:00Z
+       */
+      created_at: string;
+      /**
+       * Format: date-time
+       * @description When the invite code was last updated
+       * @example 2023-01-15T10:30:00Z
+       */
+      updated_at: string;
+      /** @description HATEOAS links for navigation */
+      _links: components["schemas"]["Links"];
+    };
+    /** @description Group member entry, including the group owner and any collaborators */
+    GroupMember: components["schemas"]["EmbeddedUser"] & {
+      /**
+       * @description The user's role on the group. `owner` is the group's creator;
+       *     `member` is anyone else with a group membership.
+       * @example member
+       * @enum {string}
+       */
+      role: "owner" | "member";
+    };
+    /** @description Data payload containing an array of group members */
+    GroupMemberList: {
+      /** @description Array of group members (owner first on page 1) */
+      data: components["schemas"]["GroupMember"][];
+    };
+    /** @description Paginated list of group members with total count */
+    GroupMemberListResponse: components["schemas"]["GroupMemberList"] &
+      components["schemas"]["PaginatedResponse"];
+    /** @description Data payload containing an array of membership invitations */
+    MembershipInvitationList: {
+      /** @description Array of pending membership invitations */
+      data: components["schemas"]["MembershipInvitation"][];
+    };
+    /** @description Paginated list of pending membership invitations */
+    MembershipInvitationListResponse: components["schemas"]["MembershipInvitationList"] &
+      components["schemas"]["PaginatedResponse"];
+    /**
+     * @description Discriminator for the result of `POST /v3/groups/{id}/invitations`.
+     *
+     *     - `added`: A new group membership was created (the invitee already
+     *       follows the caller, so the invite/accept round trip was skipped).
+     *     - `invited`: A new pending invitation was created and an email was sent.
+     *     - `invitation_pending`: An open invitation for this user/email already
+     *       existed; that invitation is returned unchanged.
+     *     - `already_member`: The user is already a group member; no action was
+     *       taken.
+     * @enum {string}
+     */
+    GroupMemberInviteOutcome:
+      | "added"
+      | "invited"
+      | "invitation_pending"
+      | "already_member";
+    /**
+     * @description Result of `POST /v3/groups/{id}/invitations`. Inspect `outcome` to
+     *     determine what happened; HTTP status mirrors it (`201` for created outcomes,
+     *     `200` for no-op outcomes).
+     */
+    GroupMemberInviteResponse: {
+      outcome: components["schemas"]["GroupMemberInviteOutcome"];
+      /**
+       * @description The user that this request resolved to, when known. Null only when
+       *     an invitation was issued by email and no matching user exists yet.
+       */
+      user: components["schemas"]["EmbeddedUser"] | null;
+      /**
+       * @description The invitation associated with this request, for `invited` and
+       *     `invitation_pending` outcomes.
+       */
+      invitation: components["schemas"]["MembershipInvitation"] | null;
     };
     /**
      * @description Denotes plan or other distinction:
@@ -1948,8 +2472,7 @@ export interface components {
        */
       id: number;
       /**
-       * @description Comment type
-       * @example Comment
+       * @description Comment type (enum property replaced by openapi-typescript)
        * @enum {string}
        */
       type: "Comment";
@@ -1977,8 +2500,7 @@ export interface components {
        */
       id: number;
       /**
-       * @description Channel type
-       * @example Channel
+       * @description Channel type (enum property replaced by openapi-typescript)
        * @enum {string}
        */
       type: "Channel";
@@ -2034,6 +2556,20 @@ export interface components {
     ChannelOwner:
       | components["schemas"]["EmbeddedUser"]
       | components["schemas"]["EmbeddedGroup"];
+    /** @description User or Group that should own the channel. */
+    ChannelOwnerInput: {
+      /**
+       * @description ID of the User or Group to own the channel.
+       * @example 12345
+       */
+      id: number;
+      /**
+       * @description Owner type. Defaults to User when omitted.
+       * @default User
+       * @enum {string}
+       */
+      type: "User" | "Group";
+    };
     /** @description Channel collaborator (User or Group) */
     ChannelCollaborator:
       | components["schemas"]["EmbeddedUser"]
@@ -2061,6 +2597,29 @@ export interface components {
        */
       manage_collaborators: boolean;
     };
+    /** @description Actions the current user can perform on the group */
+    GroupAbilities: {
+      /**
+       * @description Whether the user can update this group
+       * @example false
+       */
+      update: boolean;
+      /**
+       * @description Whether the user can delete this group
+       * @example false
+       */
+      destroy: boolean;
+      /**
+       * @description Whether the user can add/remove group members
+       * @example false
+       */
+      manage_members: boolean;
+      /**
+       * @description Whether the user can create/revoke group invitations
+       * @example false
+       */
+      manage_invitations: boolean;
+    };
     /** @description Counts of various items in the channel */
     ChannelCounts: {
       /**
@@ -2083,6 +2642,156 @@ export interface components {
        * @example 3
        */
       collaborators: number;
+    };
+    /**
+     * @description The normalized activity kind. Encodes the actor's action and the item /
+     *     target involved, so clients can render and switch on a single value
+     *     rather than stitching together separate action and connector phrases.
+     *
+     *     Kind determines the expected subject types:
+     *     - `followed_user`: item=User, target=null, parent=null
+     *     - `followed_channel`: item=Channel, target=null, parent=null
+     *     - `followed_group`: item=Group, target=null, parent=null
+     *     - `added_block_to_channel`: item=Block (Text/Image/Link/Attachment/Embed), target=Channel, parent=null
+     *     - `added_channel_to_channel`: item=Channel, target=Channel, parent=null
+     *     - `created_channel`: item=Channel, target=null, parent=null
+     *     - `collaborating_with_user_on_channel`: item=User, target=Channel, parent=null
+     *     - `collaborating_with_group_on_channel`: item=Group, target=Channel, parent=null
+     *     - `commented_on_block`: item=Comment, target=Block, parent=Channel
+     *     - `mentioned_you`: item=Comment, target=User, parent=Block
+     *     - `added_user_to_group`: item=User, target=Group, parent=null
+     * @example added_block_to_channel
+     * @enum {string}
+     */
+    ActivityKind:
+      | "followed_user"
+      | "followed_channel"
+      | "followed_group"
+      | "added_block_to_channel"
+      | "added_channel_to_channel"
+      | "created_channel"
+      | "collaborating_with_user_on_channel"
+      | "collaborating_with_group_on_channel"
+      | "commented_on_block"
+      | "mentioned_you"
+      | "added_user_to_group";
+    /** @description User or group who performed the activity. */
+    ActivityActor:
+      | components["schemas"]["EmbeddedUser"]
+      | components["schemas"]["EmbeddedGroup"];
+    /** @description Resource involved in a feed activity. */
+    ActivitySubject:
+      | components["schemas"]["EmbeddedUser"]
+      | components["schemas"]["EmbeddedGroup"]
+      | components["schemas"]["Channel"]
+      | components["schemas"]["TextBlock"]
+      | components["schemas"]["ImageBlock"]
+      | components["schemas"]["LinkBlock"]
+      | components["schemas"]["AttachmentBlock"]
+      | components["schemas"]["EmbedBlock"]
+      | components["schemas"]["Comment"];
+    /** @description Common fields for feed activities and notifications. */
+    ActivityBase: {
+      /**
+       * @description Unique identifier for the underlying activity.
+       * @example 12345
+       */
+      id: number;
+      /**
+       * Format: date-time
+       * @description When the activity occurred.
+       * @example 2024-06-05T12:00:00Z
+       */
+      created_at: string;
+      kind: components["schemas"]["ActivityKind"];
+      actor: components["schemas"]["ActivityActor"];
+      item: components["schemas"]["ActivitySubject"] | null;
+      target: components["schemas"]["ActivitySubject"] | null;
+      parent: components["schemas"]["ActivitySubject"] | null;
+    };
+    /** @description A single feed activity. */
+    Activity: components["schemas"]["ActivityBase"] & {
+      /**
+       * @example Activity
+       * @enum {string}
+       */
+      type: "Activity";
+    };
+    /** @description A notification feed activity with read state. */
+    Notification: components["schemas"]["ActivityBase"] & {
+      /**
+       * @example Notification
+       * @enum {string}
+       */
+      type: "Notification";
+      /**
+       * @description Whether the authenticated user has read this notification.
+       * @example false
+       */
+      is_read: boolean;
+    };
+    /**
+     * @description Cursor pagination metadata for the newest-first feeds. `next_cursor`
+     *     pages toward older items (the "load more" direction); `prev_cursor`
+     *     pages back toward newer items.
+     */
+    CursorMeta: {
+      /**
+       * @description Maximum number of items requested.
+       * @example 24
+       */
+      limit: number;
+      /**
+       * @description Cursor for the next (older) page. Pass it back as the `next`
+       *     parameter to continue paging toward older items. Null when no
+       *     older items remain.
+       * @example eyJzIjoxNzE3NjEyMzQ1LCJtIjo0MjB9
+       */
+      next_cursor: string | null;
+      /**
+       * @description Cursor for the previous (newer) page. Pass it back as the `prev`
+       *     parameter to page toward newer items. Null when this page is
+       *     empty.
+       * @example eyJzIjoxNzE3NjEyMzQ1LCJtIjo0MjB9
+       */
+      prev_cursor: string | null;
+      /**
+       * @description Whether more (older) items exist beyond this page, reachable via
+       *     `next_cursor`.
+       * @example true
+       */
+      has_more: boolean;
+    };
+    /** @description Cursor-paginated feed response. */
+    FeedListResponse: {
+      meta: components["schemas"]["CursorMeta"];
+      data: components["schemas"]["Activity"][];
+    };
+    /** @description Cursor-paginated notification feed response. */
+    NotificationListResponse: {
+      meta: components["schemas"]["CursorMeta"];
+      data: components["schemas"]["Notification"][];
+    };
+    /** @description The authenticated user's unread notification state after a mutation. */
+    NotificationReadMeta: {
+      /**
+       * @description Number of unread notifications remaining.
+       * @example 2
+       */
+      notifications: number;
+    };
+    /**
+     * @description Response to marking a single notification as read. Returns the updated
+     *     notification alongside the new unread count, so clients can refresh
+     *     both list state and badge without a follow-up request.
+     */
+    NotificationReadResponse: {
+      meta: components["schemas"]["NotificationReadMeta"];
+      data: components["schemas"]["Notification"];
+    };
+    /** @description Response to marking all notifications as read. */
+    NotificationsReadAllResponse: {
+      meta: components["schemas"]["NotificationReadMeta"];
     };
     /** @description Pagination metadata */
     PaginationMeta: {
@@ -2242,6 +2951,15 @@ export interface components {
         [name: string]: unknown;
       };
       content: {
+        /**
+         * @example {
+         *       "error": "Forbidden",
+         *       "code": 403,
+         *       "details": {
+         *         "message": "You do not have permission to access this resource."
+         *       }
+         *     }
+         */
         "application/json": components["schemas"]["Error"];
       };
     };
@@ -2271,14 +2989,28 @@ export interface components {
       content: {
         /**
          * @example {
-         *       "error": "Validation failed",
+         *       "error": "Unprocessable Entity",
          *       "code": 422,
          *       "details": {
-         *         "errors": {
-         *           "title": [
-         *             "can't be blank"
-         *           ]
-         *         }
+         *         "message": "You've reached your limit of blocks"
+         *       }
+         *     }
+         */
+        "application/json": components["schemas"]["Error"];
+      };
+    };
+    /** @description Request timeout - the request took too long to process and was canceled */
+    RequestTimeoutResponse: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        /**
+         * @example {
+         *       "error": "Request Timeout",
+         *       "code": 408,
+         *       "details": {
+         *         "message": "The request took too long to process and was canceled. Please try again or narrow the request."
          *       }
          *     }
          */
@@ -2356,6 +3088,24 @@ export interface components {
      * @example Image
      */
     ContentTypeFilterParam: components["schemas"]["ContentTypeFilter"];
+    /**
+     * @description Number of feed items to return (max 100)
+     * @example 24
+     */
+    LimitParam: number;
+    /**
+     * @description Load the **next** page (toward older items — the "load more"
+     *     direction, since feeds are ordered newest-first). Pass back the
+     *     `meta.next_cursor` from a previous response.
+     * @example eyJzIjoxNzE3NjEyMzQ1LCJtIjo0MjB9
+     */
+    CursorNextParam: string;
+    /**
+     * @description Load the **previous** page (toward newer items). Pass back the
+     *     `meta.prev_cursor` from a previous response.
+     * @example eyJzIjoxNzE3NjEyMzQ1LCJtIjo0MjB9
+     */
+    CursorPrevParam: string;
   };
   requestBodies: never;
   headers: never;
@@ -2534,6 +3284,7 @@ export interface operations {
           "application/json": components["schemas"]["PingResponse"];
         };
       };
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -2575,6 +3326,7 @@ export interface operations {
       };
       400: components["responses"]["BadRequestResponse"];
       401: components["responses"]["UnauthorizedResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -2627,6 +3379,7 @@ export interface operations {
         };
       };
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -2668,6 +3421,7 @@ export interface operations {
         };
       };
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       422: components["responses"]["UnprocessableEntityResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
@@ -2696,6 +3450,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -2723,6 +3478,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -2781,6 +3537,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       422: components["responses"]["UnprocessableEntityResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
@@ -2830,6 +3587,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -2873,6 +3631,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -2911,6 +3670,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       422: components["responses"]["UnprocessableEntityResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
@@ -2937,6 +3697,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -2963,11 +3724,11 @@ export interface operations {
            */
           description?: string;
           /**
-           * @description Group ID to create the channel under. The authenticated user must be a member of the group.
-           *     If not provided, the channel is owned by the authenticated user.
-           * @example 12345
+           * @description User or Group to own the channel. The authenticated user must be able to assign authorship
+           *     to the owner: themselves, or a group they belong to. If not provided, the channel is owned
+           *     by the authenticated user.
            */
-          group_id?: number;
+          owner?: components["schemas"]["ChannelOwnerInput"];
           /** @description Custom key-value metadata to set on the new channel. */
           metadata?: components["schemas"]["Metadata"];
         };
@@ -2986,6 +3747,7 @@ export interface operations {
       400: components["responses"]["ValidationErrorResponse"];
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       422: components["responses"]["UnprocessableEntityResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
@@ -3014,6 +3776,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -3042,6 +3805,11 @@ export interface operations {
            */
           description?: string | null;
           /**
+           * @description User or Group to own the channel. The authenticated user must be able to assign authorship
+           *     to the owner: themselves, or a group they belong to.
+           */
+          owner?: components["schemas"]["ChannelOwnerInput"];
+          /**
            * @description Custom key-value metadata. Uses merge semantics: new keys are added,
            *     existing keys are updated, keys set to null are removed.
            */
@@ -3063,6 +3831,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       422: components["responses"]["UnprocessableEntityResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
@@ -3089,6 +3858,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -3138,6 +3908,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       422: components["responses"]["UnprocessableEntityResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
@@ -3166,6 +3937,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -3204,6 +3976,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       422: components["responses"]["UnprocessableEntityResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
@@ -3230,6 +4003,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -3267,6 +4041,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       422: components["responses"]["UnprocessableEntityResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
@@ -3317,6 +4092,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -3360,6 +4136,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -3403,6 +4180,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -3421,10 +4199,155 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["User"];
+          "application/json": components["schemas"]["Me"];
         };
       };
       401: components["responses"]["UnauthorizedResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  getMyFeed: {
+    parameters: {
+      query?: {
+        /**
+         * @description Number of feed items to return (max 100)
+         * @example 24
+         */
+        limit?: components["parameters"]["LimitParam"];
+        /**
+         * @description Load the **next** page (toward older items — the "load more"
+         *     direction, since feeds are ordered newest-first). Pass back the
+         *     `meta.next_cursor` from a previous response.
+         * @example eyJzIjoxNzE3NjEyMzQ1LCJtIjo0MjB9
+         */
+        next?: components["parameters"]["CursorNextParam"];
+        /**
+         * @description Load the **previous** page (toward newer items). Pass back the
+         *     `meta.prev_cursor` from a previous response.
+         * @example eyJzIjoxNzE3NjEyMzQ1LCJtIjo0MjB9
+         */
+        prev?: components["parameters"]["CursorPrevParam"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current user's feed */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["FeedListResponse"];
+        };
+      };
+      401: components["responses"]["UnauthorizedResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  getMyNotifications: {
+    parameters: {
+      query?: {
+        /**
+         * @description Number of feed items to return (max 100)
+         * @example 24
+         */
+        limit?: components["parameters"]["LimitParam"];
+        /**
+         * @description Load the **next** page (toward older items — the "load more"
+         *     direction, since feeds are ordered newest-first). Pass back the
+         *     `meta.next_cursor` from a previous response.
+         * @example eyJzIjoxNzE3NjEyMzQ1LCJtIjo0MjB9
+         */
+        next?: components["parameters"]["CursorNextParam"];
+        /**
+         * @description Load the **previous** page (toward newer items). Pass back the
+         *     `meta.prev_cursor` from a previous response.
+         * @example eyJzIjoxNzE3NjEyMzQ1LCJtIjo0MjB9
+         */
+        prev?: components["parameters"]["CursorPrevParam"];
+        /**
+         * @description When true, only unread notifications are returned.
+         * @example true
+         */
+        unread?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current user's notifications */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotificationListResponse"];
+        };
+      };
+      401: components["responses"]["UnauthorizedResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  markAllMyNotificationsRead: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Notifications marked as read */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotificationsReadAllResponse"];
+        };
+      };
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  markMyNotificationRead: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description Activity id returned by the notifications feed.
+         * @example 12345
+         */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Notification marked as read */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotificationReadResponse"];
+        };
+      };
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -3452,6 +4375,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -3500,6 +4424,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -3543,6 +4468,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -3591,6 +4517,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -3634,6 +4561,54 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  createGroup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /**
+           * @description Group name
+           * @example Research Studio
+           */
+          name: string;
+          /**
+           * @description Group description (supports markdown)
+           * @example Shared research notes and channels
+           */
+          description?: string;
+          /**
+           * Format: uri
+           * @description URL of an avatar image to fetch asynchronously.
+           * @example https://example.com/avatar.jpg
+           */
+          avatar_url?: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Group created successfully */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Group"];
+        };
+      };
+      400: components["responses"]["ValidationErrorResponse"];
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      422: components["responses"]["UnprocessableEntityResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -3661,6 +4636,454 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  updateGroup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource ID or slug */
+        id: components["parameters"]["SlugOrIdParam"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /**
+           * @description Group name
+           * @example Updated Research Studio
+           */
+          name?: string;
+          /**
+           * @description Group description (supports markdown). Pass null to clear.
+           * @example Updated shared research notes
+           */
+          description?: string | null;
+          /**
+           * Format: uri
+           * @description URL of an avatar image to fetch asynchronously.
+           * @example https://example.com/avatar.jpg
+           */
+          avatar_url?: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Group updated successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Group"];
+        };
+      };
+      400: components["responses"]["ValidationErrorResponse"];
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      422: components["responses"]["UnprocessableEntityResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  deleteGroup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource ID or slug */
+        id: components["parameters"]["SlugOrIdParam"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Group deleted successfully */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  getGroupMembers: {
+    parameters: {
+      query?: {
+        /**
+         * @description Page number for pagination
+         * @example 1
+         */
+        page?: components["parameters"]["PageParam"];
+        /**
+         * @description Number of items per page (max 100)
+         * @example 24
+         */
+        per?: components["parameters"]["PerParam"];
+      };
+      header?: never;
+      path: {
+        /** @description Resource ID or slug */
+        id: components["parameters"]["SlugOrIdParam"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description List of group members */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GroupMemberListResponse"];
+        };
+      };
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  joinGroup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource ID or slug */
+        id: components["parameters"]["SlugOrIdParam"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /**
+           * @description The group's invite code, authorizing the authenticated user to join
+           * @example abc123xyz
+           */
+          invite_token?: string;
+        };
+      };
+    };
+    responses: {
+      /** @description User was already the owner or a member */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GroupMember"];
+        };
+      };
+      /** @description User joined the group */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GroupMember"];
+        };
+      };
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  leaveGroup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource ID or slug */
+        id: components["parameters"]["SlugOrIdParam"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description User was removed from the group, or was not a member */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  removeGroupMember: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource ID or slug */
+        id: components["parameters"]["SlugOrIdParam"];
+        /**
+         * @description User ID of the group member to remove
+         * @example 12345
+         */
+        user_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Group member removed successfully */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  getGroupInvitations: {
+    parameters: {
+      query?: {
+        /**
+         * @description Page number for pagination
+         * @example 1
+         */
+        page?: components["parameters"]["PageParam"];
+        /**
+         * @description Number of items per page (max 100)
+         * @example 24
+         */
+        per?: components["parameters"]["PerParam"];
+      };
+      header?: never;
+      path: {
+        /** @description Resource ID or slug */
+        id: components["parameters"]["SlugOrIdParam"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description List of pending invitations */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MembershipInvitationListResponse"];
+        };
+      };
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  createGroupInvitation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource ID or slug */
+        id: components["parameters"]["SlugOrIdParam"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json":
+          | {
+              /**
+               * @description User ID to add or invite
+               * @example 12345
+               */
+              user_id: number;
+            }
+          | {
+              /**
+               * Format: email
+               * @description Email address to invite
+               * @example invitee@example.com
+               */
+              email: string;
+            };
+      };
+    };
+    responses: {
+      /**
+       * @description No action was needed. `outcome` is either `already_member` or
+       *     `invitation_pending`.
+       */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GroupMemberInviteResponse"];
+        };
+      };
+      /**
+       * @description A membership or invitation was created. `outcome` is either `added`
+       *     or `invited`. The created resource (member or invitation) is
+       *     included in the response body.
+       */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GroupMemberInviteResponse"];
+        };
+      };
+      400: components["responses"]["BadRequestResponse"];
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      422: components["responses"]["UnprocessableEntityResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  revokeGroupInvitation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource ID or slug */
+        id: components["parameters"]["SlugOrIdParam"];
+        /**
+         * @description ID of the invitation to revoke
+         * @example 12345
+         */
+        invitation_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Invitation revoked successfully */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      422: components["responses"]["UnprocessableEntityResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  getGroupInvite: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource ID or slug */
+        id: components["parameters"]["SlugOrIdParam"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Group invite details */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GroupInvite"];
+        };
+      };
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  createGroupInvite: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource ID or slug */
+        id: components["parameters"]["SlugOrIdParam"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Group invite already existed */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GroupInvite"];
+        };
+      };
+      /** @description Group invite created */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GroupInvite"];
+        };
+      };
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  deleteGroupInvite: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource ID or slug */
+        id: components["parameters"]["SlugOrIdParam"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Group invite deleted, or no invite existed */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -3709,6 +5132,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -3752,6 +5176,7 @@ export interface operations {
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };
@@ -3872,6 +5297,7 @@ export interface operations {
           "application/json": components["schemas"]["Error"];
         };
       };
+      408: components["responses"]["RequestTimeoutResponse"];
       429: components["responses"]["RateLimitResponse"];
     };
   };

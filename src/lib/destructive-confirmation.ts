@@ -60,7 +60,7 @@ export async function confirmDestructiveIfNeeded(
 
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     throw new Error(
-      `Destructive command requires confirmation. Re-run with --yes to bypass: ${action.command} delete ${action.resourceId}`,
+      `Destructive command requires confirmation. Re-run with --yes to bypass: ${action.command} ${action.action} ${action.resourceId}`,
     );
   }
 

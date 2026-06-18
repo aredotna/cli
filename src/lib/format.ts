@@ -1,4 +1,10 @@
-import type { Followable, UserTier } from "../api/types";
+import type {
+  Activity,
+  ActivitySubject,
+  Followable,
+  Notification,
+  UserTier,
+} from "../api/types";
 
 export function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -63,6 +69,79 @@ export function formatFollowable(item: Followable): string {
       return `${item.title} [channel]`;
     case "Group":
       return `${item.name} [group]`;
+  }
+}
+
+function formatActivityActor(actor: Activity["actor"]): string {
+  return `${actor.name} (@${actor.slug})`;
+}
+
+function formatActivitySubject(subject: ActivitySubject | null): string {
+  if (!subject) return "something";
+
+  switch (subject.type) {
+    case "User":
+      return `${subject.name} (@${subject.slug})`;
+    case "Group":
+      return `${subject.name} [group]`;
+    case "Channel":
+      return `${subject.title} [channel]`;
+    case "Comment":
+      return subject.body?.plain
+        ? `"${truncate(subject.body.plain, 60)}"`
+        : "a comment";
+    case "Text":
+      return (
+        subject.title ||
+        (subject.content?.plain
+          ? truncate(subject.content.plain, 60)
+          : "a text block")
+      );
+    case "Link":
+      return subject.title || subject.source?.url || "a link";
+    case "Image":
+      return subject.title || subject.image?.filename || "an image";
+    case "Attachment":
+      return subject.title || subject.attachment?.filename || "an attachment";
+    case "Embed":
+      return (
+        subject.title ||
+        subject.embed?.title ||
+        subject.embed?.url ||
+        "an embed"
+      );
+  }
+}
+
+export function formatActivity(activity: Activity | Notification): string {
+  const actor = formatActivityActor(activity.actor);
+  const item = formatActivitySubject(activity.item);
+  const target = formatActivitySubject(activity.target);
+  const parent = formatActivitySubject(activity.parent);
+
+  switch (activity.kind) {
+    case "followed_user":
+      return `${actor} followed ${item}`;
+    case "followed_channel":
+      return `${actor} followed ${item}`;
+    case "followed_group":
+      return `${actor} followed ${item}`;
+    case "added_block_to_channel":
+      return `${actor} added ${item} to ${target}`;
+    case "added_channel_to_channel":
+      return `${actor} added ${item} to ${target}`;
+    case "created_channel":
+      return `${actor} created ${item}`;
+    case "collaborating_with_user_on_channel":
+      return `${actor} is collaborating with ${item} on ${target}`;
+    case "collaborating_with_group_on_channel":
+      return `${actor} is collaborating with ${item} on ${target}`;
+    case "commented_on_block":
+      return `${actor} commented ${item} on ${target} in ${parent}`;
+    case "mentioned_you":
+      return `${actor} mentioned you in ${parent}`;
+    case "added_user_to_group":
+      return `${actor} added ${item} to ${target}`;
   }
 }
 
