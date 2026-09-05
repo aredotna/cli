@@ -2089,8 +2089,26 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
         flag: "--description <text>",
         description: "Optional block description",
       },
+      { flag: "--alt-text <text>", description: "Optional block alt text" },
+      {
+        flag: "--original-source-url <url>",
+        description: "Optional original source URL",
+      },
+      {
+        flag: "--original-source-title <text>",
+        description: "Optional original source title",
+      },
+      {
+        flag: "--insert-at <n>",
+        description: "Optional insert position within the channel",
+      },
     ],
-    examples: ["arena upload photo.jpg --channel my-channel"],
+    examples: [
+      "arena upload photo.jpg --channel my-channel",
+      'arena upload photo.jpg --channel my-channel --title "Cover" --description "Homepage image"',
+      'arena upload photo.jpg --channel my-channel --alt-text "Cover image" --insert-at 1',
+      'arena upload photo.jpg --channel my-channel --original-source-url https://source.com --original-source-title "Original"',
+    ],
     seeAlso: ["add", "batch", "import"],
   },
   batch: {
