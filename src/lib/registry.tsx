@@ -742,13 +742,13 @@ export const commands: CommandDefinition[] = [
     },
     async json(args, flags) {
       const file = requireArg(args, 0, "file");
-
-      const { s3Url } = await uploadLocalFile(file);
-
       const channel = requireFlag(flags, "channel");
+
       const ch = await getData(
         client.GET("/v3/channels/{id}", { params: { path: { id: channel } } }),
       );
+
+      const { s3Url } = await uploadLocalFile(file);
 
       const metadata = entityMetadataFlag(flags);
       const connectionMetadata = entityMetadataFlag(
