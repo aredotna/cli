@@ -387,6 +387,8 @@ Examples:
 ```bash
 arena upload photo.jpg --channel my-channel
 arena upload photo.jpg --channel my-channel --title "Cover" --description "Homepage image"
+arena upload photo.jpg --channel my-channel --alt-text "Cover image" --insert-at 1
+arena upload photo.jpg --channel my-channel --original-source-url https://source.com --original-source-title "Original"
 ```
 
 Options:
@@ -394,6 +396,10 @@ Options:
 - `--channel <slug|id>` (required)
 - `--title <text>`
 - `--description <text>`
+- `--alt-text <text>`
+- `--original-source-url <url>`
+- `--original-source-title <text>`
+- `--insert-at <n>`
 
 #### `batch`
 

@@ -693,12 +693,34 @@ export const commands: CommandDefinition[] = [
     help: [
       {
         usage:
-          "upload <file> --channel <ch> [--title <text>] [--description <text>]",
+          "upload <file> --channel <ch> [--title <text>] [--description <text>] [--alt-text <text>] [--original-source-url <url>] [--original-source-title <text>] [--insert-at <n>]",
         description: "Options",
       },
       {
         usage:
           'upload <file> --channel <ch> --title "Title" --description "Notes"',
+        description: "Example",
+      },
+      {
+        usage: 'upload <file> --channel <ch> --alt-text "Accessible text"',
+        description: "Example",
+      },
+      {
+        usage:
+          'upload <file> --channel <ch> --original-source-url <url> --original-source-title "Source"',
+        description: "Example",
+      },
+      {
+        usage: "upload <file> --channel <ch> --insert-at 1",
+        description: "Example",
+      },
+      {
+        usage: "upload <file> --channel <ch> --metadata status=reviewed",
+        description: "Example",
+      },
+      {
+        usage:
+          "upload <file> --channel <ch> --connection-metadata placement=homepage",
         description: "Example",
       },
     ],
@@ -709,23 +731,48 @@ export const commands: CommandDefinition[] = [
           channel={requireFlag(flags, "channel")}
           title={flag(flags, "title")}
           description={flag(flags, "description")}
+          altText={flag(flags, "alt-text")}
+          originalSourceUrl={flag(flags, "original-source-url")}
+          originalSourceTitle={flag(flags, "original-source-title")}
+          insertAt={intFlag(flags, "insert-at")}
+          metadata={entityMetadataFlag(flags)}
+          connectionMetadata={entityMetadataFlag(flags, "connection-metadata")}
         />
       );
     },
     async json(args, flags) {
       const file = requireArg(args, 0, "file");
       const channel = requireFlag(flags, "channel");
-      const { s3Url } = await uploadLocalFile(file);
+      const insertAt = intFlag(flags, "insert-at");
+      const metadata = entityMetadataFlag(flags);
+      const connectionMetadata = entityMetadataFlag(
+        flags,
+        "connection-metadata",
+      );
+
       const ch = await getData(
         client.GET("/v3/channels/{id}", { params: { path: { id: channel } } }),
       );
+
+      const { s3Url } = await uploadLocalFile(file);
+
       return getData(
         client.POST("/v3/blocks", {
           body: {
             value: s3Url,
-            channel_ids: [ch.id],
+            channels: [
+              {
+                id: ch.id,
+                position: insertAt,
+                metadata: connectionMetadata,
+              },
+            ],
             title: flag(flags, "title"),
             description: flag(flags, "description"),
+            alt_text: flag(flags, "alt-text"),
+            original_source_url: flag(flags, "original-source-url"),
+            original_source_title: flag(flags, "original-source-title"),
+            metadata,
           },
         }),
       );
@@ -2042,8 +2089,26 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
         flag: "--description <text>",
         description: "Optional block description",
       },
+      { flag: "--alt-text <text>", description: "Optional block alt text" },
+      {
+        flag: "--original-source-url <url>",
+        description: "Optional original source URL",
+      },
+      {
+        flag: "--original-source-title <text>",
+        description: "Optional original source title",
+      },
+      {
+        flag: "--insert-at <n>",
+        description: "Optional insert position within the channel",
+      },
     ],
-    examples: ["arena upload photo.jpg --channel my-channel"],
+    examples: [
+      "arena upload photo.jpg --channel my-channel",
+      'arena upload photo.jpg --channel my-channel --title "Cover" --description "Homepage image"',
+      'arena upload photo.jpg --channel my-channel --alt-text "Cover image" --insert-at 1',
+      'arena upload photo.jpg --channel my-channel --original-source-url https://source.com --original-source-title "Original"',
+    ],
     seeAlso: ["add", "batch", "import"],
   },
   batch: {

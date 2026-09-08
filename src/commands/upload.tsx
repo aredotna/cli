@@ -4,15 +4,33 @@ import { client, getData } from "../api/client";
 import { Spinner } from "../components/Spinner";
 import { useCommand } from "../hooks/use-command";
 import { uploadLocalFile } from "../lib/upload";
+import { Metadata } from "../api/types";
 
 interface Props {
   file: string;
   channel: string;
   title?: string;
   description?: string;
+  altText?: string;
+  originalSourceUrl?: string;
+  originalSourceTitle?: string;
+  insertAt?: number;
+  metadata?: Metadata;
+  connectionMetadata?: Metadata;
 }
 
-export function UploadCommand({ file, channel, title, description }: Props) {
+export function UploadCommand({
+  file,
+  channel,
+  title,
+  description,
+  altText,
+  originalSourceUrl,
+  originalSourceTitle,
+  insertAt,
+  metadata,
+  connectionMetadata,
+}: Props) {
   const { data, error, loading } = useCommand(async () => {
     const { s3Url } = await uploadLocalFile(file);
     const ch = await getData(
@@ -24,9 +42,19 @@ export function UploadCommand({ file, channel, title, description }: Props) {
       client.POST("/v3/blocks", {
         body: {
           value: s3Url,
-          channel_ids: [ch.id],
+          channels: [
+            {
+              id: ch.id,
+              position: insertAt,
+              metadata: connectionMetadata,
+            },
+          ],
           title,
           description,
+          alt_text: altText,
+          original_source_url: originalSourceUrl,
+          original_source_title: originalSourceTitle,
+          metadata,
         },
       }),
     );
