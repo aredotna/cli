@@ -743,18 +743,18 @@ export const commands: CommandDefinition[] = [
     async json(args, flags) {
       const file = requireArg(args, 0, "file");
       const channel = requireFlag(flags, "channel");
+      const insertAt = intFlag(flags, "insert-at");
+      const metadata = entityMetadataFlag(flags);
+      const connectionMetadata = entityMetadataFlag(
+        flags,
+        "connection-metadata",
+      );
 
       const ch = await getData(
         client.GET("/v3/channels/{id}", { params: { path: { id: channel } } }),
       );
 
       const { s3Url } = await uploadLocalFile(file);
-
-      const metadata = entityMetadataFlag(flags);
-      const connectionMetadata = entityMetadataFlag(
-        flags,
-        "connection-metadata",
-      );
 
       return getData(
         client.POST("/v3/blocks", {
@@ -763,7 +763,7 @@ export const commands: CommandDefinition[] = [
             channels: [
               {
                 id: ch.id,
-                position: intFlag(flags, "insert-at"),
+                position: insertAt,
                 metadata: connectionMetadata,
               },
             ],
