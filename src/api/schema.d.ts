@@ -814,7 +814,7 @@ export interface paths {
      * Get group members
      * @description Returns a paginated list of group members. The group owner is always
      *     returned as the first entry on page 1 with `role: "owner"`, followed by
-     *     collaborators in newest-first order with `role: "member"`. The total
+     *     collaborators in newest-first order with their membership role. The total
      *     count includes the owner.
      *
      *     Group managers see all collaborators; other readers only see
@@ -881,7 +881,15 @@ export interface paths {
     delete: operations["removeGroupMember"];
     options?: never;
     head?: never;
-    patch?: never;
+    /**
+     * Update a group member's role
+     * @description Updates a group member's role. Only group admins and the group owner
+     *     may change roles. The owner has no membership record and cannot be
+     *     updated through this endpoint.
+     *
+     *     **Authentication required.**
+     */
+    patch: operations["updateGroupMember"];
     trace?: never;
   };
   "/v3/groups/{id}/invitations": {
@@ -1131,12 +1139,12 @@ export interface components {
          */
         tier: components["schemas"]["UserTier"];
         /**
-         * @description Request limit per minute for this tier
+         * @description Binding request limit for this rejection
          * @example 30
          */
         limit: number;
         /**
-         * @description Time window for rate limits
+         * @description Time window for the binding rate limit bucket
          * @example 1 minute
          */
         limit_window?: string;
@@ -1157,6 +1165,29 @@ export interface components {
            *     }
            */
           limits?: Record<string, never>;
+          /**
+           * @example {
+           *       "guest": {
+           *         "read_minute": 30
+           *       },
+           *       "free": {
+           *         "read_minute": 120,
+           *         "write_minute": 30,
+           *         "write_hour": 300
+           *       },
+           *       "premium": {
+           *         "read_minute": 300,
+           *         "write_minute": 60,
+           *         "write_hour": 1500
+           *       },
+           *       "supporter": {
+           *         "read_minute": 600,
+           *         "write_minute": 120,
+           *         "write_hour": 4000
+           *       }
+           *     }
+           */
+          detailed_limits?: Record<string, never>;
           upgrade_path?: {
             /** @example Guest (30 req/min) */
             current?: string;
@@ -1254,6 +1285,11 @@ export interface components {
        * @example john-doe
        */
       slug: string;
+      /**
+       * @description User's username (either automatically generated or customized)
+       * @example john-doe
+       */
+      readonly username?: string | null;
       /**
        * Format: uri
        * @description URL to user's avatar image
@@ -1435,6 +1471,8 @@ export interface components {
     Group: components["schemas"]["EmbeddedGroup"] & {
       /** @description Group description with markdown, HTML, and plain text renderings */
       description?: components["schemas"]["MarkdownContent"] | null;
+      /** @description Role assigned to new members joining the group */
+      default_role: components["schemas"]["GroupMembershipRole"];
       /**
        * Format: date-time
        * @description When the group was created
@@ -1569,15 +1607,25 @@ export interface components {
       /** @description HATEOAS links for navigation */
       _links: components["schemas"]["Links"];
     };
+    /**
+     * @description The role a member has within a group. `viewer` can see the group's
+     *     channels (including private ones) but not add to or edit them;
+     *     `member` has full write access to the group's channels and can invite
+     *     new members; `admin` can additionally manage the group and its members.
+     * @example member
+     * @enum {string}
+     */
+    GroupMembershipRole: "viewer" | "member" | "admin";
     /** @description Group member entry, including the group owner and any collaborators */
     GroupMember: components["schemas"]["EmbeddedUser"] & {
       /**
        * @description The user's role on the group. `owner` is the group's creator;
-       *     `member` is anyone else with a group membership.
+       *     everyone else with a group membership has a `viewer`, `member`,
+       *     or `admin` role.
        * @example member
        * @enum {string}
        */
-      role: "owner" | "member";
+      role: "owner" | "viewer" | "member" | "admin";
     };
     /** @description Data payload containing an array of group members */
     GroupMemberList: {
@@ -2001,6 +2049,12 @@ export interface components {
        * @example Beige flags
        */
       alt_text?: string;
+      /**
+       * Format: uri
+       * @description Optional cover image URL to use as the visual preview for Link, Attachment, and Embed blocks (overrides the auto-generated screenshot/thumbnail). Ignored for Image and Text blocks.
+       * @example https://example.com/cover.jpg
+       */
+      cover_url?: string;
       /** @description Custom key-value metadata to set on the new block. */
       metadata?: components["schemas"]["Metadata"];
     };
@@ -3021,25 +3075,50 @@ export interface components {
     RateLimitResponse: {
       headers: {
         /**
-         * @description Seconds to wait before retrying
-         * @example 65
+         * @description Seconds until the binding rate limit bucket resets
+         * @example 37
          */
         "Retry-After"?: string;
         /**
-         * @description Request limit per minute
+         * @description Binding bucket limit
          * @example 30
          */
         "X-RateLimit-Limit"?: string;
+        /**
+         * @description Units left in the binding bucket
+         * @example 0
+         */
+        "X-RateLimit-Remaining"?: string;
         /**
          * @description User's current tier
          * @example guest
          */
         "X-RateLimit-Tier"?: string;
         /**
-         * @description Time window in seconds
+         * @description Binding bucket window in seconds
          * @example 60
          */
         "X-RateLimit-Window"?: string;
+        /**
+         * @description Unix timestamp when the binding bucket resets
+         * @example 1700000100
+         */
+        "X-RateLimit-Reset"?: string;
+        /**
+         * @description Binding bucket name
+         * @example read-minute
+         */
+        "X-RateLimit-Bucket"?: string;
+        /**
+         * @description Cost of the current request in budget units
+         * @example 1
+         */
+        "X-RateLimit-Cost"?: string;
+        /**
+         * @description Budget policy for this request class
+         * @example 30;w=60
+         */
+        "X-RateLimit-Policy"?: string;
         [name: string]: unknown;
       };
       content: {
@@ -3274,10 +3353,25 @@ export interface operations {
            */
           "X-RateLimit-Limit"?: string;
           /**
+           * @description Requests left in the current window
+           * @example 119
+           */
+          "X-RateLimit-Remaining"?: string;
+          /**
            * @description User's current tier
            * @example free
            */
           "X-RateLimit-Tier"?: string;
+          /**
+           * @description Time window in seconds
+           * @example 60
+           */
+          "X-RateLimit-Window"?: string;
+          /**
+           * @description Unix timestamp when the current window resets
+           * @example 1700000100
+           */
+          "X-RateLimit-Reset"?: string;
           [name: string]: unknown;
         };
         content: {
@@ -4591,6 +4685,8 @@ export interface operations {
            * @example https://example.com/avatar.jpg
            */
           avatar_url?: string;
+          /** @description Role assigned to new members joining the group. Defaults to `member`. */
+          default_role?: components["schemas"]["GroupMembershipRole"];
         };
       };
     };
@@ -4669,6 +4765,8 @@ export interface operations {
            * @example https://example.com/avatar.jpg
            */
           avatar_url?: string;
+          /** @description Role assigned to new members joining the group */
+          default_role?: components["schemas"]["GroupMembershipRole"];
         };
       };
     };
@@ -4853,6 +4951,46 @@ export interface operations {
         };
         content?: never;
       };
+      401: components["responses"]["UnauthorizedResponse"];
+      403: components["responses"]["ForbiddenResponse"];
+      404: components["responses"]["NotFoundResponse"];
+      408: components["responses"]["RequestTimeoutResponse"];
+      429: components["responses"]["RateLimitResponse"];
+    };
+  };
+  updateGroupMember: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Resource ID or slug */
+        id: components["parameters"]["SlugOrIdParam"];
+        /**
+         * @description User ID of the group member to update
+         * @example 12345
+         */
+        user_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          role: components["schemas"]["GroupMembershipRole"];
+        };
+      };
+    };
+    responses: {
+      /** @description Group member updated successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GroupMember"];
+        };
+      };
+      400: components["responses"]["BadRequestResponse"];
       401: components["responses"]["UnauthorizedResponse"];
       403: components["responses"]["ForbiddenResponse"];
       404: components["responses"]["NotFoundResponse"];

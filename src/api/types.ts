@@ -10,6 +10,7 @@ export type Connection = Schemas["Connection"];
 export type Group = Schemas["Group"];
 export type GroupInvite = Schemas["GroupInvite"];
 export type GroupMember = Schemas["GroupMember"];
+export type GroupMembershipRole = Schemas["GroupMembershipRole"];
 export type GroupMemberInviteResponse = Schemas["GroupMemberInviteResponse"];
 export type MembershipInvitation = Schemas["MembershipInvitation"];
 export type User = Schemas["User"];
