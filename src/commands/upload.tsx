@@ -14,6 +14,7 @@ interface Props {
   altText?: string;
   originalSourceUrl?: string;
   originalSourceTitle?: string;
+  coverUrl?: string;
   insertAt?: number;
   metadata?: Metadata;
   connectionMetadata?: Metadata;
@@ -27,6 +28,7 @@ export function UploadCommand({
   altText,
   originalSourceUrl,
   originalSourceTitle,
+  coverUrl,
   insertAt,
   metadata,
   connectionMetadata,
@@ -54,6 +56,7 @@ export function UploadCommand({
           alt_text: altText,
           original_source_url: originalSourceUrl,
           original_source_title: originalSourceTitle,
+          cover_url: coverUrl,
           metadata,
         },
       }),

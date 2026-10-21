@@ -6,6 +6,7 @@ import type {
   ContentTypeFilter,
   GroupInvite,
   GroupMember,
+  GroupMembershipRole,
   GroupMemberInviteResponse,
   MembershipInvitation,
 } from "../api/types";
@@ -192,15 +193,22 @@ export function GroupCreateCommand({
   name,
   description,
   avatarUrl,
+  defaultRole,
 }: {
   name: string;
   description?: string;
   avatarUrl?: string;
+  defaultRole?: GroupMembershipRole;
 }) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.POST("/v3/groups", {
-        body: { name, description, avatar_url: avatarUrl },
+        body: {
+          name,
+          description,
+          avatar_url: avatarUrl,
+          default_role: defaultRole,
+        },
       }),
     ),
   );
@@ -224,17 +232,24 @@ export function GroupUpdateCommand({
   name,
   description,
   avatarUrl,
+  defaultRole,
 }: {
   slug: string;
   name?: string;
   description?: string;
   avatarUrl?: string;
+  defaultRole?: GroupMembershipRole;
 }) {
   const { data, error, loading } = useCommand(() =>
     getData(
       client.PUT("/v3/groups/{id}", {
         params: { path: { id: slug } },
-        body: { name, description, avatar_url: avatarUrl },
+        body: {
+          name,
+          description,
+          avatar_url: avatarUrl,
+          default_role: defaultRole,
+        },
       }),
     ),
   );
@@ -383,6 +398,36 @@ export function GroupRemoveMemberCommand({
       <Text>
         Removed user {data.userId} from group {data.slug}
       </Text>
+    </Box>
+  );
+}
+
+export function GroupMemberRoleCommand({
+  slug,
+  userId,
+  role,
+}: {
+  slug: string;
+  userId: number;
+  role: GroupMembershipRole;
+}) {
+  const { data, error, loading } = useCommand(() =>
+    getData(
+      client.PATCH("/v3/groups/{id}/members/{user_id}", {
+        params: { path: { id: slug, user_id: userId } },
+        body: { role },
+      }),
+    ),
+  );
+
+  if (loading) return <Spinner label="Updating member role" />;
+  if (error) return <Text color="red">✕ {error}</Text>;
+  if (!data) return null;
+
+  return (
+    <Box>
+      <Text color="green">✓ </Text>
+      <Text>Updated {formatGroupMember(data)}</Text>
     </Box>
   );
 }
