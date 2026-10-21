@@ -531,12 +531,12 @@ describe("error handling", () => {
   test("non-existent channel returns Not Found", async () => {
     await assert.rejects(
       json("channel", "this-channel-definitely-does-not-exist-xyz-999"),
-      /Not Found/,
+      /Not Found|not exist/i,
     );
   });
 
   test("non-existent block returns Not Found", async () => {
-    await assert.rejects(json("block", "999999999"), /Not Found/);
+    await assert.rejects(json("block", "999999999"), /Not Found|not exist/i);
   });
 
   test("exit code 0 on success", async () => {

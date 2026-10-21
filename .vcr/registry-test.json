@@ -223,7 +223,7 @@
     {
       "method": "POST",
       "url": "https://staging-api.are.na/v3/blocks",
-      "requestBody": "{\"value\":\"Integration test content\",\"channel_ids\":[4484793]}",
+      "requestBody": "{\"value\":\"Integration test content\",\"channels\":[{\"id\":4484793}]}",
       "status": 201,
       "statusText": "Created",
       "headers": {
@@ -730,7 +730,7 @@
     {
       "method": "POST",
       "url": "https://staging-api.are.na/v3/connections",
-      "requestBody": "{\"connectable_id\":41232438,\"channel_ids\":[\"cli-connect-target-_icsu6cvkta\"],\"connectable_type\":\"Block\"}",
+      "requestBody": "{\"connectable_id\":41232438,\"connectable_type\":\"Block\",\"channels\":[{\"id\":\"cli-connect-target-_icsu6cvkta\"}]}",
       "status": 201,
       "statusText": "Created",
       "headers": {
@@ -1296,7 +1296,7 @@
     {
       "method": "POST",
       "url": "https://staging-api.are.na/v3/blocks",
-      "requestBody": "{\"value\":\"Block one\",\"channel_ids\":[4484795]}",
+      "requestBody": "{\"value\":\"Block one\",\"channels\":[{\"id\":4484795}]}",
       "status": 201,
       "statusText": "Created",
       "headers": {
@@ -1369,7 +1369,7 @@
     {
       "method": "POST",
       "url": "https://staging-api.are.na/v3/blocks",
-      "requestBody": "{\"value\":\"Block two\",\"channel_ids\":[4484795]}",
+      "requestBody": "{\"value\":\"Block two\",\"channels\":[{\"id\":4484795}]}",
       "status": 201,
       "statusText": "Created",
       "headers": {
@@ -1798,7 +1798,7 @@
     {
       "method": "POST",
       "url": "https://staging-api.are.na/v3/blocks",
-      "requestBody": "{\"value\":\"Content with metadata\",\"channel_ids\":[4484796],\"title\":\"My Title\",\"description\":\"My Desc\"}",
+      "requestBody": "{\"value\":\"Content with metadata\",\"channels\":[{\"id\":4484796}],\"title\":\"My Title\",\"description\":\"My Desc\"}",
       "status": 201,
       "statusText": "Created",
       "headers": {
@@ -1871,7 +1871,7 @@
     {
       "method": "POST",
       "url": "https://staging-api.are.na/v3/blocks",
-      "requestBody": "{\"value\":\"https://example.com\",\"channel_ids\":[4484796]}",
+      "requestBody": "{\"value\":\"https://example.com\",\"channels\":[{\"id\":4484796}]}",
       "status": 201,
       "statusText": "Created",
       "headers": {

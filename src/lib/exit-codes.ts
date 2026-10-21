@@ -43,9 +43,17 @@ export function formatJsonError(err: unknown): {
   error: string;
   code: number | null;
   type: string;
+  retry_after_ms?: number;
+  rate_limit?: ArenaError["rateLimit"];
 } {
   if (err instanceof ArenaError) {
-    return { error: err.message, code: err.status, type: errorType(err) };
+    return {
+      error: err.message,
+      code: err.status,
+      type: errorType(err),
+      retry_after_ms: err.rateLimit?.retryAfterMs,
+      rate_limit: err.rateLimit,
+    };
   }
   const message = err instanceof Error ? err.message : String(err);
   return { error: message, code: null, type: errorType(err) };

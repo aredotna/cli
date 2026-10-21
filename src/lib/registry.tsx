@@ -8,6 +8,7 @@ import type {
   ContentTypeFilter,
   FileExtension,
   FollowableType,
+  GroupMembershipRole,
   GroupSort,
   Movement,
   SearchScope,
@@ -66,6 +67,7 @@ import {
   GroupInviteLinkCommand,
   GroupJoinCommand,
   GroupLeaveCommand,
+  GroupMemberRoleCommand,
   GroupMembersCommand,
   GroupRemoveMemberCommand,
   GroupRevokeInvitationCommand,
@@ -157,6 +159,37 @@ function groupInviteBody(
     throw new Error("Provide exactly one of --user-id or --email");
   }
   return userId ? { user_id: userId } : { email: email! };
+}
+
+const GROUP_MEMBERSHIP_ROLES: GroupMembershipRole[] = [
+  "viewer",
+  "member",
+  "admin",
+];
+
+function groupMembershipRoleFlag(
+  flags: Flags,
+  key: string,
+): GroupMembershipRole | undefined {
+  const value = flags[key];
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`--${key} requires a value`);
+  }
+  if (!GROUP_MEMBERSHIP_ROLES.includes(value as GroupMembershipRole)) {
+    throw new Error(
+      `Invalid --${key}: ${value}. Expected viewer, member, or admin.`,
+    );
+  }
+  return value as GroupMembershipRole;
+}
+
+function requireGroupMembershipRoleFlag(
+  flags: Flags,
+  key: string,
+): GroupMembershipRole {
+  requireFlag(flags, key);
+  return groupMembershipRoleFlag(flags, key)!;
 }
 
 // ── Registry ──
@@ -600,7 +633,7 @@ export const commands: CommandDefinition[] = [
     help: [
       {
         usage:
-          "add <channel> <value> [--title <text>] [--description <text>] [--alt-text <text>] [--original-source-url <url>] [--original-source-title <text>] [--insert-at <n>]",
+          "add <channel> <value> [--title <text>] [--description <text>] [--alt-text <text>] [--original-source-url <url>] [--original-source-title <text>] [--cover-url <url>] [--insert-at <n>]",
         description: "Options",
       },
       {
@@ -640,6 +673,7 @@ export const commands: CommandDefinition[] = [
           altText={flag(flags, "alt-text")}
           originalSourceUrl={flag(flags, "original-source-url")}
           originalSourceTitle={flag(flags, "original-source-title")}
+          coverUrl={flag(flags, "cover-url")}
           insertAt={intFlag(flags, "insert-at")}
           metadata={entityMetadataFlag(flags)}
           connectionMetadata={entityMetadataFlag(flags, "connection-metadata")}
@@ -679,6 +713,7 @@ export const commands: CommandDefinition[] = [
             alt_text: flag(flags, "alt-text"),
             original_source_url: flag(flags, "original-source-url"),
             original_source_title: flag(flags, "original-source-title"),
+            cover_url: flag(flags, "cover-url"),
             metadata,
           },
         }),
@@ -693,7 +728,7 @@ export const commands: CommandDefinition[] = [
     help: [
       {
         usage:
-          "upload <file> --channel <ch> [--title <text>] [--description <text>] [--alt-text <text>] [--original-source-url <url>] [--original-source-title <text>] [--insert-at <n>]",
+          "upload <file> --channel <ch> [--title <text>] [--description <text>] [--alt-text <text>] [--original-source-url <url>] [--original-source-title <text>] [--cover-url <url>] [--insert-at <n>]",
         description: "Options",
       },
       {
@@ -734,6 +769,7 @@ export const commands: CommandDefinition[] = [
           altText={flag(flags, "alt-text")}
           originalSourceUrl={flag(flags, "original-source-url")}
           originalSourceTitle={flag(flags, "original-source-title")}
+          coverUrl={flag(flags, "cover-url")}
           insertAt={intFlag(flags, "insert-at")}
           metadata={entityMetadataFlag(flags)}
           connectionMetadata={entityMetadataFlag(flags, "connection-metadata")}
@@ -772,6 +808,7 @@ export const commands: CommandDefinition[] = [
             alt_text: flag(flags, "alt-text"),
             original_source_url: flag(flags, "original-source-url"),
             original_source_title: flag(flags, "original-source-title"),
+            cover_url: flag(flags, "cover-url"),
             metadata,
           },
         }),
@@ -786,7 +823,7 @@ export const commands: CommandDefinition[] = [
     help: [
       {
         usage:
-          "batch <channel> [values...] [--title <text>] [--description <text>]",
+          "batch <channel> [values...] [--title <text>] [--description <text>] [--cover-url <url>]",
         description: "Options",
       },
       {
@@ -834,6 +871,7 @@ export const commands: CommandDefinition[] = [
               value,
               title: flag(flags, "title"),
               description: flag(flags, "description"),
+              cover_url: flag(flags, "cover-url"),
             })),
           },
         }),
@@ -1224,13 +1262,13 @@ export const commands: CommandDefinition[] = [
       { usage: "group are-na-team", description: "Example" },
       {
         usage:
-          "group create <name> [--description <text>] [--avatar-url <url>]",
+          "group create <name> [--description <text>] [--avatar-url <url>] [--default-role <viewer|member|admin>]",
         description: "Options",
       },
       { usage: 'group create "Research Studio"', description: "Example" },
       {
         usage:
-          "group update <slug> [--name <text>] [--description <text>] [--avatar-url <url>]",
+          "group update <slug> [--name <text>] [--description <text>] [--avatar-url <url>] [--default-role <viewer|member|admin>]",
         description: "Options",
       },
       {
@@ -1260,6 +1298,15 @@ export const commands: CommandDefinition[] = [
       },
       {
         usage: "group remove-member research-studio 12345",
+        description: "Example",
+      },
+      {
+        usage:
+          "group member-role <slug> <user_id> --role <viewer|member|admin>",
+        description: "Options",
+      },
+      {
+        usage: "group member-role research-studio 12345 --role admin",
         description: "Example",
       },
       {
@@ -1332,6 +1379,7 @@ export const commands: CommandDefinition[] = [
               name={requireArg(args, 1, "name")}
               description={flag(flags, "description")}
               avatarUrl={flag(flags, "avatar-url")}
+              defaultRole={groupMembershipRoleFlag(flags, "default-role")}
             />
           );
         case "update":
@@ -1341,6 +1389,7 @@ export const commands: CommandDefinition[] = [
               name={flag(flags, "name")}
               description={flag(flags, "description")}
               avatarUrl={flag(flags, "avatar-url")}
+              defaultRole={groupMembershipRoleFlag(flags, "default-role")}
             />
           );
         case "delete":
@@ -1367,6 +1416,14 @@ export const commands: CommandDefinition[] = [
             <GroupRemoveMemberCommand
               slug={requireArg(args, 1, "slug")}
               userId={idArg(args, 2, "user id")}
+            />
+          );
+        case "member-role":
+          return (
+            <GroupMemberRoleCommand
+              slug={requireArg(args, 1, "slug")}
+              userId={idArg(args, 2, "user id")}
+              role={requireGroupMembershipRoleFlag(flags, "role")}
             />
           );
         case "invitations":
@@ -1434,6 +1491,7 @@ export const commands: CommandDefinition[] = [
                 name: requireArg(args, 1, "name"),
                 description: flag(flags, "description"),
                 avatar_url: flag(flags, "avatar-url"),
+                default_role: groupMembershipRoleFlag(flags, "default-role"),
               },
             }),
           );
@@ -1445,6 +1503,7 @@ export const commands: CommandDefinition[] = [
                 name: flag(flags, "name"),
                 description: flag(flags, "description"),
                 avatar_url: flag(flags, "avatar-url"),
+                default_role: groupMembershipRoleFlag(flags, "default-role"),
               },
             }),
           );
@@ -1488,6 +1547,18 @@ export const commands: CommandDefinition[] = [
             slug: requireArg(args, 1, "slug"),
             user_id: idArg(args, 2, "user id"),
           };
+        case "member-role":
+          return getData(
+            client.PATCH("/v3/groups/{id}/members/{user_id}", {
+              params: {
+                path: {
+                  id: requireArg(args, 1, "slug"),
+                  user_id: idArg(args, 2, "user id"),
+                },
+              },
+              body: { role: requireGroupMembershipRoleFlag(flags, "role") },
+            }),
+          );
         case "invitations":
           return getData(
             client.GET("/v3/groups/{id}/invitations", {
@@ -2060,6 +2131,10 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
         description: "Original source title",
       },
       {
+        flag: "--cover-url <url>",
+        description: "Preview image URL for Link, Attachment, and Embed blocks",
+      },
+      {
         flag: "--insert-at <n>",
         description: "Insert position within the channel",
       },
@@ -2099,6 +2174,10 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
         description: "Optional original source title",
       },
       {
+        flag: "--cover-url <url>",
+        description: "Preview image URL for Link, Attachment, and Embed blocks",
+      },
+      {
         flag: "--insert-at <n>",
         description: "Optional insert position within the channel",
       },
@@ -2123,6 +2202,10 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
         flag: "--description <text>",
         description: "Default description for each block",
       },
+      {
+        flag: "--cover-url <url>",
+        description: "Preview image URL for Link, Attachment, and Embed blocks",
+      },
     ],
     examples: [
       'arena batch my-channel "https://a.com" "https://b.com"',
@@ -2142,7 +2225,7 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
       },
       {
         flag: "--batch-size <n>",
-        description: "Batch size for async create calls",
+        description: "Batch size for async create calls (default/max: 50)",
       },
       {
         flag: "--upload-concurrency <n>",
@@ -2287,6 +2370,10 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
             flag: "--avatar-url <url>",
             description: "Optional avatar image URL",
           },
+          {
+            flag: "--default-role <viewer|member|admin>",
+            description: "Role assigned to new members (default: member)",
+          },
         ],
         examples: ['arena group create "Research Studio"'],
       },
@@ -2297,6 +2384,10 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
           { flag: "--name <text>", description: "New group name" },
           { flag: "--description <text>", description: "New description" },
           { flag: "--avatar-url <url>", description: "New avatar image URL" },
+          {
+            flag: "--default-role <viewer|member|admin>",
+            description: "Role assigned to new members",
+          },
         ],
         examples: ['arena group update research-studio --name "Studio Notes"'],
       },
@@ -2331,6 +2422,21 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
         summary: "Remove a member from a group.",
         usage: ["arena group remove-member <slug> <user_id>"],
         examples: ["arena group remove-member research-studio 12345"],
+      },
+      "member-role": {
+        summary: "Update a group member's role.",
+        usage: [
+          "arena group member-role <slug> <user_id> --role <viewer|member|admin>",
+        ],
+        options: [
+          {
+            flag: "--role <viewer|member|admin>",
+            description: "New role for the member",
+          },
+        ],
+        examples: [
+          "arena group member-role research-studio 12345 --role admin",
+        ],
       },
       invitations: {
         summary: "List pending group invitations.",
