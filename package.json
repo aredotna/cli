@@ -25,7 +25,7 @@
     "generate": "openapi-typescript https://api.are.na/v3/openapi -o src/api/schema.d.ts",
     "typecheck": "tsc --noEmit",
     "lint": "npm run typecheck",
-    "test": "tsx --test src/**/*.test.ts",
+    "test": "node --import tsx --test src/*.test.ts src/*/*.test.ts",
     "check": "npm run lint && npm run test && npm run build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

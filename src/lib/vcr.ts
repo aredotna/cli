@@ -85,6 +85,23 @@ function buildResponse(
   return new Response(nullBody ? null : body, { status, statusText, headers });
 }
 
+function requestMatches(
+  entry: RecordedEntry,
+  request: Pick<RecordedEntry, "method" | "url" | "requestBody">,
+): boolean {
+  return (
+    entry.method === request.method &&
+    entry.url === request.url &&
+    entry.requestBody === request.requestBody
+  );
+}
+
+function describeRequest(
+  entry?: Pick<RecordedEntry, "method" | "url">,
+): string {
+  return entry ? `${entry.method} ${entry.url}` : "end of cassette";
+}
+
 export async function vcrFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
@@ -97,12 +114,17 @@ export async function vcrFetch(
   const url = normalized.url;
   const requestBody =
     method === "GET" || method === "HEAD" ? null : await normalized.text();
+  const replayRequest = {
+    method,
+    url,
+    requestBody,
+  };
 
   const tape = ensureCassette();
 
-  if (canReplay && (mode === "replay" || mode === "auto")) {
+  if (mode === "replay" || (canReplay && mode === "auto")) {
     const entry = tape.entries[replayIndex];
-    if (entry && entry.method === method && entry.url === url) {
+    if (entry && requestMatches(entry, replayRequest)) {
       replayIndex++;
       return buildResponse(
         entry.body,
@@ -113,7 +135,7 @@ export async function vcrFetch(
     }
     if (mode === "replay") {
       throw new Error(
-        `VCR replay miss at index ${replayIndex}: expected ${entry?.method} ${entry?.url}, got ${method} ${url}`,
+        `VCR replay miss at index ${replayIndex}: expected ${describeRequest(entry)}, got ${method} ${url}${entry && entry.requestBody !== requestBody ? " (request body differs)" : ""}`,
       );
     }
   }
