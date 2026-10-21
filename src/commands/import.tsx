@@ -7,6 +7,8 @@ import {
   discoverImportFiles,
   executeImport,
   importExitCode,
+  MAX_IMPORT_BATCH_SIZE,
+  validateImportBatchSize,
   type ExecuteImportOptions,
   type ImportEvent,
   type ImportFile,
@@ -29,12 +31,15 @@ export function parseImportOptions(
   args: string[],
   flags: Flags,
 ): ImportCommandOptions {
+  const batchSize = intFlag(flags, "batch-size") ?? MAX_IMPORT_BATCH_SIZE;
+  validateImportBatchSize(batchSize);
+
   return {
     channel: requireArg(args, 0, "channel"),
     directory: flag(flags, "dir") ?? ".",
     recursive: flags.recursive !== undefined,
     interactive: flags.interactive !== undefined,
-    batchSize: intFlag(flags, "batch-size") ?? 100,
+    batchSize,
     uploadConcurrency: intFlag(flags, "upload-concurrency") ?? 4,
     pollIntervalMs: intFlag(flags, "poll-interval") ?? 2000,
   };

@@ -2142,7 +2142,7 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
       },
       {
         flag: "--batch-size <n>",
-        description: "Batch size for async create calls",
+        description: "Batch size for async create calls (default/max: 50)",
       },
       {
         flag: "--upload-concurrency <n>",

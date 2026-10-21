@@ -111,6 +111,7 @@ const MAX_BATCH_SUBMIT_ATTEMPTS = 3;
 const MAX_BATCH_STATUS_ATTEMPTS = 4;
 const MAX_STATUS_FAILURE_STREAK = 5;
 const RETRY_BASE_DELAY_MS = 300;
+export const MAX_IMPORT_BATCH_SIZE = 50;
 
 export interface ImportAdapter {
   uploadFile: (file: ImportFile) => Promise<{ s3Url: string }>;
@@ -139,6 +140,17 @@ export interface ExecuteImportOptions {
 
 export function importExitCode(summary: ImportSummary): number {
   return summary.upload_failed > 0 || summary.batch_failed > 0 ? 1 : 0;
+}
+
+export function validateImportBatchSize(batchSize: number): void {
+  if (!Number.isInteger(batchSize) || batchSize <= 0) {
+    throw new Error(`Invalid --batch-size: ${batchSize}`);
+  }
+  if (batchSize > MAX_IMPORT_BATCH_SIZE) {
+    throw new Error(
+      `Invalid --batch-size: ${batchSize}. The v3 batch API permits at most ${MAX_IMPORT_BATCH_SIZE} blocks per request.`,
+    );
+  }
 }
 
 export function chunkItems<T>(items: T[], size: number): T[][] {
@@ -310,26 +322,66 @@ function isTransientError(err: unknown): boolean {
   );
 }
 
+function rateLimitDelayMs(err: unknown): number | undefined {
+  if (!(err instanceof ArenaError) || err.status !== 429) return undefined;
+
+  const retryAfterMs = err.rateLimit?.retryAfterMs;
+  if (retryAfterMs !== undefined) return Math.max(0, retryAfterMs);
+
+  const resetAtMs = err.rateLimit?.resetAtMs;
+  if (resetAtMs === undefined) return undefined;
+  return Math.max(0, resetAtMs - Date.now());
+}
+
+class RateLimitCoordinator {
+  private nextAttemptAtMs = 0;
+
+  async wait(sleep: (ms: number) => Promise<void>): Promise<void> {
+    while (this.nextAttemptAtMs > Date.now()) {
+      await sleep(this.nextAttemptAtMs - Date.now());
+    }
+  }
+
+  defer(delayMs: number): void {
+    this.nextAttemptAtMs = Math.max(this.nextAttemptAtMs, Date.now() + delayMs);
+  }
+}
+
 async function retryWithBackoff<T>(options: {
   attempts: number;
   baseDelayMs: number;
   sleep: (ms: number) => Promise<void>;
   run: () => Promise<T>;
   shouldRetry: (err: unknown) => boolean;
+  rateLimitCoordinator?: RateLimitCoordinator;
 }): Promise<T> {
-  const { attempts, baseDelayMs, sleep, run, shouldRetry } = options;
+  const {
+    attempts,
+    baseDelayMs,
+    sleep,
+    run,
+    shouldRetry,
+    rateLimitCoordinator,
+  } = options;
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
+      if (rateLimitCoordinator) await rateLimitCoordinator.wait(sleep);
       return await run();
     } catch (err: unknown) {
       lastError = err;
+      const waitMs =
+        rateLimitDelayMs(err) ??
+        Math.min(baseDelayMs * 2 ** (attempt - 1), 5_000);
+      const sharedCooldown =
+        rateLimitCoordinator && err instanceof ArenaError && err.status === 429;
+      // Publish even the final rejection so other workers respect the cooldown.
+      if (sharedCooldown) rateLimitCoordinator.defer(waitMs);
       if (attempt >= attempts || !shouldRetry(err)) {
         throw err;
       }
-      const waitMs = Math.min(baseDelayMs * 2 ** (attempt - 1), 5_000);
-      await sleep(waitMs);
+      if (!sharedCooldown) await sleep(waitMs);
     }
   }
 
@@ -377,6 +429,7 @@ async function runImportPipeline(options: {
   let failedUploads = 0;
 
   let cursor = 0;
+  const uploadRateLimitCoordinator = new RateLimitCoordinator();
   const workerCount = Math.max(
     1,
     Math.min(uploadConcurrency, Math.max(1, selectedFiles.length)),
@@ -398,6 +451,7 @@ async function runImportPipeline(options: {
           sleep: adapter.sleep,
           run: () => adapter.uploadFile(file),
           shouldRetry: isTransientError,
+          rateLimitCoordinator: uploadRateLimitCoordinator,
         });
         uploadedByIndex[index] = { index, file, s3Url: uploaded.s3Url };
         successfulUploads += 1;
@@ -453,7 +507,8 @@ async function runImportPipeline(options: {
           channel,
           chunk.map((entry) => ({ value: entry.s3Url })),
         ),
-      shouldRetry: isTransientError,
+      // Only a rate-limit rejection guarantees the batch was not created.
+      shouldRetry: (err) => err instanceof ArenaError && err.status === 429,
     });
 
     batches.push({
@@ -577,6 +632,7 @@ export async function executeImport(
   } = options;
 
   throwIfAborted(signal);
+  validateImportBatchSize(options.batchSize);
 
   let files = selectedFiles;
   let totalDiscovered = discoveredCount;
