@@ -80,3 +80,20 @@ test("add command reads value from piped stdin", () => {
     `expected stdin to supply the value, got: ${output}`,
   );
 });
+
+test("download aliases share help and reject invalid options before requesting the API", () => {
+  for (const command of ["download", "export", "sync"]) {
+    const help = runCli([command, "--help"]);
+    assert.equal(help.status, 0);
+    assert.match(help.stdout, /--prune/);
+    const invalid = runCli([
+      command,
+      "channel",
+      "--concurrency",
+      "17",
+      "--json",
+    ]);
+    assert.equal(invalid.status, 1);
+    assert.match(JSON.parse(invalid.stderr).error, /concurrency/);
+  }
+});

@@ -14,6 +14,8 @@ const KNOWN_BOOLEAN_LONG_FLAGS = new Set([
   "recursive",
   "interactive",
   "unread",
+  "overwrite",
+  "prune",
 ]);
 
 const KNOWN_BOOLEAN_SHORT_FLAGS = new Set(["h", "j", "q", "v", "y"]);

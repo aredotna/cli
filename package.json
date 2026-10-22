@@ -40,7 +40,8 @@
     "openapi-fetch": "^0.17.0",
     "react": "^19.0.0",
     "swr": "^2.4.1",
-    "terminal-image": "^4.2.0"
+    "terminal-image": "^4.2.0",
+    "yazl": "^3.3.1"
   },
   "overrides": {
     "simple-xml-to-json": "1.2.3"
@@ -48,6 +49,7 @@
   "devDependencies": {
     "@types/node": "^25.3.3",
     "@types/react": "^19.0.0",
+    "@types/yazl": "^3.3.1",
     "husky": "^9.1.7",
     "lint-staged": "^16.3.2",
     "openapi-typescript": "^7.13.0",

@@ -53,6 +53,7 @@ function TopLevelHelp() {
         <Text> add Add text/URLs to a channel</Text>
         <Text> upload Upload local files</Text>
         <Text> import Bulk import from a directory</Text>
+        <Text> download Download or sync a channel to disk</Text>
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
@@ -66,7 +67,7 @@ function TopLevelHelp() {
 
       <Box flexDirection="column" marginBottom={1}>
         <Text dimColor>Global Flags</Text>
-        <Text> --json Output JSON (import streams NDJSON events)</Text>
+        <Text> --json Output JSON (import/download stream NDJSON events)</Text>
         <Text> --quiet Compact JSON output when supported</Text>
         <Text> --yes Bypass destructive confirmation prompts</Text>
         <Text> --version Show CLI version</Text>
