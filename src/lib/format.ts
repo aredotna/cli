@@ -28,6 +28,17 @@ export function truncate(str: string, max: number): string {
   return clean.slice(0, max - 1) + "…";
 }
 
+export function progressBar(
+  completed: number,
+  total: number,
+  width = 28,
+): string {
+  if (total <= 0) return `[${"░".repeat(width)}]`;
+  const ratio = Math.max(0, Math.min(1, completed / total));
+  const filled = Math.round(ratio * width);
+  return `[${"█".repeat(filled)}${"░".repeat(width - filled)}]`;
+}
+
 export function plural(n: number, word: string): string {
   return `${n.toLocaleString()} ${word}${n === 1 ? "" : "s"}`;
 }

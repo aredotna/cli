@@ -4,7 +4,7 @@ const cancellationController = new AbortController();
 let cancellationInitialized = false;
 let forcedExitTimer: NodeJS.Timeout | undefined;
 
-function configuredTimeoutMs(): number {
+export function configuredTimeoutMs(): number {
   const raw = process.env["ARENA_REQUEST_TIMEOUT_MS"];
   if (!raw) return DEFAULT_REQUEST_TIMEOUT_MS;
   const parsed = Number(raw);
