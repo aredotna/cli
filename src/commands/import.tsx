@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import { flag, intFlag, requireArg, type Flags } from "../lib/args";
-import { plural, truncate } from "../lib/format";
+import { progressBar, truncate } from "../lib/format";
 import { KeyHints, Panel, ScreenFrame } from "../components/ScreenChrome";
 import {
   discoverImportFiles,
@@ -43,13 +43,6 @@ export function parseImportOptions(
     uploadConcurrency: intFlag(flags, "upload-concurrency") ?? 4,
     pollIntervalMs: intFlag(flags, "poll-interval") ?? 2000,
   };
-}
-
-function progressBar(completed: number, total: number, width = 28): string {
-  if (total <= 0) return `[${"░".repeat(width)}]`;
-  const ratio = Math.max(0, Math.min(1, completed / total));
-  const filled = Math.round(ratio * width);
-  return `[${"█".repeat(filled)}${"░".repeat(width - filled)}]`;
 }
 
 interface UploadState {

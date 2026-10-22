@@ -77,6 +77,11 @@ import {
 import { LoginCommand } from "../commands/login";
 import { LogoutCommand } from "../commands/logout";
 import {
+  DownloadCommand,
+  parseDownloadOptions,
+  runDownloadJsonStream,
+} from "../commands/download";
+import {
   ImportCommand,
   parseImportOptions,
   runImportJsonStream,
@@ -876,6 +881,28 @@ export const commands: CommandDefinition[] = [
           },
         }),
       );
+    },
+  },
+
+  {
+    name: "download",
+    aliases: ["export", "sync"],
+    group: "Channels",
+    help: [
+      {
+        usage: "download <channel> [directory] [flags]",
+        description: "Download or sync a channel to disk",
+      },
+      {
+        usage: "download worldmaking --dir ./refs --zip ./refs.zip",
+        description: "Example",
+      },
+    ],
+    render(args, flags) {
+      return <DownloadCommand {...parseDownloadOptions(args, flags)} />;
+    },
+    async jsonStream(args, flags, write) {
+      return runDownloadJsonStream(parseDownloadOptions(args, flags), write);
     },
   },
 
@@ -2212,6 +2239,64 @@ export const commandHelpDocs: Record<string, CommandHelpDoc> = {
       "arena batch status 1234",
     ],
     seeAlso: ["add", "import"],
+  },
+  download: {
+    summary:
+      "Download or sync a channel's files, text, links, and metadata. Aliases: export, sync.",
+    usage: ["arena download <channel> [directory] [flags]"],
+    options: [
+      {
+        flag: "--dir <path>",
+        description: "Destination directory (default: channel slug)",
+      },
+      {
+        flag: "--size <size>",
+        description: "original (default), large, medium, small, or square",
+      },
+      {
+        flag: "--type <type>",
+        description:
+          "Image, Attachment, Text, Link, Embed, Channel, or PendingBlock",
+      },
+      {
+        flag: "--link-format <webloc|url>",
+        description: "Link shortcut format (default: webloc)",
+      },
+      {
+        flag: "--concurrency <n>",
+        description: "Concurrent transfers, 1–16 (default: 4)",
+      },
+      {
+        flag: "--prune",
+        description:
+          "Remove unchanged managed files absent from this full export",
+      },
+      {
+        flag: "--overwrite",
+        description: "Re-download everything and replace local edits",
+      },
+      {
+        flag: "--zip <path>",
+        description: "Also write a ZIP (replaces an existing ZIP)",
+      },
+      { flag: "--json", description: "Stream NDJSON progress events" },
+    ],
+    examples: [
+      "arena download worldmaking ./refs",
+      "arena sync worldmaking ./refs --prune",
+      "arena export worldmaking --zip ./worldmaking.zip",
+      "arena download worldmaking --type Image --size large --json",
+    ],
+    notes: [
+      "Re-running syncs new and changed content; unchanged files are skipped.",
+      "Local edits are protected unless --overwrite is used. --prune always protects local edits.",
+      "A lock or partial files left by a killed sync are cleaned up on the next run.",
+      "Files are named <position>_<title>.<ext>, like Are.na's web channel export; reordered blocks are renamed, not re-downloaded.",
+      "Text, links, and connected-channel shortcuts are included by default; connected channels are not recursively exported.",
+      "manifest.json preserves channel and item metadata, order, connections, and file outcomes; <slug>.csv matches the web export; index.html is an offline browser.",
+      "Removed files are retained unless --prune is specified. --prune cannot be combined with --type.",
+    ],
+    seeAlso: ["channel", "import"],
   },
   import: {
     summary: "Bulk import local files into a channel.",

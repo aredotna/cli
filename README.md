@@ -60,18 +60,18 @@ arena channel contents --help
 
 ## Global Flags
 
-| Flag      | Description                                     |
-| --------- | ----------------------------------------------- |
-| `--json`  | Output as JSON (`import --json` streams NDJSON) |
-| `--quiet` | Compact JSON output when supported              |
-| `--yes`   | Bypass destructive confirmation prompts         |
-| `--help`  | Show help                                       |
+| Flag      | Description                                               |
+| --------- | --------------------------------------------------------- |
+| `--json`  | Output as JSON (`import`/`download --json` stream NDJSON) |
+| `--quiet` | Compact JSON output when supported                        |
+| `--yes`   | Bypass destructive confirmation prompts                   |
+| `--help`  | Show help                                                 |
 
 ## Output & Errors
 
 - `stdout`:
   - Successful command output.
-  - `--json` returns JSON objects; `import --json` returns NDJSON progress events.
+  - `--json` returns JSON objects; `import --json` and `download --json` return NDJSON progress events.
   - `--quiet` only changes JSON formatting (compact, single-line); it does **not** change response fields.
 - `stderr`:
   - Human-readable failures in non-interactive mode.
@@ -439,6 +439,43 @@ Options:
 - `--batch-size <n>`
 - `--upload-concurrency <n>`
 - `--poll-interval <ms>`
+
+#### `download` (aliases: `export`, `sync`)
+
+Download a channel to a local directory. Run the same command again to sync it from Are.na.
+
+```bash
+arena download worldmaking ./refs
+arena sync worldmaking ./refs
+arena sync worldmaking ./refs --prune
+arena export worldmaking ./refs --zip ./worldmaking.zip
+arena download worldmaking --type Image --size large --json
+```
+
+Each export contains:
+
+- Images and attachments, `.txt` files of Markdown for text, and `.webloc` shortcuts for links, embeds, and connected channels. Files are named like Are.na's web channel export: `<position>_<title>.<extension>` (for example `3_brutalist-housing.jpg`). When blocks are reordered, removed, or retitled, sync renames the existing files instead of downloading them again.
+- `<channel-slug>.csv`, with the same columns as the web export: ID, filename, title, description, created and updated dates, and source URL.
+- `index.html`, an offline index in channel order with images, text, descriptions, and links to each item's source and Are.na page.
+- `manifest.json`, a snapshot of the channel and its items (including connection positions and metadata) plus a SHA-256 checksum for every file. Keep it with the directory: it is the sync state.
+
+Sync is **one way, from Are.na**. Unchanged files are skipped without a request, changed or missing files are downloaded again, and a file you edited locally is reported as a conflict instead of being overwritten. Files that leave the export, such as removed blocks, stay on disk until you pass `--prune`, which deletes only files the export created and you haven't edited. If another block now needs a kept file's name, the kept file is renamed to `<name>~block-<id>.<ext>`. Pruning is skipped if any download fails or the channel changes during the sync.
+
+Options:
+
+- `--dir <path>` — destination, instead of the second argument; defaults to the channel slug
+- `--size <original|large|medium|small|square>` — image size; default `original`
+- `--type <Image|Attachment|Text|Link|Embed|Channel|PendingBlock>` — only write files of one type (the manifest still lists every item); cannot be combined with `--prune`
+- `--link-format <webloc|url>` — macOS (`webloc`, default) or Windows/Linux (`url`) shortcuts
+- `--concurrency <n>` — concurrent transfers, 1–16; default `4`
+- `--prune` — remove files from earlier syncs that are no longer part of the export
+- `--overwrite` — download everything again and replace local edits, or replace a non-ZIP file at the `--zip` path
+- `--zip <path>` — also write the export to a ZIP; an existing ZIP at that path is replaced
+- `--json` — stream NDJSON events; the final `completed` event has `downloaded`, `unchanged`, `renamed`, `failed`, `pruned`, `retained`, and `cancelled`
+
+Exit code is `1` if anything failed and `130` if cancelled. Failed items are recorded in the manifest and left out of the ZIP. Ctrl+C keeps finished files, and the next run picks up where it left off; a lock, temporary files, or renames left unfinished by a killed process are cleaned up or completed automatically. A transfer is retried if no data arrives for `ARENA_REQUEST_TIMEOUT_MS` (default 30s).
+
+Private channels use your saved login. Connected channels are saved as shortcuts, not exported recursively; embeds are saved as source shortcuts, not videos; blocks still processing are recorded in the manifest only. Changes are detected from asset URLs and revision timestamps, so use `--overwrite` if a file changed upstream without either.
 
 ### Connections
 
